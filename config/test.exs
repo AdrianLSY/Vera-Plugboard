@@ -17,7 +17,7 @@ config :vera, Vera.Repo,
 # you can enable the server option below.
 config :vera, VeraWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "Mk0c2O95lJdC/K/n2cyM/Wlxdbz8kiTprT8ore9Jlx8at1cMf+O8wftr2ndChOkc",
+  secret_key_base: "SP9K5rFU0wMKBT9ldDvWDkF3jDZ2dqwrxPDJt58OQ4fMUaBczq9ApFdvzj7nM8xj",
   server: false
 
 # In test we don't send emails

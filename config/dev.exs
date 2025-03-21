@@ -23,7 +23,7 @@ config :vera, VeraWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "SHGdyVyij0cBNn2NO7T7//Q2ObvQwZ/qrN5sOT7zZAeTOQWr7g2KKRV5b0JZug3+",
+  secret_key_base: "JXXuLVYpXUinIt2jwZ+Wkd2+nbIHgB3R+rc50YNerHMGuG+5+5a/Rfb5tsCW7X+G",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:vera, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:vera, ~w(--watch)]}
