@@ -2,10 +2,7 @@ import Config
 
 # Configure your database
 config :vera, Vera.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "vera_dev",
+  url: System.get_env("DEVELOPMENT_DATABASE_URL"),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
