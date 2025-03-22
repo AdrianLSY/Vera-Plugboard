@@ -38,5 +38,5 @@ npm-debug.log
 # Ignore environment variables
 .env
 
-# Ignore docker volumes
-/.volumes
+# Ignore  postgres data
+/volumes/postgres/data
