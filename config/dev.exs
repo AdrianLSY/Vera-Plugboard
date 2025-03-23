@@ -2,7 +2,7 @@ import Config
 
 # Configure your database
 config :vera, Vera.Repo,
-  url: System.get_env("DEVELOPMENT_DATABASE_URL"),
+  url: System.get_env("PHX_DEVELOPMENT_DATABASE_URL"),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
@@ -20,7 +20,11 @@ config :vera, VeraWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "JXXuLVYpXUinIt2jwZ+Wkd2+nbIHgB3R+rc50YNerHMGuG+5+5a/Rfb5tsCW7X+G",
+  secret_key_base: System.get_env("PHX_SECRET_KEY_BASE") ||
+    raise("""
+    environment variable SECRET_KEY_BASE is missing.
+    You can generate one by calling: mix phx.gen.secret
+    """),
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:vera, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:vera, ~w(--watch)]}

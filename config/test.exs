@@ -6,7 +6,7 @@ import Config
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
 config :vera, Vera.Repo,
-  url: System.get_env("TEST_DATABASE_URL"),
+  url: System.get_env("PHX_TEST_DATABASE_URL"),
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
@@ -14,7 +14,11 @@ config :vera, Vera.Repo,
 # you can enable the server option below.
 config :vera, VeraWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "SP9K5rFU0wMKBT9ldDvWDkF3jDZ2dqwrxPDJt58OQ4fMUaBczq9ApFdvzj7nM8xj",
+  secret_key_base: System.get_env("PHX_SECRET_KEY_BASE") ||
+    raise("""
+    environment variable SECRET_KEY_BASE is missing.
+    You can generate one by calling: mix phx.gen.secret
+    """),
   server: false
 
 # In test we don't send emails

@@ -7,9 +7,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: vera
-      POSTGRES_PASSWORD: vera
-      POSTGRES_DB: vera
+      POSTGRES_USER: ${PHX_POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${PHX_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${PHX_POSTGRES_DATABASE}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vera"]
       interval: 10s
@@ -20,8 +20,10 @@ services:
   vera:
     build: .
     ports:
-      - "4000:4000"
+      - "${PHX_PORT:-4000}:4000"
     environment:
-      DEVELOPMENT_DATABASE_URL: ecto://vera:vera@postgres:5432/vera_development
-      TEST_DATABASE_URL: ecto://vera:vera@postgres:5432/vera_test
-      PRODUCTION_DATABASE_URL: ecto://vera:vera@postgres:5432/vera_production
+      PHX_SERVER: true
+      PHX_SECRET_KEY_BASE: ${PHX_SECRET_KEY_BASE}
+      PHX_HOST: ${PHX_HOST}
+      PHX_PRODUCTION_DATABASE_URL: ${PHX_PRODUCTION_DATABASE_URL}
+    restart: unless-stopped
