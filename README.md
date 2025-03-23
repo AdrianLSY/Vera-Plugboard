@@ -22,6 +22,7 @@ Ready to run in production? Please [check our deployment guides](https://hexdocs
 To run the Phoenix server, you'll need to add and configure the following environment variables:
 
 ```env
+SECRET_KEY_BASE={generate a secret key base via `elixir -e "IO.puts(:crypto.strong_rand_bytes(64) |> Base.encode64())"`}
 PHX_HOST=localhost
 PHX_PORT=4000
 PHX_POOL_SIZE=10
@@ -33,6 +34,7 @@ PHX_POSTGRES_PASSWORD=vera
 PHX_POSTGRES_DATABASE=vera
 PHX_POSTGRES_PORT=5432
 ```
+This will serve as a starting point for your own environment variables. Feel free to change the values to suit your needs.
 
 ## Running the server
 
