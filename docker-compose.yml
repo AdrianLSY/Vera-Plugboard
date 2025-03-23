@@ -5,16 +5,11 @@ services:
       - ./volumes/postgres/data:/var/lib/postgresql/data
       - ./volumes/postgres/init:/docker-entrypoint-initdb.d
     ports:
-      - "5432:5432"
+      - "${PHX_POSTGRES_PORT}:${PHX_POSTGRES_PORT}"
     environment:
       POSTGRES_USER: ${PHX_POSTGRES_USERNAME}
       POSTGRES_PASSWORD: ${PHX_POSTGRES_PASSWORD}
       POSTGRES_DB: ${PHX_POSTGRES_DATABASE}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vera"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
 
   vera:
@@ -22,8 +17,10 @@ services:
     ports:
       - "${PHX_PORT}:${PHX_PORT}"
     environment:
-      PHX_SERVER: true
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      PHX_SERVER: true
       PHX_HOST: ${PHX_HOST}
+      PHX_PORT: ${PHX_PORT}
+      PHX_POOL_SIZE: ${PHX_POOL_SIZE}
       PHX_PRODUCTION_DATABASE_URL: ${PHX_PRODUCTION_DATABASE_URL}
     restart: unless-stopped

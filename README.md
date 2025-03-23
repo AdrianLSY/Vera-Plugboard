@@ -19,19 +19,19 @@ Ready to run in production? Please [check our deployment guides](https://hexdocs
 
 
 ## Environment Configuration
-To run or develop with the Phoenix web server, you'll need to configure the following environment variables:
+To run the Phoenix server, you'll need to add and configure the following environment variables:
 
 ```env
+PHX_HOST=localhost
+PHX_PORT=4000
+PHX_POOL_SIZE=10
+PHX_DEVELOPMENT_DATABASE_URL=ecto://vera:vera@localhost/vera_development
+PHX_TEST_DATABASE_URL=ecto://vera:vera@localhost/vera_test
+PHX_PRODUCTION_DATABASE_URL=ecto://vera:vera@postgres/vera_production
 PHX_POSTGRES_USERNAME=vera
 PHX_POSTGRES_PASSWORD=vera
 PHX_POSTGRES_DATABASE=vera
-SECRET_KEY_BASE=d7B/S11o4a4BHuSRjF+CGnokmZrC+7nN/HEEjC3XT9ZfSf2OHLzg8HfJN2UeyknXwNLxGtMND0SIb5ez3aM6wA==
-PHX_POOL_SIZE=10
-PHX_HOST=example.com
-PHX_PORT=4000
-PHX_DEVELOPMENT_DATABASE_URL=ecto://vera:vera@localhost/vera_development
-PHX_TEST_DATABASE_URL=ecto://vera:vera@localhost/vera_test
-PHX_PRODUCTION_DATABASE_URL=ecto://vera:vera@localhost/vera_production
+PHX_POSTGRES_PORT=5432
 ```
 
 ## Running the server
@@ -39,7 +39,7 @@ PHX_PRODUCTION_DATABASE_URL=ecto://vera:vera@localhost/vera_production
 To start the server, run the following command:
 
 ```bash
-source .env && mix phx.server
+mix phx.server
 ```
 
-This will start the server on port 4000.
+This will start the server.
