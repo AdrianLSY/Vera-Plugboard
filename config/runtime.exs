@@ -24,7 +24,7 @@ if config_env() == :prod do
   database_url =
     System.get_env("PHX_PRODUCTION_DATABASE_URL") ||
       raise """
-      environment variable DATABASE_URL is missing.
+      environment variable PHX_PRODUCTION_DATABASE_URL is missing.
       For example: ecto://USER:PASS@HOST/DATABASE
       """
 
@@ -42,7 +42,7 @@ if config_env() == :prod do
   # to check this value into version control, so we use an environment
   # variable instead.
   secret_key_base =
-    System.get_env("PHX_SECRET_KEY_BASE") ||
+    System.get_env("SECRET_KEY_BASE") ||
       raise """
       environment variable SECRET_KEY_BASE is missing.
       You can generate one by calling: mix phx.gen.secret
