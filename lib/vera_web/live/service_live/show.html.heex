@@ -1,0 +1,26 @@
+<.header>
+  Service {@service.id}
+  <:subtitle>This is a service record from your database.</:subtitle>
+  <:actions>
+    <.link patch={~p"/services/#{@service}/show/edit"} phx-click={JS.push_focus()}>
+      <.button>Edit service</.button>
+    </.link>
+  </:actions>
+</.header>
+
+<.list>
+  <:item title="Name">{@service.name}</:item>
+</.list>
+
+<.back navigate={~p"/services"}>Back to services</.back>
+
+<.modal :if={@live_action == :edit} id="service-modal" show on_cancel={JS.patch(~p"/services/#{@service}")}>
+  <.live_component
+    module={VeraWeb.ServiceLive.FormComponent}
+    id={@service.id}
+    title={@page_title}
+    action={@live_action}
+    service={@service}
+    patch={~p"/services/#{@service}"}
+  />
+</.modal>
