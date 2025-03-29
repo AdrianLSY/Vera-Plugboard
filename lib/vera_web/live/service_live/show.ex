@@ -5,6 +5,7 @@ defmodule VeraWeb.ServiceLive.Show do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket), do: Phoenix.PubSub.subscribe(Vera.PubSub, "services")
     {:ok, socket}
   end
 
@@ -14,6 +15,27 @@ defmodule VeraWeb.ServiceLive.Show do
      socket
      |> assign(:page_title, page_title(socket.assigns.live_action))
      |> assign(:service, Services.get_service!(id))}
+  end
+
+  @impl true
+  def handle_info({:service_updated, service}, socket) do
+    if service.id == socket.assigns.service.id do
+      {:noreply, assign(socket, :service, service)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+
+  def handle_info({:service_deleted, service}, socket) do
+    if service.id == socket.assigns.service.id do
+      {:noreply,
+        socket
+        |> put_flash(:error, "Service was deleted")
+        |> push_navigate(to: ~p"/services")}
+    else
+      {:noreply, socket}
+    end
   end
 
   defp page_title(:show), do: "Show Service"
