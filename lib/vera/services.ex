@@ -90,9 +90,8 @@ defmodule Vera.Services do
 
   """
   def delete_service(%Service{} = service) do
-    # Repo.delete(service)
-    # |> notify_subscribers(:service_deleted)
-    notify_subscribers({:ok, service}, :service_deleted)
+    Repo.delete(service)
+    |> notify_subscribers(:service_deleted)
   end
 
   @doc """
