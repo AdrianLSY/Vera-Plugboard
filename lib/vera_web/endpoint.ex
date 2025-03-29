@@ -7,7 +7,8 @@ defmodule VeraWeb.Endpoint do
   @session_options [
     store: :cookie,
     key: "_vera_key",
-    signing_salt: "eq/OvjMc",
+    signing_salt: System.get_env("PHX_SIGNING_SALT"),
+    encryption_salt: System.get_env("PHX_ENCRYPTION_SALT"),
     same_site: "Lax"
   ]
 

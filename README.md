@@ -23,6 +23,8 @@ To run the Phoenix server, you'll need to add and configure the following enviro
 
 ```env
 SECRET_KEY_BASE={generate a secret key base via `elixir -e "IO.puts(:crypto.strong_rand_bytes(64) |> Base.encode64())"`}
+PHX_SIGNING_SALT={generate a signing salt via `elixir -e "IO.puts(:crypto.strong_rand_bytes(64) |> Base.encode64())"`}
+PHX_ENCRYPTION_SALT={generate an encryption salt via `elixir -e "IO.puts(:crypto.strong_rand_bytes(64) |> Base.encode64())"`}
 PHX_HOST=localhost
 PHX_PORT=4000
 PHX_POOL_SIZE=10
