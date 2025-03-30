@@ -22,9 +22,10 @@ defmodule VeraWeb.Router do
     live "/services", ServiceLive.Index, :index
     live "/services/new", ServiceLive.Index, :new
     live "/services/:id/edit", ServiceLive.Index, :edit
-
     live "/services/:id", ServiceLive.Show, :show
-    live "/services/:id/show/edit", ServiceLive.Show, :edit
+    live "/services/:id/new", ServiceLive.Show, :new
+    live "/services/:id/update", ServiceLive.Show, :edit
+    live "/services/:id/delete", ServiceLive.Show, :delete
   end
 
   # Other scopes may use custom stacks.

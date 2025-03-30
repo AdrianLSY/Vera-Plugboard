@@ -90,8 +90,10 @@ defmodule Vera.Services do
 
   """
   def delete_service(%Service{} = service) do
+    redirect_service_id = service.parent_id
+    descendants = Service.descendants(service)
     Repo.delete(service)
-    |> notify_subscribers([:service, :deleted])
+    |> notify_subscribers([:service, :deleted, descendants, redirect_service_id])
   end
 
   @doc """
@@ -108,19 +110,36 @@ defmodule Vera.Services do
   end
 
   defp notify_subscribers({:ok, service}, [:service, :created]) do
-    Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_created, service})
+    Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.id}", {:service_updated, service})
+    if service.parent_id do
+      Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.parent_id}", {:service_updated, service})
+    else
+      Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_updated, service})
+    end
     {:ok, service}
   end
 
   defp notify_subscribers({:ok, service}, [:service, :updated]) do
-    Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_updated, service})
     Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.id}", {:service_updated, service})
+    if service.parent_id do
+      Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.parent_id}", {:service_updated, service})
+    else
+      Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_updated, service})
+    end
     {:ok, service}
   end
 
-  defp notify_subscribers({:ok, service}, [:service, :deleted]) do
-    Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_deleted, service})
-    Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.id}", {:service_deleted, service})
+  defp notify_subscribers({:ok, service}, [:service, :deleted, descendants, redirect_service_id]) do
+    Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.id}", {:service_deleted, service, redirect_service_id})
+    if service.parent_id do
+      Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.parent_id}", {:service_deleted, service, redirect_service_id})
+    else
+      Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_deleted, service})
+    end
+    descendants
+    |> Enum.each(fn descendant ->
+      Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{descendant.id}", {:service_deleted, descendant, redirect_service_id})
+    end)
     {:ok, service}
   end
 

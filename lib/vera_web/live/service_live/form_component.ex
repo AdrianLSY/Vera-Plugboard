@@ -12,20 +12,26 @@ defmodule VeraWeb.ServiceLive.FormComponent do
         <:subtitle>Use this form to manage service records in your database.</:subtitle>
       </.header>
 
-      <.simple_form
-        for={@form}
-        id="service-form"
-        phx-target={@myself}
-        phx-change="validate"
-        phx-submit="save"
-      >
+      <.simple_form for={@form} id="service-form" phx-target={@myself} phx-change="validate" phx-submit="save">
         <.input field={@form[:name]} type="text" label="Name" />
+        <input type="hidden" name="service[parent_id]" value={@form[:parent_id].value} />
         <:actions>
           <.button phx-disable-with="Saving...">Save Service</.button>
         </:actions>
       </.simple_form>
     </div>
     """
+  end
+
+  @impl true
+  def update(%{service: service, parent_id: parent_id} = assigns, socket) when is_nil(service.id) do
+    service = %{service | parent_id: parent_id}
+    changeset = Services.change_service(service)
+
+    {:ok,
+     socket
+     |> assign(assigns)
+     |> assign_new(:form, fn -> to_form(changeset) end)}
   end
 
   @impl true
