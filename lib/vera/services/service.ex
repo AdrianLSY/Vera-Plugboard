@@ -47,4 +47,35 @@ defmodule Vera.Services.Service do
       )
     )
   end
+
+  @doc """
+  Returns the path from root service to the current service as a list of services ordered from root to current.
+
+  ## Examples
+
+      iex> full_path(service)
+      [%Service{}, ...]
+  """
+  def full_path(service) do
+    Vera.Repo.all(
+      from s in __MODULE__,
+      where: fragment(
+        "? IN (
+          WITH RECURSIVE ancestors AS (
+            SELECT id, parent_id, name, 1 as level
+            FROM services
+            WHERE id = ?
+            UNION ALL
+            SELECT s.id, s.parent_id, s.name, a.level + 1
+            FROM services s
+            INNER JOIN ancestors a ON a.parent_id = s.id
+          )
+          SELECT id FROM ancestors
+          ORDER BY level DESC
+        )",
+        s.id,
+        ^service.id
+      )
+    )
+  end
 end
