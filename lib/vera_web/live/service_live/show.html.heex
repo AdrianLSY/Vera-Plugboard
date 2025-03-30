@@ -1,60 +1,38 @@
-<.header class="mt-10">
-  Service
-  <:actions>
-    <.link patch={if @service.parent, do: ~p"/services/#{@service.parent}", else: ~p"/services"}>
-      <.button>Back</.button>
-    </.link>
-  </:actions>
-</.header>
-
-<.table id="service-details" rows={[@service]}>
-  <:col :let={service} label="Name">
-    <%= service.name %>
-  </:col>
-  <:col :let={service} label="Parent">
-    <%= if service.parent do %>
-      <.link navigate={~p"/services/#{service.parent}"}><%= service.parent.name %></.link>
-    <% else %>
-      -
-    <% end %>
-  </:col>
-  <:action :let={service}>
-    <.link patch={~p"/services/#{service.id}/update"}>
-      Edit
-    </.link>
-  </:action>
-  <:action :let={service}>
-    <.link phx-click={JS.push("delete", value: %{id: service.id})} data-confirm="Are you sure?">
-      Delete
-    </.link>
-  </:action>
-</.table>
-
-<.header class="mt-10">
-  Child Services
-  <:actions>
-    <.link patch={~p"/services/#{@service}/new"}>
-      <.button>New Child Service</.button>
-    </.link>
-  </:actions>
-</.header>
-
-<.table id="services" rows={@streams.services} row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service}") end}>
-  <:col :let={{_id, service}} label="Name">
-    <%= service.name %>
-  </:col>
-  <:action :let={{_id, service}}>
-    <div class="sr-only">
-      <.link navigate={~p"/services/#{service}"}>Show</.link>
+<.content>
+  <.header>
+    <div class="flex flex-col gap-1">
+      <div class="text-lg font-semibold text-zinc-900">
+        <.link navigate={~p"/services"} class="hover:text-zinc-700">Root</.link>
+        <%= for service <- Vera.Services.Service.full_path(@service) do %>
+          <span class="mx-1 text-zinc-500">→</span>
+          <.link navigate={~p"/services/#{service}"} class="hover:text-zinc-700"><%= service.name %></.link>
+        <% end %>
+      </div>
     </div>
-    <.link patch={~p"/services/#{service}/edit"}>Edit</.link>
-  </:action>
-  <:action :let={{id, service}}>
-    <.link phx-click={JS.push("delete", value: %{id: service.id}) |> hide("##{id}")} data-confirm="Are you sure?">
-      Delete
-    </.link>
-  </:action>
-</.table>
+    <:actions>
+      <.link patch={~p"/services/#{@service}/new"}>
+        <.button>Create Service</.button>
+      </.link>
+    </:actions>
+  </.header>
+
+  <.table id="services" rows={@streams.services} row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service}") end}>
+    <:col :let={{_id, service}} label="Services">
+      <%= service.name %>
+    </:col>
+    <:action :let={{_id, service}}>
+      <div class="sr-only">
+        <.link navigate={~p"/services/#{service}"}>Show</.link>
+      </div>
+      <.link patch={~p"/services/#{service}/edit"}>Edit</.link>
+    </:action>
+    <:action :let={{id, service}}>
+      <.link phx-click={JS.push("delete", value: %{id: service.id}) |> hide("##{id}")} data-confirm="Are you sure?">
+        Delete
+      </.link>
+    </:action>
+  </.table>
+</.content>
 
 <.modal :if={@live_action in [:new, :edit]} id="service-modal" show on_cancel={JS.patch(~p"/services/#{@service}")}>
   <.live_component

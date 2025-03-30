@@ -417,6 +417,33 @@ defmodule VeraWeb.CoreComponents do
   end
 
   @doc """
+  Renders a content box with rounded corners, border, and shadow.
+  
+  ## Examples
+  
+      <.content>
+        <p>This is some content inside a nice box.</p>
+      </.content>
+  
+      <.content class="mt-8">
+        <p>Custom styled content box</p>
+      </.content>
+  """
+  attr :class, :string, default: nil
+  slot :inner_block, required: true
+  
+  def content(assigns) do
+    ~H"""
+    <div class={[
+      "bg-white rounded-lg shadow-md p-6 border border-zinc-200",
+      @class
+    ]}>
+      <%= render_slot(@inner_block) %>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a header with title.
   """
   attr :class, :string, default: nil
@@ -475,9 +502,9 @@ defmodule VeraWeb.CoreComponents do
     ~H"""
     <div class="overflow-y-auto px-4 sm:overflow-visible sm:px-0">
       <table class="w-[40rem] mt-11 sm:w-full">
-        <thead class="text-sm text-left leading-6 text-zinc-500">
+        <thead class="text-sm text-left leading-6 text-zinc-700">
           <tr>
-            <th :for={col <- @col} class="p-0 pb-4 pr-6 font-normal">{col[:label]}</th>
+            <th :for={col <- @col} class="p-0 pb-4 pr-6 font-bold">{col[:label]}</th>
             <th :if={@action != []} class="relative p-0 pb-4">
               <span class="sr-only">{gettext("Actions")}</span>
             </th>
@@ -496,7 +523,7 @@ defmodule VeraWeb.CoreComponents do
             >
               <div class="block py-4 pr-6">
                 <span class="absolute -inset-y-px right-0 -left-4 group-hover:bg-zinc-50 sm:rounded-l-xl" />
-                <span class={["relative", i == 0 && "font-semibold text-zinc-900"]}>
+                <span class={["relative", i == 0 && "text-zinc-700"]}>
                   {render_slot(col, @row_item.(row))}
                 </span>
               </div>
