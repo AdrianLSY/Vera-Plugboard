@@ -4,8 +4,8 @@ defmodule VeraWeb.ServiceLive.Show do
   alias Vera.Services
 
   @impl true
-  def mount(_params, _session, socket) do
-    if connected?(socket), do: Phoenix.PubSub.subscribe(Vera.PubSub, "services")
+  def mount(params, _session, socket) do
+    if connected?(socket), do: Phoenix.PubSub.subscribe(Vera.PubSub, "service_#{params["id"]}")
     {:ok, socket}
   end
 

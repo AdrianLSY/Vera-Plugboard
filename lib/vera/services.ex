@@ -55,7 +55,7 @@ defmodule Vera.Services do
     %Service{}
     |> Service.changeset(attrs)
     |> Repo.insert()
-    |> notify_subscribers(:service_created)
+    |> notify_subscribers([:service, :created])
   end
 
   @doc """
@@ -74,7 +74,7 @@ defmodule Vera.Services do
     service
     |> Service.changeset(attrs)
     |> Repo.update()
-    |> notify_subscribers(:service_updated)
+    |> notify_subscribers([:service, :updated])
   end
 
   @doc """
@@ -91,7 +91,7 @@ defmodule Vera.Services do
   """
   def delete_service(%Service{} = service) do
     Repo.delete(service)
-    |> notify_subscribers(:service_deleted)
+    |> notify_subscribers([:service, :deleted])
   end
 
   @doc """
@@ -107,8 +107,20 @@ defmodule Vera.Services do
     Service.changeset(service, attrs)
   end
 
-  defp notify_subscribers({:ok, service}, event) do
-    Phoenix.PubSub.broadcast(Vera.PubSub, "services", {event, service})
+  defp notify_subscribers({:ok, service}, [:service, :created]) do
+    Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_created, service})
+    {:ok, service}
+  end
+
+  defp notify_subscribers({:ok, service}, [:service, :updated]) do
+    Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_updated, service})
+    Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.id}", {:service_updated, service})
+    {:ok, service}
+  end
+
+  defp notify_subscribers({:ok, service}, [:service, :deleted]) do
+    Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_deleted, service})
+    Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.id}", {:service_deleted, service})
     {:ok, service}
   end
 
