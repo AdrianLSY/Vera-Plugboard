@@ -4,7 +4,8 @@ defmodule Vera.Services.Service do
 
   schema "services" do
     field :name, :string
-
+    belongs_to :parent, Vera.Services.Service
+    has_many :children, Vera.Services.Service, foreign_key: :parent_id
     timestamps(type: :utc_datetime)
   end
 
