@@ -7,7 +7,8 @@ defmodule VeraWeb.ServiceLive.Index do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: Phoenix.PubSub.subscribe(Vera.PubSub, "services")
-    {:ok, stream(socket, :services, Services.list_services())}
+    services = Services.list_services() |> Vera.Repo.preload([:parent])
+    {:ok, stream(socket, :services, services)}
   end
 
   @impl true
@@ -17,34 +18,37 @@ defmodule VeraWeb.ServiceLive.Index do
 
   defp apply_action(socket, :edit, %{"id" => id}) do
     socket
-    |> assign(:page_title, "Edit Service")
+    |> assign(:page_title, "Plugboard | Edit Service")
     |> assign(:service, Services.get_service!(id))
   end
 
   defp apply_action(socket, :new, _params) do
     socket
-    |> assign(:page_title, "New Service")
+    |> assign(:page_title, "Plugboard | New Service")
     |> assign(:service, %Service{})
   end
 
   defp apply_action(socket, :index, _params) do
     socket
-    |> assign(:page_title, "Listing Services")
+    |> assign(:page_title, "Plugboard | Listing Services")
     |> assign(:service, nil)
   end
 
   @impl true
   def handle_info({VeraWeb.ServiceLive.FormComponent, {:saved, service}}, socket) do
+    service = Vera.Repo.preload(service, [:parent])
     {:noreply, stream_insert(socket, :services, service)}
   end
 
   @impl true
   def handle_info({:service_created, service}, socket) do
+    service = Vera.Repo.preload(service, [:parent])
     {:noreply, stream_insert(socket, :services, service)}
   end
 
   @impl true
   def handle_info({:service_updated, service}, socket) do
+    service = Vera.Repo.preload(service, [:parent])
     {:noreply, stream_insert(socket, :services, service)}
   end
 
