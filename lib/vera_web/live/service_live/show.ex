@@ -15,11 +15,13 @@ defmodule VeraWeb.ServiceLive.Show do
   @impl true
   def handle_params(%{"id" => id} = params, _, socket) do
     service = Services.get_service!(id) |> Vera.Repo.preload([:parent, :children])
-    children = service.children |> Vera.Repo.preload([:parent])
+    childrens = service.children |> Vera.Repo.preload([:parent])
+    full_path = Service.full_path(service)
 
     socket = socket
-      |> stream(:services, children)
+      |> stream(:services, childrens)
       |> assign(:service, service)
+      |> assign(:full_path, full_path)
       |> assign(:page_title, page_title(socket.assigns.live_action))
       |> assign_form_service(socket.assigns.live_action, params)
 
@@ -80,6 +82,11 @@ defmodule VeraWeb.ServiceLive.Show do
       true ->
         {:noreply, socket}
     end
+  end
+
+  @impl true
+  def handle_info({:path_updated, full_path}, socket) do
+    {:noreply, assign(socket, :full_path, full_path)}
   end
 
   @impl true

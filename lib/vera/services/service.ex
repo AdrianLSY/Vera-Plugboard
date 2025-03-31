@@ -66,16 +66,28 @@ defmodule Vera.Services.Service do
             FROM services
             WHERE id = ?
             UNION ALL
-            SELECT s.id, s.parent_id, s.name, a.level + 1
+            SELECT s.id, s.parent_id, s.name, a.level - 1
             FROM services s
-            INNER JOIN ancestors a ON a.parent_id = s.id
+            INNER JOIN ancestors a ON s.id = a.parent_id
           )
           SELECT id FROM ancestors
-          ORDER BY level DESC
+          ORDER BY level
         )",
         s.id,
         ^service.id
-      )
+      ),
+      order_by: fragment("(
+        WITH RECURSIVE ancestors AS (
+          SELECT id, parent_id, name, 1 as level
+          FROM services
+          WHERE id = ?
+          UNION ALL
+          SELECT s.id, s.parent_id, s.name, a.level - 1
+          FROM services s
+          INNER JOIN ancestors a ON s.id = a.parent_id
+        )
+        SELECT level FROM ancestors WHERE id = ?
+      )", ^service.id, field(s, :id))
     )
   end
 end

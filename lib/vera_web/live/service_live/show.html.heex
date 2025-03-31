@@ -3,9 +3,9 @@
     <div class="flex flex-col gap-1">
       <div class="text-lg font-semibold text-zinc-900">
         <.link navigate={~p"/services"} class="hover:text-zinc-700">Root</.link>
-        <%= for service <- Vera.Services.Service.full_path(@service) do %>
+        <%= for service <- @full_path do %>
           <span class="mx-1 text-zinc-500">→</span>
-          <.link navigate={~p"/services/#{service}"} class="hover:text-zinc-700"><%= service.name %></.link>
+          <.link navigate={~p"/services/#{service.id}"} class="hover:text-zinc-700"><%= service.name %></.link>
         <% end %>
       </div>
     </div>

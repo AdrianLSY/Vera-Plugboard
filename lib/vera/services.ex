@@ -71,10 +71,11 @@ defmodule Vera.Services do
 
   """
   def update_service(%Service{} = service, attrs) do
+    descendants = Service.descendants(service)
     service
     |> Service.changeset(attrs)
     |> Repo.update()
-    |> notify_subscribers([:service, :updated])
+    |> notify_subscribers([:service, :updated, descendants])
   end
 
   @doc """
@@ -119,13 +120,17 @@ defmodule Vera.Services do
     {:ok, service}
   end
 
-  defp notify_subscribers({:ok, service}, [:service, :updated]) do
+  defp notify_subscribers({:ok, service}, [:service, :updated, descendants]) do
     Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.id}", {:service_updated, service})
     if service.parent_id do
       Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.parent_id}", {:service_updated, service})
     else
       Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_updated, service})
     end
+    descendants
+    |> Enum.each(fn descendant ->
+      Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{descendant.id}", {:path_updated, Service.full_path(descendant)})
+    end)
     {:ok, service}
   end
 
