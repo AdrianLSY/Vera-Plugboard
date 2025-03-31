@@ -7,6 +7,7 @@ defmodule Vera.Services.Service do
     field :name, :string
     belongs_to :parent, Vera.Services.Service
     has_many :children, Vera.Services.Service, foreign_key: :parent_id
+    field :deleted_at, :utc_datetime
     timestamps(type: :utc_datetime)
   end
 
@@ -15,6 +16,10 @@ defmodule Vera.Services.Service do
     service
     |> cast(attrs, [:name, :parent_id])
     |> validate_required([:name])
+  end
+
+  def default_scope do
+    from(s in __MODULE__, where: is_nil(s.deleted_at))
   end
 
   @doc """
@@ -72,12 +77,12 @@ defmodule Vera.Services.Service do
   Returns the path from root service to the current service as an ordered list.
   The result includes all services in the path from the root (topmost ancestor)
   to the current service, inclusive.
-  
+
   The results are ordered from root to current service, making it useful for
   building breadcrumb trails or displaying complete hierarchical paths.
-  
+
   ## Examples
-  
+
       iex> service = %Service{id: 3, name: "Grandchild", parent_id: 2}
       iex> full_path(service)
       [
@@ -85,7 +90,7 @@ defmodule Vera.Services.Service do
         %Service{id: 2, name: "Parent", parent_id: 1},
         %Service{id: 3, name: "Grandchild", parent_id: 2}
       ]
-  
+
   """
   def full_path(service) do
     Vera.Repo.all(

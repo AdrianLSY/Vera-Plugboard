@@ -18,7 +18,8 @@ defmodule Vera.Services do
 
   """
   def list_services do
-    Repo.all(Service)
+    Service.default_scope()
+    |> Repo.all()
   end
 
   @doc """
@@ -35,7 +36,10 @@ defmodule Vera.Services do
       ** (Ecto.NoResultsError)
 
   """
-  def get_service!(id), do: Repo.get!(Service, id)
+  def get_service!(id) do
+    Service.default_scope()
+    |> Repo.get!(id)
+  end
 
   @doc """
   Creates a service.
@@ -78,7 +82,7 @@ defmodule Vera.Services do
   end
 
   @doc """
-  Deletes a service.
+  Deletes a service and all its descendants.
 
   ## Examples
 
@@ -90,10 +94,10 @@ defmodule Vera.Services do
 
   """
   def delete_service(%Service{} = service) do
-    redirect_service_id = service.parent_id
-    descendants = Service.descendants(service)
-    Repo.delete(service)
-    |> notify_subscribers([:service, :deleted, descendants, redirect_service_id])
+    {_count, _} = from(s in Service, where: s.id in ^[service.id | Enum.map(Service.descendants(service), & &1.id)])
+    |> Repo.update_all(set: [deleted_at: DateTime.utc_now()])
+    {:ok, service}
+    |> notify_subscribers([:service, :deleted, Service.descendants(service), service.parent_id])
   end
 
   @doc """
