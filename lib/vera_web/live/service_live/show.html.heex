@@ -2,10 +2,10 @@
   <.header>
     <div class="flex flex-col gap-1">
       <div class="text-lg font-semibold text-zinc-900">
-        <.link navigate={~p"/services"} class="hover:text-zinc-700">Root</.link>
+        <.link navigate={~p"/services"} class="hover:text-zinc-700">Services</.link>
         <%= for service <- @full_path do %>
           <span class="mx-1 text-zinc-500">→</span>
-          <.link navigate={~p"/services/#{service.id}"} class="hover:text-zinc-700"><%= service.name %></.link>
+          <.link navigate={~p"/services/#{service.id}"} class="hover:text-zinc-700"><%= service.id %>∙<%= service.name %></.link>
         <% end %>
       </div>
     </div>
@@ -17,7 +17,10 @@
   </.header>
 
   <.table id="services" rows={@streams.services} row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service}") end}>
-    <:col :let={{_id, service}} label="Services">
+    <:col :let={{_id, service}} label="ID">
+      <%= service.id %>
+    </:col>
+    <:col :let={{_id, service}} label="Service">
       <%= service.name %>
     </:col>
     <:action :let={{_id, service}}>

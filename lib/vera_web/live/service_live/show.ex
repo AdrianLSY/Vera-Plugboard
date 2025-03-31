@@ -103,7 +103,7 @@ defmodule VeraWeb.ServiceLive.Show do
   end
 
   defp page_title(:new), do: "New Service"
-  defp page_title(:show), do: "Show Service"
+  defp page_title(:show), do: "Plugboard Service"
   defp page_title(:edit), do: "Edit Service"
   defp page_title(:delete), do: "Delete Service"
 end

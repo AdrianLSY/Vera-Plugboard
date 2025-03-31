@@ -66,7 +66,7 @@ defmodule VeraWeb.CoreComponents do
               phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
               phx-key="escape"
               phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-              class="shadow-zinc-700/10 ring-zinc-700/10 relative hidden rounded-2xl bg-white p-14 shadow-lg ring-1 transition"
+              class="shadow-zinc-700/10 ring-zinc-700/10 relative hidden rounded-xl bg-white p-14 shadow-lg ring-1 transition"
             >
               <div class="absolute top-6 right-5">
                 <button
@@ -418,24 +418,24 @@ defmodule VeraWeb.CoreComponents do
 
   @doc """
   Renders a content box with rounded corners, border, and shadow.
-  
+
   ## Examples
-  
+
       <.content>
         <p>This is some content inside a nice box.</p>
       </.content>
-  
+
       <.content class="mt-8">
         <p>Custom styled content box</p>
       </.content>
   """
   attr :class, :string, default: nil
   slot :inner_block, required: true
-  
+
   def content(assigns) do
     ~H"""
     <div class={[
-      "bg-white rounded-lg shadow-md p-6 border border-zinc-200",
+      "shadow-zinc-700/10 ring-zinc-700/10 relative rounded-xl bg-white p-14 shadow-lg ring-1 ",
       @class
     ]}>
       <%= render_slot(@inner_block) %>
@@ -456,7 +456,7 @@ defmodule VeraWeb.CoreComponents do
     ~H"""
     <header class={[@actions != [] && "flex items-center justify-between gap-6", @class]}>
       <div>
-        <h1 class="text-lg font-semibold leading-8 text-zinc-800">
+        <h1 class="text-2xl font-semibold leading-8 text-zinc-800">
           {render_slot(@inner_block)}
         </h1>
         <p :if={@subtitle != []} class="mt-2 text-sm leading-6 text-zinc-600">
@@ -504,7 +504,12 @@ defmodule VeraWeb.CoreComponents do
       <table class="w-[40rem] mt-11 sm:w-full">
         <thead class="text-sm text-left leading-6 text-zinc-700">
           <tr>
-            <th :for={col <- @col} class="p-0 pb-4 pr-6 font-bold">{col[:label]}</th>
+            <th :for={{col, i} <- Enum.with_index(@col)} class={[
+              "p-0 pb-4 pr-6 font-bold",
+              i == 0 && "w-20" # Make ID header match column width
+            ]}>
+              {col[:label]}
+            </th>
             <th :if={@action != []} class="relative p-0 pb-4">
               <span class="sr-only">{gettext("Actions")}</span>
             </th>
@@ -519,7 +524,11 @@ defmodule VeraWeb.CoreComponents do
             <td
               :for={{col, i} <- Enum.with_index(@col)}
               phx-click={@row_click && @row_click.(row)}
-              class={["relative p-0", @row_click && "hover:cursor-pointer"]}
+              class={[
+                "relative p-0",
+                @row_click && "hover:cursor-pointer",
+                i == 0 && "w-20" # Make ID column narrower
+              ]}
             >
               <div class="block py-4 pr-6">
                 <span class="absolute -inset-y-px right-0 -left-4 group-hover:bg-zinc-50 sm:rounded-l-xl" />

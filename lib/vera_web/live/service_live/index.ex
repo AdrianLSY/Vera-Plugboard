@@ -20,19 +20,19 @@ defmodule VeraWeb.ServiceLive.Index do
 
   defp apply_action(socket, :edit, %{"id" => id}) do
     socket
-    |> assign(:page_title, "Plugboard | Edit Service")
+    |> assign(:page_title, "Edit Service")
     |> assign(:service, Services.get_service!(id))
   end
 
   defp apply_action(socket, :new, _params) do
     socket
-    |> assign(:page_title, "Plugboard | New Service")
+    |> assign(:page_title, "New Service")
     |> assign(:service, %Service{})
   end
 
   defp apply_action(socket, :index, _params) do
     socket
-    |> assign(:page_title, "Plugboard | Listing Services")
+    |> assign(:page_title, "Plugboard Services")
     |> assign(:service, nil)
   end
 

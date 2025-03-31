@@ -9,7 +9,6 @@ defmodule VeraWeb.ServiceLive.FormComponent do
     <div>
       <.header>
         {@title}
-        <:subtitle>Use this form to manage service records in your database.</:subtitle>
       </.header>
 
       <.simple_form for={@form} id="service-form" phx-target={@myself} phx-change="validate" phx-submit="save">
