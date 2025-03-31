@@ -24,7 +24,7 @@ defmodule VeraWeb.Router do
     live "/services/:id/edit", ServiceLive.Index, :edit
     live "/services/:id", ServiceLive.Show, :show
     live "/services/:id/new", ServiceLive.Show, :new
-    live "/services/:id/update", ServiceLive.Show, :edit
+    live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
     live "/services/:id/delete", ServiceLive.Show, :delete
   end
 

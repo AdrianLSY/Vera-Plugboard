@@ -32,6 +32,11 @@ defmodule VeraWeb.ServiceLive.Show do
     assign(socket, :form_service, %Service{parent_id: socket.assigns.service.id})
   end
 
+  defp assign_form_service(socket, :edit, %{"child_id" => child_id}) do
+    service = Services.get_service!(child_id)
+    assign(socket, :form_service, service)
+  end
+
   defp assign_form_service(socket, :edit, %{"id" => id}) do
     service = Services.get_service!(id)
     assign(socket, :form_service, service)

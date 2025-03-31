@@ -24,7 +24,7 @@
       <div class="sr-only">
         <.link navigate={~p"/services/#{service}"}>Show</.link>
       </div>
-      <.link patch={~p"/services/#{service}/edit"}>Edit</.link>
+      <.link patch={~p"/services/#{@service}/edit/#{service.id}"}>Edit</.link>
     </:action>
     <:action :let={{id, service}}>
       <.link phx-click={JS.push("delete", value: %{id: service.id}) |> hide("##{id}")} data-confirm="Are you sure?">
