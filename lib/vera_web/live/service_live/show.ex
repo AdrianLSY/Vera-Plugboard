@@ -54,7 +54,10 @@ defmodule VeraWeb.ServiceLive.Show do
   def handle_info({:service_created, service}, socket) do
     service = Vera.Repo.preload(service, [:parent])
     if service.parent_id == socket.assigns.service.id do
-      {:noreply, stream_insert(socket, :services, service)}
+      {:noreply,
+        socket
+        |> put_flash(:info, "Child service created")
+        |> stream_insert(:services, service)}
     else
       {:noreply, socket}
     end
@@ -65,9 +68,14 @@ defmodule VeraWeb.ServiceLive.Show do
     service = Vera.Repo.preload(service, [:parent])
     cond do
       service.id == socket.assigns.service.id ->
-        {:noreply, assign(socket, :service, service)}
+        {:noreply,
+          socket
+          |> assign(:service, service)}
       service.parent_id == socket.assigns.service.id ->
-        {:noreply, stream_insert(socket, :services, service)}
+        {:noreply,
+          socket
+          |> put_flash(:info, "Child service updated")
+          |> stream_insert(:services, service)}
       true ->
         {:noreply, socket}
     end
@@ -80,10 +88,12 @@ defmodule VeraWeb.ServiceLive.Show do
       service.id == socket.assigns.service.id ->
         {:noreply,
           socket
-          |> put_flash(:error, "Service was deleted")
           |> push_navigate(to: (if redirect_service_id, do: ~p"/services/#{redirect_service_id}", else: ~p"/services"))}
       service.parent_id == socket.assigns.service.id ->
-        {:noreply, stream_delete(socket, :services, service)}
+        {:noreply,
+          socket
+          |> put_flash(:info, "Child service deleted")
+          |> stream_delete(:services, service)}
       true ->
         {:noreply, socket}
     end
@@ -91,7 +101,10 @@ defmodule VeraWeb.ServiceLive.Show do
 
   @impl true
   def handle_info({:path_updated, full_path}, socket) do
-    {:noreply, assign(socket, :full_path, full_path)}
+    {:noreply,
+      socket
+      |> put_flash(:info, "Service path updated")
+      |> assign(:full_path, full_path)}
   end
 
   @impl true

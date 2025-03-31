@@ -45,18 +45,27 @@ defmodule VeraWeb.ServiceLive.Index do
   @impl true
   def handle_info({:service_created, service}, socket) do
     service = Vera.Repo.preload(service, [:parent])
-    {:noreply, stream_insert(socket, :services, service)}
+    {:noreply,
+      socket
+      |> put_flash(:info, "Service created")
+      |> stream_insert(:services, service)}
   end
 
   @impl true
   def handle_info({:service_updated, service}, socket) do
     service = Vera.Repo.preload(service, [:parent])
-    {:noreply, stream_insert(socket, :services, service)}
+    {:noreply,
+      socket
+      |> put_flash(:info, "Service updated")
+      |> stream_insert(:services, service)}
   end
 
   @impl true
   def handle_info({:service_deleted, service}, socket) do
-    {:noreply, stream_delete(socket, :services, service)}
+    {:noreply,
+      socket
+      |> put_flash(:info, "Service deleted")
+      |> stream_delete(:services, service)}
   end
 
   @impl true

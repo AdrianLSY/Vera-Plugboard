@@ -6,7 +6,7 @@ defmodule Vera.Services.Service do
   schema "services" do
     field :name, :string
     belongs_to :parent, Vera.Services.Service
-    has_many :children, Vera.Services.Service, foreign_key: :parent_id
+    has_many :children, Vera.Services.Service, foreign_key: :parent_id, where: [deleted_at: nil]
     field :deleted_at, :utc_datetime
     timestamps(type: :utc_datetime)
   end
@@ -47,11 +47,12 @@ defmodule Vera.Services.Service do
           WITH RECURSIVE descendants AS (
             SELECT id, parent_id, name, 1 as level
             FROM services
-            WHERE parent_id = ?
+            WHERE parent_id = ? AND deleted_at IS NULL
             UNION ALL
             SELECT s.id, s.parent_id, s.name, d.level + 1
             FROM services s
             INNER JOIN descendants d ON s.parent_id = d.id
+            WHERE s.deleted_at IS NULL
           )
           SELECT id FROM descendants
         )",
@@ -62,11 +63,12 @@ defmodule Vera.Services.Service do
         WITH RECURSIVE descendants AS (
           SELECT id, parent_id, name, 1 as level
           FROM services
-          WHERE parent_id = ?
+          WHERE parent_id = ? AND deleted_at IS NULL
           UNION ALL
           SELECT s.id, s.parent_id, s.name, d.level + 1
           FROM services s
           INNER JOIN descendants d ON s.parent_id = d.id
+          WHERE s.deleted_at IS NULL
         )
         SELECT level FROM descendants WHERE id = ?
       )", ^service.id, field(s, :id))
