@@ -1,4 +1,4 @@
-# Vera
+# Vera Pugboard
 
 To start the Phoenix server:
 
