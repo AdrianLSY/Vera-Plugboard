@@ -114,11 +114,11 @@ defmodule Vera.Services do
   end
 
   defp notify_subscribers({:ok, service}, [:service, :created]) do
-    Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.id}", {:service_updated, service})
+    Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.id}", {:service_created, service})
     if service.parent_id do
-      Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.parent_id}", {:service_updated, service})
+      Phoenix.PubSub.broadcast(Vera.PubSub, "service_#{service.parent_id}", {:service_created, service})
     else
-      Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_updated, service})
+      Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_created, service})
     end
     {:ok, service}
   end
