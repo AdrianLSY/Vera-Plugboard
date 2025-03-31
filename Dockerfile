@@ -20,6 +20,14 @@ ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
 
 FROM ${BUILDER_IMAGE} as builder
 
+# build-time environment variables
+ARG SECRET_KEY_BASE
+ARG PHX_SIGNING_SALT
+ARG PHX_ENCRYPTION_SALT
+ENV SECRET_KEY_BASE=$SECRET_KEY_BASE
+ENV PHX_SIGNING_SALT=$PHX_SIGNING_SALT
+ENV PHX_ENCRYPTION_SALT=$PHX_ENCRYPTION_SALT
+
 # install build dependencies
 RUN apt-get update -y && apt-get install -y build-essential git \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
@@ -87,11 +95,16 @@ ENV MIX_ENV="prod"
 # Only copy the final release from the build stage
 COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/vera ./
 
-USER nobody
-
 # If using an environment that doesn't automatically reap zombie processes, it is
 # advised to add an init process such as tini via `apt-get install`
 # above and adding an entrypoint. See https://github.com/krallin/tini for details
 # ENTRYPOINT ["/tini", "--"]
 
-CMD ["/app/bin/server"]
+# Copy entrypoint script
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+
+USER nobody
+
+# Run the release
+CMD ["./entrypoint.sh"]

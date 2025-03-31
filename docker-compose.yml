@@ -12,12 +12,14 @@ services:
       POSTGRES_DB: ${PHX_POSTGRES_DATABASE}
     restart: unless-stopped
 
-  vera:
+  plugboard:
     build: .
     ports:
       - "${PHX_PORT}:${PHX_PORT}"
     environment:
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      PHX_SIGNING_SALT: ${PHX_SIGNING_SALT}
+      PHX_ENCRYPTION_SALT: ${PHX_ENCRYPTION_SALT}
       PHX_SERVER: true
       PHX_HOST: ${PHX_HOST}
       PHX_PORT: ${PHX_PORT}
