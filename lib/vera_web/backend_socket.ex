@@ -2,7 +2,7 @@ defmodule VeraWeb.BackendSocket do
   use Phoenix.Socket
 
   # Define your channels here, for example:
-  channel "service/*", VeraWeb.ServiceBackend
+  channel "backend/service/*", VeraWeb.ServiceBackend
 
   def connect(_params, socket, _connect_info) do
     {:ok, socket}
