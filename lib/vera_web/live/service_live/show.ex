@@ -7,7 +7,7 @@ defmodule VeraWeb.ServiceLive.Show do
   @impl true
   def mount(params, _session, socket) do
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(Vera.PubSub, "service_#{params["id"]}")
+      Phoenix.PubSub.subscribe(Vera.PubSub, "service/#{params["id"]}")
     end
     {:ok, stream(socket, :services, [])}
   end
