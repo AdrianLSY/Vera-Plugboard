@@ -3,7 +3,7 @@ defmodule Vera.Services.Service do
   import Ecto.Query
   import Ecto.Changeset
 
-  @derive {Jason.Encoder, only: [:id, :name, :parent_id, :deleted_at, :inserted_at, :updated_at]}
+  @derive {Jason.Encoder, only: [:id, :name]}
   schema "services" do
     field :name, :string
     belongs_to :parent, Vera.Services.Service
