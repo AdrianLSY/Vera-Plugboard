@@ -47,8 +47,14 @@ defmodule Vera.Registry.ServiceRegistry do
 
   def handle_call({:get_client, service_id}, _from, state) do
     clients = Map.get(state, service_id, [])
-    client = List.first(clients)
-    {:reply, client, state}
+    case clients do
+      [] ->
+        {:reply, nil, state}
+      [first | rest] ->
+        new_clients = rest ++ [first]
+        new_state = Map.put(state, service_id, new_clients)
+        {:reply, first, new_state}
+    end
   end
 
   def handle_call({:list_clients, service_id}, _from, state) do
