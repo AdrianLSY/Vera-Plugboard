@@ -1,4 +1,4 @@
-defmodule Vera.Queue.MessageProducer do
+defmodule Vera.Queue.ServiceRequestProducer do
   use GenStage
 
   def start_link(initial_messages \\ []) do
@@ -14,7 +14,6 @@ defmodule Vera.Queue.MessageProducer do
     {:noreply, to_dispatch, remaining}
   end
 
-  # Optionally, add a function to enqueue messages dynamically:
   def enqueue(message) do
     GenStage.cast(__MODULE__, {:enqueue, message})
   end

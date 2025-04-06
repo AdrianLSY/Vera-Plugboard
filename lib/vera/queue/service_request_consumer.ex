@@ -1,4 +1,4 @@
-defmodule Vera.Queue.MessageConsumer do
+defmodule Vera.Queue.ServiceRequestConsumer do
   use GenStage
 
   def start_link(_args) do
@@ -6,20 +6,18 @@ defmodule Vera.Queue.MessageConsumer do
   end
 
   def init(:ok) do
-    # Subscribe to our producer.
-    {:consumer, :ok, subscribe_to: [Vera.Queue.MessageProducer]}
+    {:consumer, :ok, subscribe_to: [Vera.Queue.ServiceRequestProducer]}
+
   end
 
   def handle_events(events, _from, state) do
     Enum.each(events, fn event ->
-      # Expect each event to be a map with :service_id and :message keys.
       service_id = event.service_id
-      client = Vera.Queue.Registry.get_client(service_id)
+      client = Vera.Registry.ServiceRegistry.get_client(service_id)
       if client do
         send(client, {:new_message, event.message})
       else
         IO.puts("No client available for service #{service_id}")
-        # Optionally, you could store the event for later or log it.
       end
     end)
     {:noreply, [], state}

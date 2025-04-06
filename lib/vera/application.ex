@@ -14,12 +14,12 @@ defmodule Vera.Application do
       {Phoenix.PubSub, name: Vera.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: Vera.Finch},
-      # Start the Registry for mapping service IDs to client processes
-      {Vera.Queue.Registry, []},
+      # Start the ServiceRegistry for mapping service IDs to client processes
+      {Vera.Registry.ServiceRegistry, []},
       # Start the GenStage producer for service messages
-      {Vera.Queue.MessageProducer, []},
+      {Vera.Queue.ServiceRequestProducer, []},
       # Start the GenStage consumer for direct routing of messages
-      {Vera.Queue.MessageConsumer, []},
+      {Vera.Queue.ServiceRequestConsumer, []},
       # Start to serve requests, typically the last entry
       VeraWeb.Endpoint
     ]

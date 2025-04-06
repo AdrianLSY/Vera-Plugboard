@@ -18,6 +18,9 @@
       <.link patch={~p"/services/#{@service}/new"}>
         <.button>Create Service</.button>
       </.link>
+      <.link patch={~p"/services/#{@service}/request"}>
+        <.button>Send Request</.button>
+      </.link>
     </:actions>
   </.header>
 
@@ -51,4 +54,16 @@
     service={@form_service}
     patch={~p"/services/#{@service}"}
   />
+</.modal>
+
+<.modal :if={@live_action == :request} id="request-modal" show on_cancel={JS.patch(~p"/services/#{@service}")}>
+  <div>
+    <h1 class="text-2xl font-semibold leading-8 text-zinc-800">Send Request Message</h1>
+  </div>
+  <.simple_form for={@request_form} phx-submit="request">
+    <.input type="textarea" field={@request_form[:message]} label="Request Message" />
+    <:actions>
+      <.button phx-disable-with="Sending...">Send Request</.button>
+    </:actions>
+  </.simple_form>
 </.modal>

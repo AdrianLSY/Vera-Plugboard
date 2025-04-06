@@ -17,13 +17,14 @@ defmodule VeraWeb.ServiceLive.Show do
     service = Services.get_service!(id) |> Vera.Repo.preload([:parent, :children])
     childrens = service.children |> Vera.Repo.preload([:parent])
     full_path = Service.full_path(service)
-    clients_connected = Vera.Queue.Registry.list_clients(service.id |> to_string()) |> length()
+    clients_connected = Vera.Registry.ServiceRegistry.list_clients(service.id |> to_string()) |> length()
     socket = socket
       |> assign(:service, service)
       |> stream(:services, childrens)
       |> assign(:full_path, full_path)
       |> assign(:clients_connected, clients_connected)
       |> assign(:page_title, page_title(socket.assigns.live_action))
+      |> assign(:request_form, to_form(%{"request" => ""}))
       |> assign_form_service(socket.assigns.live_action, params)
 
     {:noreply, socket}
@@ -121,8 +122,23 @@ defmodule VeraWeb.ServiceLive.Show do
     {:noreply, stream_delete(socket, :services, service)}
   end
 
+  def handle_event("request", %{"message" => message}, socket) do
+    message = %{
+      service_id: socket.assigns.service.id,
+      message: message
+    }
+    
+    Vera.Queue.ServiceRequestProducer.enqueue(message)
+
+    {:noreply,
+      socket
+      |> put_flash(:info, "Message sent")
+      |> push_patch(to: ~p"/services/#{socket.assigns.service}")}
+  end
+
   defp page_title(:new), do: "New Service"
   defp page_title(:show), do: "Plugboard Service"
   defp page_title(:edit), do: "Edit Service"
   defp page_title(:delete), do: "Delete Service"
+  defp page_title(:request), do: "Send Request Message"
 end
