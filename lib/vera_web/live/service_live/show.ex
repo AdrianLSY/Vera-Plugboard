@@ -20,7 +20,7 @@ defmodule VeraWeb.ServiceLive.Show do
     clients_connected = Vera.Queue.Registry.list_clients(service.id |> to_string()) |> length()
     socket = socket
       |> assign(:service, service)
-      |> stream(:childrens, childrens)
+      |> stream(:services, childrens)
       |> assign(:full_path, full_path)
       |> assign(:clients_connected, clients_connected)
       |> assign(:page_title, page_title(socket.assigns.live_action))
