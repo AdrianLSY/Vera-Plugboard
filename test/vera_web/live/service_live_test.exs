@@ -197,5 +197,66 @@ defmodule VeraWeb.ServiceLiveTest do
       html = render(show_live)
       assert html =~ "2 clients connected"
     end
+
+    test "handles form assignment for different actions", %{conn: conn, parent: parent, child: child} do
+      # Test :new action
+      {:ok, _new_live, html} = live(conn, ~p"/services/#{parent}/new")
+      assert html =~ "New Service"
+      assert html =~ parent.name
+
+      # Test :edit action for child
+      {:ok, _edit_child_live, html} = live(conn, ~p"/services/#{parent}/edit/#{child.id}")
+      assert html =~ "Edit Service"
+      assert html =~ child.name
+
+      # Test :edit action for parent
+      {:ok, _edit_parent_live, html} = live(conn, ~p"/services/#{parent}/edit")
+      assert html =~ "Edit Service"
+      assert html =~ parent.name
+    end
+
+    test "updates service with no relation to current view", %{conn: conn, parent: parent} do
+      {:ok, show_live, _html} = live(conn, ~p"/services/#{parent}")
+
+      # Create an unrelated service
+      unrelated = service_fixture()
+      send(show_live.pid, {:service_updated, unrelated})
+
+      # Instead of comparing full HTML, check specific elements haven't changed
+      html = render(show_live)
+      assert html =~ parent.name
+      refute html =~ unrelated.name
+    end
+
+    test "handles service creation for unrelated parent", %{conn: conn, parent: parent} do
+      {:ok, show_live, _html} = live(conn, ~p"/services/#{parent}")
+
+      # Create a service with different parent
+      other_parent = service_fixture()
+      other_child = service_fixture(%{parent_id: other_parent.id})
+
+      send(show_live.pid, {:service_created, other_child})
+
+      # Check specific elements instead of full HTML
+      html = render(show_live)
+      assert html =~ parent.name
+      refute html =~ other_child.name
+    end
+
+    test "handles service deletion for unrelated service", %{conn: conn, parent: parent} do
+      {:ok, show_live, _html} = live(conn, ~p"/services/#{parent}")
+
+      unrelated = service_fixture()
+      initial_html = render(show_live)
+
+      send(show_live.pid, {:service_deleted, unrelated, nil})
+
+      # Check specific elements instead of full HTML
+      html = render(show_live)
+      assert html =~ parent.name
+      refute html =~ unrelated.name
+      # Verify key structure remains unchanged
+      assert Regex.scan(~r/services-\d+/, html) == Regex.scan(~r/services-\d+/, initial_html)
+    end
   end
 end
