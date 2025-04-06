@@ -15,9 +15,7 @@ defmodule Vera.Queue.ServiceRequestConsumer do
       service_id = event.service_id
       client = Vera.Registry.ServiceRegistry.get_client(service_id)
       if client do
-        send(client, {:new_message, event.message})
-      else
-        IO.puts("No client available for service #{service_id}")
+        send(client, {:request, event.message})
       end
     end)
     {:noreply, [], state}

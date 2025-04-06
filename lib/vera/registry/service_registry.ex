@@ -9,21 +9,21 @@ defmodule Vera.Registry.ServiceRegistry do
 
   def register(service_id, pid) do
     Process.monitor(pid)
-    GenServer.call(__MODULE__, {:register, service_id, pid})
+    GenServer.call(__MODULE__, {:register, service_id |> to_string(), pid})
     Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service_id}", {:clients_connected, list_clients(service_id) |> length()})
   end
 
   def unregister(service_id, pid) do
-    GenServer.call(__MODULE__, {:unregister, service_id, pid})
+    GenServer.call(__MODULE__, {:unregister, service_id |> to_string(), pid})
     Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service_id}", {:clients_connected, list_clients(service_id) |> length()})
   end
 
   def get_client(service_id) do
-    GenServer.call(__MODULE__, {:get_client, service_id})
+    GenServer.call(__MODULE__, {:get_client, service_id |> to_string()})
   end
 
   def list_clients(service_id) do
-    GenServer.call(__MODULE__, {:list_clients, service_id})
+    GenServer.call(__MODULE__, {:list_clients, service_id |> to_string()})
   end
 
   ## Server Callbacks

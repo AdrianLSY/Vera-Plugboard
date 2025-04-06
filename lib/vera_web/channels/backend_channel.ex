@@ -13,7 +13,7 @@ defmodule VeraWeb.BackendChannel do
       service ->
         Vera.Registry.ServiceRegistry.register(service_id, self())
         Phoenix.PubSub.subscribe(Vera.PubSub, "service/#{service_id}")
-        {:ok, %{service: service, clients_connected: Vera.Registry.ServiceRegistry.list_clients(service.id |> to_string()) |> length()}, assign(socket, :service_id, service_id)}
+        {:ok, %{service: service, clients_connected: Vera.Registry.ServiceRegistry.list_clients(service.id) |> length()}, assign(socket, :service_id, service_id)}
     end
   end
 
@@ -25,8 +25,8 @@ defmodule VeraWeb.BackendChannel do
   end
 
   @impl true
-  def handle_info({:new_message, message}, socket) do
-    push(socket, "new_message", %{message: message})
+  def handle_info({:request, message}, socket) do
+    push(socket, "request", message)
     {:noreply, socket}
   end
 

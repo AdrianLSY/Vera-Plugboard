@@ -17,7 +17,7 @@ defmodule VeraWeb.ServiceLive.Show do
     service = Services.get_service!(id) |> Vera.Repo.preload([:parent, :children])
     childrens = service.children |> Vera.Repo.preload([:parent])
     full_path = Service.full_path(service)
-    clients_connected = Vera.Registry.ServiceRegistry.list_clients(service.id |> to_string()) |> length()
+    clients_connected = Vera.Registry.ServiceRegistry.list_clients(service.id) |> length()
     socket = socket
       |> assign(:service, service)
       |> stream(:services, childrens)
@@ -127,7 +127,6 @@ defmodule VeraWeb.ServiceLive.Show do
       service_id: socket.assigns.service.id,
       message: message
     }
-    
     Vera.Queue.ServiceRequestProducer.enqueue(message)
 
     {:noreply,
