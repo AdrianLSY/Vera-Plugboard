@@ -21,7 +21,7 @@
     </:actions>
   </.header>
 
-  <.table id="services" rows={@streams.services} row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service}") end}>
+  <.table id="services" rows={@streams.childrens} row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service}") end}>
     <:col :let={{_id, service}} label="ID">
       <%= service.id %>
     </:col>
