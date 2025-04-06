@@ -7,11 +7,12 @@ defmodule Vera.ServicesFixtures do
   @doc """
   Generate a service.
   """
+
   def service_fixture(attrs \\ %{}) do
     {:ok, service} =
       attrs
       |> Enum.into(%{
-        name: "some name"
+        name: "some name#{System.unique_integer()}"
       })
       |> Vera.Services.create_service()
 

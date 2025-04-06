@@ -94,10 +94,34 @@ defmodule Vera.Services do
 
   """
   def delete_service(%Service{} = service) do
-    {_count, _} = from(s in Service, where: s.id in ^[service.id | Enum.map(Service.descendants(service), & &1.id)])
-    |> Repo.update_all(set: [deleted_at: DateTime.utc_now()])
-    {:ok, service}
-    |> notify_subscribers([:service, :deleted, Service.descendants(service), service.parent_id])
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+  
+    # Get all descendants first
+    descendants = Service.descendants(service)
+  
+    # Start a transaction to update all records
+    result = Vera.Repo.transaction(fn ->
+      # Update the service and all its descendants with deleted_at
+      descendants
+      |> Enum.each(fn descendant ->
+        Ecto.Changeset.change(descendant, %{deleted_at: now})
+        |> Vera.Repo.update!()
+      end)
+    
+      # Update the main service
+      updated_service = service
+      |> Ecto.Changeset.change(%{deleted_at: now})
+      |> Vera.Repo.update!()
+    
+      {updated_service, descendants}
+    end)
+  
+    case result do
+      {:ok, {updated_service, descendants}} ->
+        notify_subscribers({:ok, updated_service}, [:service, :deleted, descendants, service.parent_id])
+      error ->
+        error
+    end
   end
 
   @doc """
