@@ -17,11 +17,12 @@ defmodule VeraWeb.ServiceLive.Show do
     service = Services.get_service!(id) |> Vera.Repo.preload([:parent, :children])
     childrens = service.children |> Vera.Repo.preload([:parent])
     full_path = Service.full_path(service)
-
+    clients_connected = Vera.Queue.Registry.list_clients(service.id |> to_string()) |> length()
     socket = socket
-      |> stream(:services, childrens)
       |> assign(:service, service)
+      |> assign(:services, childrens)
       |> assign(:full_path, full_path)
+      |> assign(:clients_connected, clients_connected)
       |> assign(:page_title, page_title(socket.assigns.live_action))
       |> assign_form_service(socket.assigns.live_action, params)
 
@@ -105,6 +106,11 @@ defmodule VeraWeb.ServiceLive.Show do
       socket
       |> put_flash(:info, "Service path updated")
       |> assign(:full_path, full_path)}
+  end
+
+  @impl true
+  def handle_info({:clients_connected, clients_connected}, socket) do
+    {:noreply, assign(socket, :clients_connected, clients_connected)}
   end
 
   @impl true

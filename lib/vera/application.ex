@@ -14,20 +14,20 @@ defmodule Vera.Application do
       {Phoenix.PubSub, name: Vera.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: Vera.Finch},
-      # Start a worker by calling: Vera.Worker.start_link(arg)
-      # {Vera.Worker, arg},
+      # Start the Registry for mapping service IDs to client processes
+      {Vera.Queue.Registry, []},
+      # Start the GenStage producer for service messages
+      {Vera.Queue.MessageProducer, []},
+      # Start the GenStage consumer for direct routing of messages
+      {Vera.Queue.MessageConsumer, []},
       # Start to serve requests, typically the last entry
       VeraWeb.Endpoint
     ]
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Vera.Supervisor]
     Supervisor.start_link(children, opts)
   end
 
-  # Tell Phoenix to update the endpoint configuration
-  # whenever the application is updated.
   @impl true
   def config_change(changed, _new, removed) do
     VeraWeb.Endpoint.config_change(changed, removed)
