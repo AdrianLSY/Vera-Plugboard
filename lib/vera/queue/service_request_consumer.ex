@@ -7,7 +7,6 @@ defmodule Vera.Queue.ServiceRequestConsumer do
 
   def init(:ok) do
     {:consumer, :ok, subscribe_to: [Vera.Queue.ServiceRequestProducer]}
-
   end
 
   def handle_events(events, _from, state) do
