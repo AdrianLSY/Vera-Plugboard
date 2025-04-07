@@ -18,9 +18,9 @@ jobs:
   build:
     env:
       ImageOS: ubuntu22
-      SECRET_KEY_BASE: github-workflow-secret-key-base
-      PHX_SIGNING_SALT: github-workflow-signing-salt
-      PHX_ENCRYPTION_SALT: github-workflow-encryption-salt
+      SECRET_KEY_BASE: 0000000000000000000000000000000000000000000000000000000000000000
+      PHX_SIGNING_SALT: 0000000000000000000000000000000000000000000000000000000000000000
+      PHX_ENCRYPTION_SALT: 0000000000000000000000000000000000000000000000000000000000000000
       PHX_TEST_DATABASE_URL: ecto://vera:vera@localhost:5432/vera
     name: Build and test
     runs-on: ubuntu-latest
