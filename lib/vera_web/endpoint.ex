@@ -7,13 +7,18 @@ defmodule VeraWeb.Endpoint do
   @session_options [
     store: :cookie,
     key: "_vera_key",
-    signing_salt: "eq/OvjMc",
+    signing_salt: System.get_env("PHX_SIGNING_SALT"),
+    encryption_salt: System.get_env("PHX_ENCRYPTION_SALT"),
     same_site: "Lax"
   ]
 
   socket "/live", Phoenix.LiveView.Socket,
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
+
+    socket "/backend", VeraWeb.BackendSocket,
+    websocket: true,
+    longpoll: false
 
   # Serve at "/" the static files from "priv/static" directory.
   #

@@ -48,6 +48,18 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
+  signing_salt = System.get_env("PHX_SIGNING_SALT") ||
+      raise """
+      environment variable PHX_SIGNING_SALT is missing.
+      You can generate one by calling: mix phx.gen.secret
+      """
+
+  encryption_salt = System.get_env("PHX_ENCRYPTION_SALT") ||
+      raise """
+      environment variable PHX_ENCRYPTION_SALT is missing.
+      You can generate one by calling: mix phx.gen.secret
+      """
+
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PHX_PORT") || "4000")
 
@@ -63,7 +75,8 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
-    secret_key_base: secret_key_base
+    secret_key_base: secret_key_base,
+    live_view: [signing_salt: signing_salt, encryption_salt: encryption_salt]
 
   # ## SSL Support
   #

@@ -20,7 +20,7 @@ config :vera, VeraWeb.Endpoint,
     layout: false
   ],
   pubsub_server: Vera.PubSub,
-  live_view: [signing_salt: "mWOUVJPw"]
+  live_view: [signing_salt: System.get_env("PHX_SIGNING_SALT")]
 
 # Configures the mailer
 #
