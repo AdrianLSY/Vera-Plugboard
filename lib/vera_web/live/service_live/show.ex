@@ -127,12 +127,18 @@ defmodule VeraWeb.ServiceLive.Show do
       service_id: socket.assigns.service.id,
       message: message
     }
-    Vera.Queue.ServiceRequestProducer.enqueue(message)
-
-    {:noreply,
-      socket
-      |> put_flash(:info, "Message sent")
-      |> push_patch(to: ~p"/services/#{socket.assigns.service}")}
+    case Vera.Queue.ServiceRequestProducer.enqueue(message) do
+      {:ok, _msg} ->
+        {:noreply,
+          socket
+          |> put_flash(:info, "Message sent to client")
+          |> push_patch(to: ~p"/services/#{socket.assigns.service}")}
+      {:error, error_msg} ->
+        {:noreply,
+          socket
+          |> put_flash(:error, error_msg)
+          |> push_patch(to: ~p"/services/#{socket.assigns.service}")}
+    end
   end
 
   defp page_title(:new), do: "New Service"

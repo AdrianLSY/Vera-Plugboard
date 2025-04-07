@@ -16,7 +16,12 @@ defmodule Vera.Queue.ServiceRequestProducer do
   end
 
   def enqueue(message) do
-    GenStage.cast(__MODULE__, {:enqueue, message})
+    if Vera.Registry.ServiceRegistry.list_clients(message.service_id) != [] do
+      GenStage.cast(__MODULE__, {:enqueue, message})
+      {:ok, "Message enqueued"}
+    else
+      {:error, "No clients available to handle the request"}
+    end
   end
 
   def handle_cast({:enqueue, message}, {messages, 0}) do
