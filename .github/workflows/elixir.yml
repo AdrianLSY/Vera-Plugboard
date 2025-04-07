@@ -19,6 +19,8 @@ jobs:
     env:
       ImageOS: ubuntu22
       SECRET_KEY_BASE: github-workflow-secret-key-base
+      PHX_SIGNING_SALT: github-workflow-signing-salt
+      PHX_ENCRYPTION_SALT: github-workflow-encryption-salt
     name: Build and test
     runs-on: ubuntu-latest
 
