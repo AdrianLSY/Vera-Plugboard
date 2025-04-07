@@ -21,8 +21,24 @@ jobs:
       SECRET_KEY_BASE: github-workflow-secret-key-base
       PHX_SIGNING_SALT: github-workflow-signing-salt
       PHX_ENCRYPTION_SALT: github-workflow-encryption-salt
+      PHX_TEST_DATABASE_URL: ecto://vera:vera@localhost:5432/vera
     name: Build and test
     runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:17.4-alpine3.21
+        env:
+          POSTGRES_USER: vera
+          POSTGRES_PASSWORD: vera
+          POSTGRES_DB: vera
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - uses: actions/checkout@v4
