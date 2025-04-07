@@ -95,10 +95,10 @@ defmodule Vera.Services do
   """
   def delete_service(%Service{} = service) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
-  
+
     # Get all descendants first
     descendants = Service.descendants(service)
-  
+
     # Start a transaction to update all records
     result = Vera.Repo.transaction(fn ->
       # Update the service and all its descendants with deleted_at
@@ -107,15 +107,15 @@ defmodule Vera.Services do
         Ecto.Changeset.change(descendant, %{deleted_at: now})
         |> Vera.Repo.update!()
       end)
-    
+
       # Update the main service
       updated_service = service
       |> Ecto.Changeset.change(%{deleted_at: now})
       |> Vera.Repo.update!()
-    
+
       {updated_service, descendants}
     end)
-  
+
     case result do
       {:ok, {updated_service, descendants}} ->
         notify_subscribers({:ok, updated_service}, [:service, :deleted, descendants, service.parent_id])
@@ -164,9 +164,7 @@ defmodule Vera.Services do
 
   defp notify_subscribers({:ok, service}, [:service, :deleted, descendants, redirect_service_id]) do
     Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service.id}", {:service_deleted, service, redirect_service_id})
-    if service.parent_id do
-      Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service.parent_id}", {:service_deleted, service, redirect_service_id})
-    else
+    if service.parent_id == nil do
       Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_deleted, service})
     end
     descendants
