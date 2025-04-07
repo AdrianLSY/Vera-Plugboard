@@ -1,0 +1,59 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Unit Tests
+
+on:
+  push:
+    branches: [ "main", "workflows" ]
+  pull_request:
+    branches: [ "main", "workflows" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    env:
+      ImageOS: ubuntu22
+      SECRET_KEY_BASE: "0000000000000000000000000000000000000000000000000000000000000000"
+      PHX_SIGNING_SALT: "0000000000000000000000000000000000000000000000000000000000000000"
+      PHX_ENCRYPTION_SALT: "0000000000000000000000000000000000000000000000000000000000000000"
+      PHX_TEST_DATABASE_URL: ecto://vera:vera@localhost:5432/vera
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:17.4-alpine3.21
+        env:
+          POSTGRES_USER: vera
+          POSTGRES_PASSWORD: vera
+          POSTGRES_DB: vera
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Elixir
+      uses: erlef/setup-beam@61e01a43a562a89bfc54c7f9a378ff67b03e4a21 # v1.16.0
+      with:
+        elixir-version: '1.18.2'
+        otp-version: '27.0'
+    - name: Restore dependencies cache
+      uses: actions/cache@v3
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-
+    - name: Install dependencies
+      run: mix deps.get
+    - name: Run tests
+      run: mix test
