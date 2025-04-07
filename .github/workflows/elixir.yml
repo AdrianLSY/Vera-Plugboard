@@ -16,7 +16,8 @@ permissions:
 
 jobs:
   build:
-
+    env:
+      ImageOS: ubuntu22
     name: Build and test
     runs-on: ubuntu-latest
 
