@@ -15,11 +15,11 @@
       </div>
     </div>
     <:actions>
-      <.link patch={~p"/services/#{@service}/new"}>
-        <.button>Create Service</.button>
-      </.link>
       <.link patch={~p"/services/#{@service}/request"}>
         <.button>Send Request</.button>
+      </.link>
+      <.link patch={~p"/services/#{@service}/new"}>
+        <.button>Create Service</.button>
       </.link>
     </:actions>
   </.header>
