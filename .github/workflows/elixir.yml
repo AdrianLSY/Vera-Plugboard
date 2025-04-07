@@ -18,6 +18,7 @@ jobs:
   build:
     env:
       ImageOS: ubuntu22
+      SECRET_KEY_BASE: github-workflow-secret-key-base
     name: Build and test
     runs-on: ubuntu-latest
 
