@@ -18,6 +18,7 @@ defmodule VeraWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    post "/", PageController, :request
 
     live "/services", ServiceLive.Index, :index
     live "/services/new", ServiceLive.Index, :new
@@ -27,6 +28,13 @@ defmodule VeraWeb.Router do
     live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
     live "/services/:id/delete", ServiceLive.Show, :delete
     live "/services/:id/request", ServiceLive.Show, :request
+  end
+
+  # in router.ex
+  scope "/api", VeraWeb do
+    pipe_through :api
+
+    post "/", PageController, :request
   end
 
   # Other scopes may use custom stacks.
