@@ -4,7 +4,6 @@ defmodule VeraWeb.ServiceLive.Show do
   alias Vera.Services
   alias Vera.Services.Service
 
-  @impl true
   def mount(params, _session, socket) do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Vera.PubSub, "service/#{params["id"]}")
@@ -12,7 +11,6 @@ defmodule VeraWeb.ServiceLive.Show do
     {:ok, stream(socket, :services, [])}
   end
 
-  @impl true
   def handle_params(%{"id" => id} = params, _, socket) do
     service = Services.get_service!(id) |> Vera.Repo.preload([:parent, :children])
     childrens = service.children |> Vera.Repo.preload([:parent])
@@ -46,13 +44,11 @@ defmodule VeraWeb.ServiceLive.Show do
 
   defp assign_form_service(socket, _action, _params), do: socket
 
-  @impl true
   def handle_info({VeraWeb.ServiceLive.FormComponent, {:saved, service}}, socket) do
     service = Vera.Repo.preload(service, [:parent])
     {:noreply, stream_insert(socket, :services, service)}
   end
 
-  @impl true
   def handle_info({:service_created, service}, socket) do
     service = Vera.Repo.preload(service, [:parent])
     if service.parent_id == socket.assigns.service.id do
@@ -65,7 +61,6 @@ defmodule VeraWeb.ServiceLive.Show do
     end
   end
 
-  @impl true
   def handle_info({:service_updated, service}, socket) do
     service = Vera.Repo.preload(service, [:parent])
     cond do
@@ -83,7 +78,6 @@ defmodule VeraWeb.ServiceLive.Show do
     end
   end
 
-  @impl true
   def handle_info({:service_deleted, service, redirect_service_id}, socket) do
     service = Vera.Repo.preload(service, [:parent])
     cond do
@@ -101,7 +95,6 @@ defmodule VeraWeb.ServiceLive.Show do
     end
   end
 
-  @impl true
   def handle_info({:path_updated, full_path}, socket) do
     {:noreply,
       socket
@@ -109,12 +102,10 @@ defmodule VeraWeb.ServiceLive.Show do
       |> assign(:full_path, full_path)}
   end
 
-  @impl true
   def handle_info({:clients_connected, clients_connected}, socket) do
     {:noreply, assign(socket, :clients_connected, clients_connected)}
   end
 
-  @impl true
   def handle_event("delete", %{"id" => id}, socket) do
     service = Services.get_service!(id)
     {:ok, _} = Services.delete_service(service)

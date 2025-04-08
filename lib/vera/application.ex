@@ -5,7 +5,6 @@ defmodule Vera.Application do
 
   use Application
 
-  @impl true
   def start(_type, _args) do
     children = [
       VeraWeb.Telemetry,
@@ -28,7 +27,6 @@ defmodule Vera.Application do
     Supervisor.start_link(children, opts)
   end
 
-  @impl true
   def config_change(changed, _new, removed) do
     VeraWeb.Endpoint.config_change(changed, removed)
     :ok
