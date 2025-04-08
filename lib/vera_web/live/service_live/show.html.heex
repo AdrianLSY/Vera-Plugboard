@@ -58,10 +58,10 @@
 
 <.modal :if={@live_action == :request} id="request-modal" show on_cancel={JS.patch(~p"/services/#{@service}")}>
   <div>
-    <h1 class="text-2xl font-semibold leading-8 text-zinc-800">Send Request Message</h1>
+    <h1 class="text-2xl font-semibold leading-8 text-zinc-800">Send Request Payload</h1>
   </div>
   <.simple_form for={@request_form} phx-submit="request">
-    <.input type="textarea" field={@request_form[:message]} label="Request Message" />
+    <.input type="textarea" field={@request_form[:payload]} label="Payload" />
     <:actions>
       <.button phx-disable-with="Sending...">Send Request</.button>
     </:actions>

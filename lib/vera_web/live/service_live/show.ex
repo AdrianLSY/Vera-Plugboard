@@ -113,12 +113,18 @@ defmodule VeraWeb.ServiceLive.Show do
     {:noreply, stream_delete(socket, :services, service)}
   end
 
-  def handle_event("request", %{"message" => message}, socket) do
-    message = %{
+  def handle_event("request", %{"payload" => payload}, socket) do
+    parsed_payload = case Jason.decode(payload) do
+      {:ok, json} -> json
+      {:error, _} -> payload
+    end
+
+    payload = %{
       service_id: socket.assigns.service.id,
-      message: message
+      payload: parsed_payload
     }
-    case Vera.Queue.ServiceRequestProducer.enqueue(message) do
+
+    case Vera.Queue.ServiceRequestProducer.enqueue(payload) do
       {:ok, _msg} ->
         {:noreply,
           socket

@@ -7,17 +7,17 @@ defmodule VeraWeb.PageController do
     render(conn, :home, layout: false)
   end
 
-  def request(conn, %{"service_id" => service_id, "message" => message}) do
-    message = %{
+  def request(conn, %{"service_id" => service_id, "payload" => payload}) do
+    payload = %{
       service_id: service_id,
-      message: message
+      payload: payload
     }
 
-    case Vera.Queue.ServiceRequestProducer.enqueue(message) do
+    case Vera.Queue.ServiceRequestProducer.enqueue(payload) do
       {:ok, _msg} ->
         conn
         |> put_status(:ok)
-        |> json(%{status: "success", message: "Message sent to client"})
+        |> json(%{status: "success", message: "Content sent to client"})
 
       {:error, error_msg} ->
         conn
@@ -29,6 +29,6 @@ defmodule VeraWeb.PageController do
   def request(conn, _params) do
     conn
     |> put_status(:bad_request)
-    |> json(%{status: "error", message: "service_id and message parameters are required"})
+    |> json(%{status: "error", message: "service_id and payload parameters are required"})
   end
 end
