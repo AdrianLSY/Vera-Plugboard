@@ -10,15 +10,15 @@ defmodule VeraWeb.BackendChannel do
       nil ->
         {:error, %{reason: "Service not found"}}
       service ->
-        Vera.Registry.ServiceRegistry.register(service_id, self())
+        Vera.Services.ServiceRegistry.register(service_id, self())
         Phoenix.PubSub.subscribe(Vera.PubSub, "service/#{service_id}")
-        {:ok, %{service: service, clients_connected: Vera.Registry.ServiceRegistry.list_clients(service.id) |> length()}, assign(socket, :service_id, service_id)}
+        {:ok, %{service: service, clients_connected: Vera.Services.ServiceRegistry.list_clients(service.id) |> length()}, assign(socket, :service_id, service_id)}
     end
   end
 
   def terminate(_reason, socket) do
     service_id = socket.assigns[:service_id]
-    Vera.Registry.ServiceRegistry.unregister(service_id, self())
+    Vera.Services.ServiceRegistry.unregister(service_id, self())
     :ok
   end
 

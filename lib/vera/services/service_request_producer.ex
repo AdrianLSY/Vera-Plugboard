@@ -1,4 +1,4 @@
-defmodule Vera.Queue.ServiceRequestProducer do
+defmodule Vera.Services.ServiceRequestProducer do
   use GenStage
 
   @ttl 30000
@@ -15,7 +15,7 @@ defmodule Vera.Queue.ServiceRequestProducer do
   end
 
   def enqueue(payload) do
-    if Vera.Registry.ServiceRegistry.list_clients(payload.service_id) != [] do
+    if Vera.Services.ServiceRegistry.list_clients(payload.service_id) != [] do
       GenStage.cast(__MODULE__, {:enqueue, payload})
       {:ok, "Message enqueued"}
     else

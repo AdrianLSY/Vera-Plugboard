@@ -13,7 +13,7 @@ defmodule VeraWeb.PageController do
       payload: payload
     }
 
-    case Vera.Queue.ServiceRequestProducer.enqueue(payload) do
+    case Vera.Services.ServiceRequestProducer.enqueue(payload) do
       {:ok, _msg} ->
         conn
         |> put_status(:ok)

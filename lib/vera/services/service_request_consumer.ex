@@ -1,4 +1,4 @@
-defmodule Vera.Queue.ServiceRequestConsumer do
+defmodule Vera.Services.ServiceRequestConsumer do
   use GenStage
 
   def start_link(_args) do
@@ -6,13 +6,13 @@ defmodule Vera.Queue.ServiceRequestConsumer do
   end
 
   def init(:ok) do
-    {:consumer, :ok, subscribe_to: [Vera.Queue.ServiceRequestProducer]}
+    {:consumer, :ok, subscribe_to: [Vera.Services.ServiceRequestProducer]}
   end
 
   def handle_events(events, _from, state) do
     Enum.each(events, fn event ->
       service_id = event.service_id
-      client = Vera.Registry.ServiceRegistry.get_client(service_id)
+      client = Vera.Services.ServiceRegistry.get_client(service_id)
       if client do
         send(client, {:request, event.payload})
       end

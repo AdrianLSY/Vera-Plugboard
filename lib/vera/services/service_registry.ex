@@ -1,4 +1,4 @@
-defmodule Vera.Registry.ServiceRegistry do
+defmodule Vera.Services.ServiceRegistry do
   use GenServer
 
   ## Client API
