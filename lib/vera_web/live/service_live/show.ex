@@ -22,7 +22,6 @@ defmodule VeraWeb.ServiceLive.Show do
       |> assign(:full_path, full_path)
       |> assign(:clients_connected, clients_connected)
       |> assign(:page_title, page_title(socket.assigns.live_action))
-      |> assign(:request_form, to_form(%{"request" => ""}))
       |> assign_form_service(socket.assigns.live_action, params)
 
     {:noreply, socket}
@@ -113,35 +112,8 @@ defmodule VeraWeb.ServiceLive.Show do
     {:noreply, stream_delete(socket, :services, service)}
   end
 
-  def handle_event("request", %{"payload" => payload}, socket) do
-    uuid4 = UUID.uuid4()
-    parsed_payload = case Jason.decode(payload) do
-      {:ok, json} -> json
-      {:error, _} -> payload
-    end
-    request = %{
-      service_id: socket.assigns.service.id,
-      payload: parsed_payload,
-      response_ref: uuid4
-    }
-
-    case Vera.Services.ServiceRequestProducer.enqueue(request) do
-      {:ok, _msg} ->
-        {:noreply,
-          socket
-          |> put_flash(:info, "Message sent to client")
-          |> push_patch(to: ~p"/services/#{socket.assigns.service}")}
-      {:error, error_msg} ->
-        {:noreply,
-          socket
-          |> put_flash(:error, error_msg)
-          |> push_patch(to: ~p"/services/#{socket.assigns.service}")}
-    end
-  end
-
   defp page_title(:new), do: "New Service"
   defp page_title(:show), do: "Plugboard Service"
   defp page_title(:edit), do: "Edit Service"
   defp page_title(:delete), do: "Delete Service"
-  defp page_title(:request), do: "Send Request Message"
 end
