@@ -1,16 +1,17 @@
 defmodule Vera.Services.ServiceRequestProducer do
   use GenStage
 
-  @ttl 30000
+  @entity_max_age System.get_env("PHX_GENSTAGE_ENTITY_MAX_AGE") |> String.to_integer()
+  @cleanup_interval System.get_env("PHX_GENSTAGE_CLEANUP_INTERVAL") |> String.to_integer()
 
   def start_link(initial_payloads \\ []) do
     GenStage.start_link(__MODULE__, initial_payloads, name: __MODULE__)
   end
 
   def init(payloads) do
-    current_time = System.monotonic_time(:millisecond)
+    current_time = System.system_time(:millisecond)
     wrapped_payloads = Enum.map(payloads, fn msg -> {current_time, msg} end)
-    Process.send_after(self(), :cleanup, 1000)
+    schedule_cleanup()
     {:producer, {wrapped_payloads, 0}}
   end
 
@@ -24,9 +25,9 @@ defmodule Vera.Services.ServiceRequestProducer do
   end
 
   def handle_demand(incoming_demand, {payloads, pending_demand}) do
-    now = System.monotonic_time(:millisecond)
+    current_time = System.system_time(:millisecond)
     valid_payloads = Enum.filter(payloads, fn {timestamp, _msg} ->
-      now - timestamp <= @ttl
+      current_time - timestamp <= @entity_max_age
     end)
     new_demand = incoming_demand + pending_demand
     {to_dispatch, remaining} = Enum.split(valid_payloads, new_demand)
@@ -35,7 +36,7 @@ defmodule Vera.Services.ServiceRequestProducer do
   end
 
   def handle_cast({:enqueue, payload}, {payloads, 0}) do
-    timestamped = {System.monotonic_time(:millisecond), payload}
+    timestamped = {System.system_time(:millisecond), payload}
     {:noreply, [], {payloads ++ [timestamped], 0}}
   end
 
@@ -44,11 +45,18 @@ defmodule Vera.Services.ServiceRequestProducer do
   end
 
   def handle_info(:cleanup, {payloads, pending_demand}) do
-    now = System.monotonic_time(:millisecond)
-    filtered_payloads = Enum.filter(payloads, fn {timestamp, _msg} ->
-      now - timestamp <= @ttl
+    schedule_cleanup()
+    current_time = System.system_time(:millisecond)
+
+    filtered_payloads = payloads
+    |> Enum.filter(fn {timestamp, _msg} ->
+      current_time - timestamp <= @entity_max_age
     end)
-    Process.send_after(self(), :cleanup, 1000)
+
     {:noreply, [], {filtered_payloads, pending_demand}}
+  end
+
+  defp schedule_cleanup do
+    Process.send_after(self(), :cleanup, @cleanup_interval)
   end
 end
