@@ -8,16 +8,28 @@ defmodule VeraWeb.PageController do
   end
 
   def request(conn, %{"service_id" => service_id, "payload" => payload}) do
-    payload = %{
+    ref = UUID.uuid4()
+    # Restructure the payload to be flat
+    request = %{
       service_id: service_id,
-      payload: payload
+      payload: payload,
+      response_ref: ref
     }
 
-    case Vera.Services.ServiceRequestProducer.enqueue(payload) do
+    case Vera.Services.ServiceRequestProducer.enqueue(request) do
       {:ok, _msg} ->
-        conn
-        |> put_status(:ok)
-        |> json(%{status: "success", message: "Content sent to client"})
+        Vera.Services.ServiceRequestRegistry.register_request(ref, self())
+        receive do
+          {:response, response_payload} ->
+            conn
+            |> put_status(:ok)
+            |> json(%{status: "success", response: response_payload})
+        after
+          30_000 ->
+            conn
+            |> put_status(:request_timeout)
+            |> json(%{status: "error", message: "Request timed out"})
+        end
 
       {:error, error_msg} ->
         conn

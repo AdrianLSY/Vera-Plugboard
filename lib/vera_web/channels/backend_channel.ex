@@ -22,8 +22,15 @@ defmodule VeraWeb.BackendChannel do
     :ok
   end
 
-  def handle_info({:request, message}, socket) do
-    push(socket, "request", message)
+  def handle_in("response", payload, socket) do
+    if pid = Vera.Services.ServiceRequestRegistry.get_requester(socket.ref) do
+      send(pid, {:response, payload})
+    end
+    {:noreply, socket}
+  end
+
+  def handle_info({:request, payload}, socket) do
+    push(socket, "request", payload)
     {:noreply, socket}
   end
 

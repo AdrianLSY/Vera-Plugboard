@@ -114,17 +114,18 @@ defmodule VeraWeb.ServiceLive.Show do
   end
 
   def handle_event("request", %{"payload" => payload}, socket) do
+    uuid4 = UUID.uuid4()
     parsed_payload = case Jason.decode(payload) do
       {:ok, json} -> json
       {:error, _} -> payload
     end
-
-    payload = %{
+    request = %{
       service_id: socket.assigns.service.id,
-      payload: parsed_payload
+      payload: parsed_payload,
+      response_ref: uuid4
     }
 
-    case Vera.Services.ServiceRequestProducer.enqueue(payload) do
+    case Vera.Services.ServiceRequestProducer.enqueue(request) do
       {:ok, _msg} ->
         {:noreply,
           socket
