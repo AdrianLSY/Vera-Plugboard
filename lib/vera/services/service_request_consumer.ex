@@ -14,7 +14,7 @@ defmodule Vera.Services.ServiceRequestConsumer do
     service_id = event.service_id
     client = Vera.Services.ServiceRegistry.get_client(service_id)
     if client do
-      send(client, {:request, %{response_ref: event.response_ref, body: event.payload}})
+      send(client, {:request, %{action: event.action, fields: event.fields, response_ref: event.response_ref}})
     end
   end)
   {:noreply, [], state}

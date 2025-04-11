@@ -7,12 +7,13 @@ defmodule VeraWeb.PageController do
     render(conn, :home, layout: false)
   end
 
-  def request(conn, %{"service_id" => service_id, "payload" => payload}) do
+  def request(conn, %{"service_id" => service_id, "action" => action, "fields" => fields}) do
     ref = UUID.uuid4()
-    # Restructure the payload to be flat
+    # Restructure the fields to be flat
     request = %{
       service_id: service_id,
-      payload: payload,
+      action: action,
+      fields: fields,
       response_ref: ref
     }
 
