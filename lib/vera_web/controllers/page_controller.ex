@@ -22,15 +22,21 @@ defmodule VeraWeb.PageController do
         Vera.Services.ServiceRequestRegistry.register_request(ref, self())
         receive do
           {:response, response_payload} ->
-            IO.inspect(response_payload)
-            if response_payload["status"] == "success" do
-              conn
-              |> put_status(:ok)
-              |> json(%{status: "success", message: response_payload["message"]})
-            else
-              conn
-              |> put_status(:bad_request)
-              |> json(%{status: "error", message: response_payload["message"]})
+            case response_payload do
+              %{"status" => status, "message" => message} ->
+                if status == "success" do
+                  conn
+                  |> put_status(:ok)
+                  |> json(%{status: "success", message: message})
+                else
+                  conn
+                  |> put_status(:bad_request)
+                  |> json(%{status: "error", message: message})
+                end
+              _ ->
+                conn
+                |> put_status(:bad_gateway)
+                |> json(%{status: "error", message: "Invalid response format from service process"})
             end
         after
           30_000 ->
