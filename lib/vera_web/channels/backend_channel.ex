@@ -4,7 +4,7 @@ defmodule VeraWeb.BackendChannel do
   alias Vera.Services.Service
   alias Vera.Repo
 
-  def join("backend/service/" <> service_id, _payload, socket) do
+  def join("service/" <> service_id, _payload, socket) do
     case Service.default_scope()
     |> Repo.get(service_id) do
       nil ->

@@ -16,7 +16,7 @@ defmodule VeraWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
-    socket "/backend", VeraWeb.BackendSocket,
+    socket "/", VeraWeb.BackendSocket,
     websocket: true,
     longpoll: false
 
