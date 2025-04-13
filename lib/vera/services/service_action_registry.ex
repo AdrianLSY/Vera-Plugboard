@@ -22,7 +22,7 @@ defmodule Vera.Services.ServiceActionRegistry do
   end
 
   def handle_cast({:register, service_id, action}, state) do
-    updated_state = Map.put(state, service_id, [action])
+    updated_state = Map.put(state, service_id, action)
     {:noreply, updated_state}
   end
 
@@ -31,7 +31,7 @@ defmodule Vera.Services.ServiceActionRegistry do
   end
 
   def handle_call({:get_actions, service_id}, _from, state) do
-    actions = Map.get(state, service_id, [])
-    {:reply, Enum.reverse(actions), state}
+    actions = Map.get(state, service_id, %{})
+    {:reply, actions, state}
   end
 end
