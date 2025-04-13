@@ -58,7 +58,8 @@ defmodule Vera.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
-      {:gen_stage, "~> 1.2.1"}
+      {:gen_stage, "~> 1.2.1"},
+      {:uuid, "~> 1.1.8"}
     ]
   end
 

@@ -18,7 +18,6 @@ defmodule VeraWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
-
     live "/services", ServiceLive.Index, :index
     live "/services/new", ServiceLive.Index, :new
     live "/services/:id/edit", ServiceLive.Index, :edit
@@ -26,13 +25,13 @@ defmodule VeraWeb.Router do
     live "/services/:id/new", ServiceLive.Show, :new
     live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
     live "/services/:id/delete", ServiceLive.Show, :delete
-    live "/services/:id/request", ServiceLive.Show, :request
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", VeraWeb do
-  #   pipe_through :api
-  # end
+  scope "/", VeraWeb do
+    pipe_through :api
+
+    post "/", PageController, :request
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:vera, :dev_routes) do

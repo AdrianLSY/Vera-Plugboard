@@ -3,7 +3,6 @@ defmodule VeraWeb.ServiceLive.FormComponent do
 
   alias Vera.Services
 
-  @impl true
   def render(assigns) do
     ~H"""
     <div>
@@ -22,18 +21,6 @@ defmodule VeraWeb.ServiceLive.FormComponent do
     """
   end
 
-  @impl true
-  def update(%{service: service, parent_id: parent_id} = assigns, socket) when is_nil(service.id) do
-    service = %{service | parent_id: parent_id}
-    changeset = Services.change_service(service)
-
-    {:ok,
-     socket
-     |> assign(assigns)
-     |> assign_new(:form, fn -> to_form(changeset) end)}
-  end
-
-  @impl true
   def update(%{service: service} = assigns, socket) do
     {:ok,
      socket
@@ -41,16 +28,6 @@ defmodule VeraWeb.ServiceLive.FormComponent do
      |> assign_new(:form, fn ->
        to_form(Services.change_service(service))
      end)}
-  end
-
-  @impl true
-  def handle_event("validate", %{"service" => service_params}, socket) do
-    changeset = Services.change_service(socket.assigns.service, service_params)
-    {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
-  end
-
-  def handle_event("save", %{"service" => service_params}, socket) do
-    save_service(socket, socket.assigns.action, service_params)
   end
 
   defp save_service(socket, :edit, service_params) do
@@ -81,6 +58,15 @@ defmodule VeraWeb.ServiceLive.FormComponent do
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
     end
+  end
+
+  def handle_event("validate", %{"service" => service_params}, socket) do
+    changeset = Services.change_service(socket.assigns.service, service_params)
+    {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
+  end
+
+  def handle_event("save", %{"service" => service_params}, socket) do
+    save_service(socket, socket.assigns.action, service_params)
   end
 
   defp notify_parent(msg), do: send(self(), {__MODULE__, msg})

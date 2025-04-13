@@ -5,7 +5,6 @@ defmodule Vera.Application do
 
   use Application
 
-  @impl true
   def start(_type, _args) do
     children = [
       VeraWeb.Telemetry,
@@ -14,12 +13,16 @@ defmodule Vera.Application do
       {Phoenix.PubSub, name: Vera.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: Vera.Finch},
-      # Start the ServiceRegistry for mapping service IDs to client processes
-      {Vera.Registry.ServiceRegistry, []},
+      # Start the ServiceConsumerRegistry for mapping service IDs to client processes
+      {Vera.Services.ServiceConsumerRegistry, []},
+      # Start the ServiceActionRegistry for mapping service IDs to actions
+      {Vera.Services.ServiceActionRegistry, []},
+      # Start the RequestRegistry for mapping response_ref to client processes
+      {Vera.Services.ServiceRequestRegistry, []},
       # Start the GenStage producer for service messages
-      {Vera.Queue.ServiceRequestProducer, []},
+      {Vera.Services.ServiceRequestProducer, []},
       # Start the GenStage consumer for direct routing of messages
-      {Vera.Queue.ServiceRequestConsumer, []},
+      {Vera.Services.ServiceRequestConsumer, []},
       # Start to serve requests, typically the last entry
       VeraWeb.Endpoint
     ]
@@ -28,7 +31,6 @@ defmodule Vera.Application do
     Supervisor.start_link(children, opts)
   end
 
-  @impl true
   def config_change(changed, _new, removed) do
     VeraWeb.Endpoint.config_change(changed, removed)
     :ok
