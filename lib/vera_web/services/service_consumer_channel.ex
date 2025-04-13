@@ -4,15 +4,27 @@ defmodule VeraWeb.Services.ServiceConsumerChannel do
   alias Vera.Services.Service
   alias Vera.Repo
 
-  def join("service/" <> service_id, _payload, socket) do
+  def join("service/" <> service_id, actions, socket) do
     case Service.default_scope()
     |> Repo.get(service_id) do
       nil ->
         {:error, %{reason: "Service not found"}}
       service ->
-        Vera.Services.ServiceConsumerRegistry.register(service_id, self())
-        Phoenix.PubSub.subscribe(Vera.PubSub, "service/#{service_id}")
-        {:ok, %{service: service, consumers_connected: Vera.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
+        if Vera.Services.ServiceConsumerRegistry.list_consumers(service_id) |> length() > 0 do
+          registered_actions = Vera.Services.ServiceActionRegistry.get_actions(service_id)
+          if actions != registered_actions do
+            {:error, %{reason: "Current consumer actions do not match other registered consumer actions"}}
+          else
+            Vera.Services.ServiceConsumerRegistry.register(service_id, self())
+            Phoenix.PubSub.subscribe(Vera.PubSub, "service/#{service_id}")
+            {:ok, %{service: service, consumers_connected: Vera.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
+          end
+        else
+          Vera.Services.ServiceConsumerRegistry.register(service_id, self())
+          Vera.Services.ServiceActionRegistry.register(service_id, actions)
+          Phoenix.PubSub.subscribe(Vera.PubSub, "service/#{service_id}")
+          {:ok, %{service: service, consumers_connected: Vera.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
+        end
     end
   end
 
