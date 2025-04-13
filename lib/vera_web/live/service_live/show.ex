@@ -108,7 +108,6 @@ defmodule VeraWeb.ServiceLive.Show do
   end
 
   def handle_info({:actions, actions}, socket) do
-    IO.puts "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
     {:noreply, assign(socket, :actions, actions)}
   end
 
