@@ -562,7 +562,7 @@ defmodule VeraWeb.CoreComponents do
           Available Actions
         </div>
         <div class="text-sm text-zinc-500">
-          The action names and respective fields that can be executed by the service consumer
+          The action names and respective fields that can be processed by the service consumer
         </div>
       </div>
       <div :for={{action_name, action_data} <- @actions} class="py-4 border-t border-zinc-200">
