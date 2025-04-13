@@ -14,6 +14,8 @@ defmodule VeraWeb.CoreComponents do
 
   Icons are provided by [heroicons](https://heroicons.com). See `icon/1` for usage.
   """
+  import Phoenix.HTML
+
   use Phoenix.Component
   use Gettext, backend: VeraWeb.Gettext
 
@@ -551,6 +553,59 @@ defmodule VeraWeb.CoreComponents do
           </tr>
         </tbody>
       </table>
+    </div>
+    """
+  end
+
+  def actions_info(assigns) do
+    ~H"""
+    <div class="overflow-x-auto">
+      <div class="min-w-[40rem] pr-4">
+        <div :for={{action_name, action_data} <- @actions} class="py-4 border-b border-zinc-100 last:border-b-0">
+          <div class="pb-2">
+            <div class="font-medium font-semibold text-zinc-900">
+              <%= action_name %>
+            </div>
+            <p class="text-sm text-zinc-600"><%= raw(String.replace(action_data["description"], ~r/\n|\s/, fn
+              "\n" -> "<br>"
+              " " -> "&nbsp;"
+            end)) %></p>
+          </div>
+
+          <%= for {field_name, field_data} <- action_data["fields"] do %>
+            <.field_info field_name={field_name} field_data={field_data} />
+          <% end %>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  def field_info(assigns) do
+    ~H"""
+    <div class="pt-2 border-l-2 border-zinc-200 pl-8">
+      <div class="pb-2">
+        <div class="font-medium text-zinc-900">
+          <%= @field_name %>
+          <span class="text-sm text-zinc-600 whitespace-nowrap">
+            ( <%= @field_data["type"] %><%= if Map.has_key?(@field_data, "default") do %> ∙ default → <%= if @field_data["default"] == nil, do: "null", else: @field_data["default"] %> <% end %> )
+          </span>
+        </div>
+        <div class="text-sm text-zinc-600">
+          <%= raw(String.replace(@field_data["description"], ~r/\n|\s/, fn
+            "\n" -> "<br>"
+            " " -> "&nbsp;"
+          end)) %>
+        </div>
+      </div>
+
+      <%= if Map.has_key?(@field_data, "fields") do %>
+        <%= for {nested_field_name, nested_field_data} <- @field_data["fields"] do %>
+          <div>
+            <.field_info field_name={nested_field_name} field_data={nested_field_data} />
+          </div>
+        <% end %>
+      <% end %>
     </div>
     """
   end
