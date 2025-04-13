@@ -60,15 +60,6 @@ defmodule Vera.Services.ServiceConsumerRegistry do
     {:reply, consumers, state}
   end
 
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
-    new_state = Enum.reduce(state, %{}, fn {service_id, consumers}, acc ->
-      updated_consumers = List.delete(consumers, pid)
-      Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service_id}", {:consumers_connected, length(updated_consumers)})
-      Map.put(acc, service_id, updated_consumers)
-    end)
-    {:noreply, new_state}
-  end
-
   def handle_info(_msg, state) do
     {:noreply, state}
   end
