@@ -557,7 +557,7 @@ defmodule VeraWeb.CoreComponents do
 
   def actions_info(assigns) do
     ~H"""
-    <div :for={{action_name, action_data} <- @actions} class="py-4 border-t border-zinc-200">
+    <div :for={{action_name, action_data} <- @actions} class="py-4 border-b border-zinc-100 last:border-b-0">
       <div class="mb-2">
         <div class="font-medium font-semibold text-zinc-900">
           <%= action_name %>
