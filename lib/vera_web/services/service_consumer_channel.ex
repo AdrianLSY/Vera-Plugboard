@@ -1,4 +1,4 @@
-defmodule VeraWeb.BackendChannel do
+defmodule VeraWeb.Services.ServiceConsumerChannel do
   use Phoenix.Channel
 
   alias Vera.Services.Service
@@ -10,15 +10,15 @@ defmodule VeraWeb.BackendChannel do
       nil ->
         {:error, %{reason: "Service not found"}}
       service ->
-        Vera.Services.ServiceRegistry.register(service_id, self())
+        Vera.Services.ServiceConsumerRegistry.register(service_id, self())
         Phoenix.PubSub.subscribe(Vera.PubSub, "service/#{service_id}")
-        {:ok, %{service: service, clients_connected: Vera.Services.ServiceRegistry.list_clients(service.id) |> length()}, assign(socket, :service_id, service_id)}
+        {:ok, %{service: service, consumers_connected: Vera.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
     end
   end
 
   def terminate(_reason, socket) do
     service_id = socket.assigns[:service_id]
-    Vera.Services.ServiceRegistry.unregister(service_id, self())
+    Vera.Services.ServiceConsumerRegistry.unregister(service_id, self())
     :ok
   end
 
@@ -48,8 +48,8 @@ defmodule VeraWeb.BackendChannel do
     {:noreply, socket}
   end
 
-  def handle_info({:clients_connected, clients_connected}, socket) do
-    push(socket, "clients_connected", %{clients_connected: clients_connected})
+  def handle_info({:consumers_connected, consumers_connected}, socket) do
+    push(socket, "consumers_connected", %{consumers_connected: consumers_connected})
     {:noreply, socket}
   end
 end

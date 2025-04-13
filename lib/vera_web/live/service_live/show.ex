@@ -15,12 +15,12 @@ defmodule VeraWeb.ServiceLive.Show do
     service = Services.get_service!(id) |> Vera.Repo.preload([:parent, :children])
     childrens = service.children |> Vera.Repo.preload([:parent])
     full_path = Service.full_path(service)
-    clients_connected = Vera.Services.ServiceRegistry.list_clients(service.id) |> length()
+    consumers_connected = Vera.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()
     socket = socket
       |> assign(:service, service)
       |> stream(:services, childrens)
       |> assign(:full_path, full_path)
-      |> assign(:clients_connected, clients_connected)
+      |> assign(:consumers_connected, consumers_connected)
       |> assign(:page_title, page_title(socket.assigns.live_action))
       |> assign_form_service(socket.assigns.live_action, params)
 
@@ -101,8 +101,8 @@ defmodule VeraWeb.ServiceLive.Show do
       |> assign(:full_path, full_path)}
   end
 
-  def handle_info({:clients_connected, clients_connected}, socket) do
-    {:noreply, assign(socket, :clients_connected, clients_connected)}
+  def handle_info({:consumers_connected, consumers_connected}, socket) do
+    {:noreply, assign(socket, :consumers_connected, consumers_connected)}
   end
 
   def handle_event("delete", %{"id" => id}, socket) do

@@ -1,7 +1,5 @@
-defmodule Vera.Services.ServiceRegistry do
+defmodule Vera.Services.ServiceConsumerRegistry do
   use GenServer
-
-  ## Client API
 
   def start_link(_args) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -10,20 +8,20 @@ defmodule Vera.Services.ServiceRegistry do
   def register(service_id, pid) do
     Process.monitor(pid)
     GenServer.call(__MODULE__, {:register, service_id |> to_string(), pid})
-    Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service_id}", {:clients_connected, list_clients(service_id) |> length()})
+    Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service_id}", {:consumers_connected, list_consumers(service_id) |> length()})
   end
 
   def unregister(service_id, pid) do
     GenServer.call(__MODULE__, {:unregister, service_id |> to_string(), pid})
-    Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service_id}", {:clients_connected, list_clients(service_id) |> length()})
+    Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service_id}", {:consumers_connected, list_consumers(service_id) |> length()})
   end
 
-  def get_client(service_id) do
-    GenServer.call(__MODULE__, {:get_client, service_id |> to_string()})
+  def get_consumer(service_id) do
+    GenServer.call(__MODULE__, {:get_consumer, service_id |> to_string()})
   end
 
-  def list_clients(service_id) do
-    GenServer.call(__MODULE__, {:list_clients, service_id |> to_string()})
+  def list_consumers(service_id) do
+    GenServer.call(__MODULE__, {:list_consumers, service_id |> to_string()})
   end
 
   ## Server Callbacks
@@ -45,7 +43,7 @@ defmodule Vera.Services.ServiceRegistry do
     {:reply, :ok, new_state}
   end
 
-  def handle_call({:get_client, service_id}, _from, state) do
+  def handle_call({:get_consumer, service_id}, _from, state) do
     clients = Map.get(state, service_id, [])
     case clients do
       [] ->
@@ -57,7 +55,7 @@ defmodule Vera.Services.ServiceRegistry do
     end
   end
 
-  def handle_call({:list_clients, service_id}, _from, state) do
+  def handle_call({:list_consumers, service_id}, _from, state) do
     clients = Map.get(state, service_id, [])
     {:reply, clients, state}
   end
@@ -65,7 +63,7 @@ defmodule Vera.Services.ServiceRegistry do
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
     new_state = Enum.reduce(state, %{}, fn {service_id, clients}, acc ->
       updated_clients = List.delete(clients, pid)
-      Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service_id}", {:clients_connected, length(updated_clients)})
+      Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service_id}", {:consumers_connected, length(updated_clients)})
       Map.put(acc, service_id, updated_clients)
     end)
     {:noreply, new_state}

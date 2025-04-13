@@ -188,14 +188,14 @@ defmodule VeraWeb.ServiceLiveTest do
       assert_redirect(show_live, ~p"/services")
     end
 
-    test "shows connected clients count", %{conn: conn, parent: parent} do
+    test "shows connected consumers count", %{conn: conn, parent: parent} do
       {:ok, show_live, html} = live(conn, ~p"/services/#{parent}")
 
-      assert html =~ "0 client connected"
+      assert html =~ "0 consumer connected"
 
-      send(show_live.pid, {:clients_connected, 2})
+      send(show_live.pid, {:consumers_connected, 2})
       html = render(show_live)
-      assert html =~ "2 clients connected"
+      assert html =~ "2 consumers connected"
     end
 
     test "handles form assignment for different actions", %{conn: conn, parent: parent, child: child} do
