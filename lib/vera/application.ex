@@ -15,6 +15,8 @@ defmodule Vera.Application do
       {Finch, name: Vera.Finch},
       # Start the ServiceConsumerRegistry for mapping service IDs to client processes
       {Vera.Services.ServiceConsumerRegistry, []},
+      # Start the ServiceActionRegistry for mapping service IDs to actions
+      {Vera.Services.ServiceActionRegistry, []},
       # Start the RequestRegistry for mapping response_ref to client processes
       {Vera.Services.ServiceRequestRegistry, []},
       # Start the GenStage producer for service messages
