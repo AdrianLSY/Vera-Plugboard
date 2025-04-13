@@ -16,13 +16,11 @@ defmodule VeraWeb.Services.ServiceConsumerChannel do
             {:error, %{reason: "Current consumer actions do not match other registered consumer actions"}}
           else
             Vera.Services.ServiceConsumerRegistry.register(service_id, self())
-            Phoenix.PubSub.subscribe(Vera.PubSub, "service/#{service_id}")
             {:ok, %{service: service, consumers_connected: Vera.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
           end
         else
           Vera.Services.ServiceConsumerRegistry.register(service_id, self())
           Vera.Services.ServiceActionRegistry.register(service_id, actions)
-          Phoenix.PubSub.subscribe(Vera.PubSub, "service/#{service_id}")
           {:ok, %{service: service, consumers_connected: Vera.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
         end
     end
