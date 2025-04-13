@@ -42,6 +42,10 @@
   </.table>
 </.content>
 
+<div>
+  #{inspect(@actions)}
+</div>
+
 <.modal :if={@live_action in [:new, :edit]} id="service-modal" show on_cancel={JS.patch(~p"/services/#{@service}")}>
   <.live_component
     module={VeraWeb.ServiceLive.FormComponent}

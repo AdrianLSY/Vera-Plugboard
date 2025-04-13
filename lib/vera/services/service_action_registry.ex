@@ -7,10 +7,12 @@ defmodule Vera.Services.ServiceActionRegistry do
 
   def register(service_id, action) do
     GenServer.cast(__MODULE__, {:register, service_id |> to_string(), action})
+    Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service_id}", {:actions, action})
   end
 
   def unregister(service_id) do
     GenServer.cast(__MODULE__, {:unregister, service_id |> to_string()})
+    Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service_id}", {:actions, %{}})
   end
 
   def get_actions(service_id) do

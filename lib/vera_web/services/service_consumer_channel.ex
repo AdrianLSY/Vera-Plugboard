@@ -29,6 +29,9 @@ defmodule VeraWeb.Services.ServiceConsumerChannel do
   def terminate(_reason, socket) do
     service_id = socket.assigns[:service_id]
     Vera.Services.ServiceConsumerRegistry.unregister(service_id, self())
+    if Vera.Services.ServiceConsumerRegistry.list_consumers(service_id) |> length() == 0 do
+      Vera.Services.ServiceActionRegistry.unregister(service_id)
+    end
     :ok
   end
 
