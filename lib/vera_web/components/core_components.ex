@@ -14,6 +14,8 @@ defmodule VeraWeb.CoreComponents do
 
   Icons are provided by [heroicons](https://heroicons.com). See `icon/1` for usage.
   """
+  import Phoenix.HTML
+
   use Phoenix.Component
   use Gettext, backend: VeraWeb.Gettext
 
@@ -558,11 +560,14 @@ defmodule VeraWeb.CoreComponents do
   def actions_info(assigns) do
     ~H"""
     <div :for={{action_name, action_data} <- @actions} class="py-4 border-b border-zinc-100 last:border-b-0">
-      <div class="mb-2">
+      <div class="pb-2">
         <div class="font-medium font-semibold text-zinc-900">
           <%= action_name %>
         </div>
-        <p class="text-sm text-zinc-600"><%= action_data["description"] %></p>
+        <p class="text-sm text-zinc-600"><%= raw(String.replace(action_data["description"], ~r/\n|\s/, fn
+          "\n" -> "<br>"
+          " " -> "&nbsp;"
+        end)) %></p>
       </div>
 
       <%= for {field_name, field_data} <- action_data["fields"] do %>
@@ -575,14 +580,19 @@ defmodule VeraWeb.CoreComponents do
   def field_info(assigns) do
     ~H"""
     <div class="pt-2 border-l-2 border-zinc-200 pl-8">
-      <div class="font-medium text-zinc-900">
-        <%= @field_name %>
-        <span class="text-sm text-zinc-500">
-          ( <%= @field_data["type"] %><%= if Map.has_key?(@field_data, "default") do %> ∙ default → <%= if @field_data["default"] == nil, do: "null", else: @field_data["default"] %> <% end %> )
-        </span>
-      </div>
-      <div class="mt-1 text-sm text-zinc-500">
-        <%= @field_data["description"] %>
+      <div class="pb-2">
+        <div class="font-medium text-zinc-900">
+          <%= @field_name %>
+          <span class="text-sm text-zinc-600">
+            ( <%= @field_data["type"] %><%= if Map.has_key?(@field_data, "default") do %> ∙ default → <%= if @field_data["default"] == nil, do: "null", else: @field_data["default"] %> <% end %> )
+          </span>
+        </div>
+        <div class="text-sm text-zinc-600">
+          <%= raw(String.replace(@field_data["description"], ~r/\n|\s/, fn
+            "\n" -> "<br>"
+            " " -> "&nbsp;"
+          end)) %>
+        </div>
       </div>
 
       <%= if Map.has_key?(@field_data, "fields") do %>
