@@ -557,32 +557,42 @@ defmodule VeraWeb.CoreComponents do
 
   def actions_info(assigns) do
     ~H"""
-      <div class="mt-8 mb-4 font-semibold">
-        <div class="text-lg text-zinc-900">
-          Available Actions
+    <div :for={{action_name, action_data} <- @actions} class="py-4 border-t border-zinc-200">
+      <div class="mb-2">
+        <div class="font-medium font-semibold text-zinc-900">
+          <%= action_name %>
         </div>
-        <div class="text-sm text-zinc-500">
-          The action names and respective fields that can be processed by the service consumer
-        </div>
+        <p class="text-sm text-zinc-600"><%= action_data["description"] %></p>
       </div>
-      <div :for={{action_name, action_data} <- @actions} class="py-4 border-t border-zinc-200">
-        <div class="mb-2">
-          <div class="text-lg font-semibold text-zinc-900">
-            <%= action_name %>
-          </div>
-          <p class="text-sm text-zinc-600"><%= action_data["description"] %></p>
-        </div>
 
-        <div :for={{field_name, field_data} <- action_data["fields"]} class="py-2 border-l-2 border-zinc-200 pl-4">
-          <div class="font-medium text-zinc-900">
-            <%= field_name %>
-            <span class="text-sm text-zinc-500">
-              ( <%= field_data["type"] %><%= if Map.has_key?(field_data, "default") do %> ∙ default → <%= field_data["default"] %><% end %> )
-            </span>
-          </div>
-          <div class="mt-1 text-sm text-zinc-500"><%= field_data["description"] %></div>
-        </div>
+      <%= for {field_name, field_data} <- action_data["fields"] do %>
+        <.field_info field_name={field_name} field_data={field_data} />
+      <% end %>
+    </div>
+    """
+  end
+
+  def field_info(assigns) do
+    ~H"""
+    <div class="pt-2 border-l-2 border-zinc-200 pl-8">
+      <div class="font-medium text-zinc-900">
+        <%= @field_name %>
+        <span class="text-sm text-zinc-500">
+          ( <%= @field_data["type"] %><%= if Map.has_key?(@field_data, "default") do %> ∙ default → <%= if @field_data["default"] == nil, do: "null", else: @field_data["default"] %> <% end %> )
+        </span>
       </div>
+      <div class="mt-1 text-sm text-zinc-500">
+        <%= @field_data["description"] %>
+      </div>
+
+      <%= if Map.has_key?(@field_data, "fields") do %>
+        <%= for {nested_field_name, nested_field_data} <- @field_data["fields"] do %>
+          <div>
+            <.field_info field_name={nested_field_name} field_data={nested_field_data} />
+          </div>
+        <% end %>
+      <% end %>
+    </div>
     """
   end
 

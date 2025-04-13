@@ -40,11 +40,21 @@
       </.link>
     </:action>
   </.table>
-
-  <%= if @actions != %{} do %>
-    <.actions_info actions={@actions} />
-  <% end %>
 </.content>
+<%= if @actions != %{} do %>
+  <br>
+  <.content>
+    <div class="mb-4 font-semibold">
+      <div class="text-lg text-zinc-900">
+        Available Actions
+      </div>
+      <div class="text-sm text-zinc-500">
+        The action names and respective fields that can be processed by the service consumer
+      </div>
+    </div>
+    <.actions_info actions={@actions} />
+  </.content>
+<% end %>
 
 <.modal :if={@live_action in [:new, :edit]} id="service-modal" show on_cancel={JS.patch(~p"/services/#{@service}")}>
   <.live_component
