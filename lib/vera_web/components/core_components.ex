@@ -555,6 +555,29 @@ defmodule VeraWeb.CoreComponents do
     """
   end
 
+  def actions_info(assigns) do
+    ~H"""
+      <div :for={{action_name, action_data} <- @actions} class="py-4 border-t border-zinc-200">
+        <div class="mb-2">
+          <div class="text-lg font-semibold text-zinc-900">
+            <%= action_name %>
+          </div>
+          <p class="text-sm text-zinc-600"><%= action_data["description"] %></p>
+        </div>
+
+        <div :for={{field_name, field_data} <- action_data["fields"]} class="py-2 border-l-2 border-zinc-200 pl-4">
+          <div class="font-medium text-zinc-900">
+            <%= field_name %>
+            <span class="text-sm text-zinc-500">
+              ( <%= field_data["type"] %><%= if Map.has_key?(field_data, "default") do %> ∙ default → <%= field_data["default"] %><% end %> )
+            </span>
+          </div>
+          <div class="mt-1 text-sm text-zinc-500"><%= field_data["description"] %></div>
+        </div>
+      </div>
+    """
+  end
+
   @doc """
   Renders a data list.
 
