@@ -20,7 +20,7 @@ defmodule Vera.Services.ServiceRequestProducer do
       GenStage.cast(__MODULE__, {:enqueue, request})
       {:ok, "Message enqueued"}
     else
-      {:error, "No service clients are available to handle the request"}
+      {:error, "No service consumers are available to handle the request"}
     end
   end
 
