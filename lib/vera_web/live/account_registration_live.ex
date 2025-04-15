@@ -6,8 +6,8 @@ defmodule VeraWeb.AccountRegistrationLive do
 
   def render(assigns) do
     ~H"""
-    <div class="mx-auto max-w-sm">
-      <.header class="text-center">
+    <div class="mx-auto max-w-lg shadow-zinc-700/10 ring-zinc-700/10 relative rounded-xl bg-white p-14 shadow-lg ring-1">
+      <.header>
         Register for an account
         <:subtitle>
           Already registered?

@@ -3,8 +3,8 @@ defmodule VeraWeb.AccountLoginLive do
 
   def render(assigns) do
     ~H"""
-    <div class="mx-auto max-w-sm">
-      <.header class="text-center">
+    <div class="mx-auto max-w-lg shadow-zinc-700/10 ring-zinc-700/10 relative rounded-xl bg-white p-14 shadow-lg ring-1">
+      <.header>
         Log in to account
         <:subtitle>
           Don't have an account?
@@ -21,7 +21,7 @@ defmodule VeraWeb.AccountLoginLive do
 
         <:actions>
           <.input field={@form[:remember_me]} type="checkbox" label="Keep me logged in" />
-          <.link href={~p"/accounts/reset_password"} class="text-sm font-semibold">
+          <.link href={~p"/accounts/reset_password"} class="text-sm text-brand hover:underline">
             Forgot your password?
           </.link>
         </:actions>
@@ -37,7 +37,7 @@ defmodule VeraWeb.AccountLoginLive do
 
   def mount(_params, _session, socket) do
     email = Phoenix.Flash.get(socket.assigns.flash, :email)
-    form = to_form(%{"email" => email}, as: "account")
+    form = to_form(%{"email" => email, "remember_me" => true}, as: "account")
     {:ok, assign(socket, form: form), temporary_assigns: [form: form]}
   end
 end
