@@ -19,45 +19,25 @@ defmodule VeraWeb.Router do
 
   scope "/", VeraWeb do
     pipe_through :browser
-
     get "/", PageController, :home
-    live "/services", ServiceLive.Index, :index
-    live "/services/new", ServiceLive.Index, :new
-    live "/services/:id/edit", ServiceLive.Index, :edit
-    live "/services/:id", ServiceLive.Show, :show
-    live "/services/:id/new", ServiceLive.Show, :new
-    live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
-    live "/services/:id/delete", ServiceLive.Show, :delete
   end
 
   scope "/", VeraWeb do
     pipe_through :api
-
     post "/", PageController, :request
   end
 
-  # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:vera, :dev_routes) do
-    # If you want to use the LiveDashboard in production, you should put
-    # it behind authentication and allow only admins to access it.
-    # If your application does not have an admins-only section yet,
-    # you can use Plug.BasicAuth to set up some basic authentication
-    # as long as you are also using SSL (which you should anyway).
     import Phoenix.LiveDashboard.Router
-
     scope "/dev" do
       pipe_through :browser
-
       live_dashboard "/dashboard", metrics: VeraWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
   end
 
-  ## Authentication routes
-
   scope "/", VeraWeb do
     pipe_through [:browser, :redirect_if_account_is_authenticated]
-
     live_session :redirect_if_account_is_authenticated,
       on_mount: [{VeraWeb.AccountAuth, :redirect_if_account_is_authenticated}] do
       live "/accounts/register", AccountRegistrationLive, :new
@@ -65,17 +45,22 @@ defmodule VeraWeb.Router do
       live "/accounts/reset_password", AccountForgotPasswordLive, :new
       live "/accounts/reset_password/:token", AccountResetPasswordLive, :edit
     end
-
     post "/accounts/log_in", AccountSessionController, :create
   end
 
   scope "/", VeraWeb do
     pipe_through [:browser, :require_authenticated_account]
-
     live_session :require_authenticated_account,
       on_mount: [{VeraWeb.AccountAuth, :ensure_authenticated}] do
       live "/accounts/settings", AccountSettingsLive, :edit
       live "/accounts/settings/confirm_email/:token", AccountSettingsLive, :confirm_email
+      live "/services", ServiceLive.Index, :index
+      live "/services/new", ServiceLive.Index, :new
+      live "/services/:id/edit", ServiceLive.Index, :edit
+      live "/services/:id", ServiceLive.Show, :show
+      live "/services/:id/new", ServiceLive.Show, :new
+      live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
+      live "/services/:id/delete", ServiceLive.Show, :delete
     end
   end
 

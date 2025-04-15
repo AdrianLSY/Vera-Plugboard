@@ -4,7 +4,47 @@
       <a href="/" class="text-white font-bold text-lg">Vera Plugboard</a>
     </div>
     <div>
-      <a href="/services" class="text-white font-medium">Services</a>
+      <ul class="flex items-center gap-4 text-white text-sm">
+        <%= if @current_account do %>
+          <li>
+            <span class="text-zinc-300"><%= @current_account.email %></span>
+          </li>
+          <li>
+            <.link
+              href={~p"/accounts/settings"}
+              class="font-semibold hover:text-zinc-400"
+            >
+              Settings
+            </.link>
+          </li>
+          <li>
+            <.link
+              href={~p"/accounts/log_out"}
+              method="delete"
+              class="font-semibold hover:text-zinc-400"
+            >
+              Log out
+            </.link>
+          </li>
+        <% else %>
+          <li>
+            <.link
+              href={~p"/accounts/register"}
+              class="font-semibold hover:text-zinc-400"
+            >
+              Register
+            </.link>
+          </li>
+          <li>
+            <.link
+              href={~p"/accounts/log_in"}
+              class="font-semibold hover:text-zinc-400"
+            >
+              Log in
+            </.link>
+          </li>
+        <% end %>
+      </ul>
     </div>
   </div>
 </header>
