@@ -13,7 +13,6 @@ defmodule Vera.Accounts.Account do
     timestamps(type: :utc_datetime)
   end
 
-
   @doc """
   A account changeset for registration.
 
