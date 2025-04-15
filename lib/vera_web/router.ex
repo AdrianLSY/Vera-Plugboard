@@ -54,13 +54,6 @@ defmodule VeraWeb.Router do
       on_mount: [{VeraWeb.AccountAuth, :ensure_authenticated}] do
       live "/accounts/settings", AccountSettingsLive, :edit
       live "/accounts/settings/confirm_email/:token", AccountSettingsLive, :confirm_email
-      live "/services", ServiceLive.Index, :index
-      live "/services/new", ServiceLive.Index, :new
-      live "/services/:id/edit", ServiceLive.Index, :edit
-      live "/services/:id", ServiceLive.Show, :show
-      live "/services/:id/new", ServiceLive.Show, :new
-      live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
-      live "/services/:id/delete", ServiceLive.Show, :delete
     end
   end
 
@@ -74,5 +67,16 @@ defmodule VeraWeb.Router do
       live "/accounts/confirm/:token", AccountConfirmationLive, :edit
       live "/accounts/confirm", AccountConfirmationInstructionsLive, :new
     end
+  end
+
+  scope "/", VeraWeb do
+    pipe_through [:browser]
+    live "/services", ServiceLive.Index, :index
+    live "/services/new", ServiceLive.Index, :new
+    live "/services/:id/edit", ServiceLive.Index, :edit
+    live "/services/:id", ServiceLive.Show, :show
+    live "/services/:id/new", ServiceLive.Show, :new
+    live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
+    live "/services/:id/delete", ServiceLive.Show, :delete
   end
 end
