@@ -4,6 +4,7 @@ defmodule Vera.Accounts.Account do
 
   schema "accounts" do
     field :email, :string
+    field :role, Ecto.Enum, values: [:user, :admin], default: :user
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :current_password, :string, virtual: true, redact: true
@@ -11,6 +12,7 @@ defmodule Vera.Accounts.Account do
 
     timestamps(type: :utc_datetime)
   end
+
 
   @doc """
   A account changeset for registration.

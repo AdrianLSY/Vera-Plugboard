@@ -6,6 +6,7 @@ defmodule Vera.Repo.Migrations.CreateAccountsAuthTables do
 
     create table(:accounts) do
       add :email, :citext, null: false
+      add :role, :string, null: false, default: "user"
       add :hashed_password, :string, null: false
       add :confirmed_at, :utc_datetime
 
