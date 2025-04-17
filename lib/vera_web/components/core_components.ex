@@ -137,6 +137,96 @@ defmodule VeraWeb.CoreComponents do
   end
 
   @doc """
+  Renders a flash entry with an icon, title, message, and optional dismiss button.
+
+  ## Examples
+
+      <.flash_entry
+        kind={:info}
+        title="New API token generated!"
+        message="Please copy your API token now. You will not see it again."
+        value={@token_value}
+        dismiss_event="dismiss_token"
+      />
+  """
+  attr :kind, :atom, default: :info, values: [:info, :error]
+  attr :title, :string, required: true
+  attr :message, :string, required: true
+  attr :value, :string, default: nil
+  attr :dismiss_event, :string, default: nil
+  attr :class, :string, default: nil
+
+  def flash_entry(assigns) do
+    ~H"""
+    <div class={[
+      "rounded-md p-4 mt-4 border",
+      @kind == :info && "bg-blue-50 border-blue-300",
+      @kind == :error && "bg-rose-50 border-rose-300",
+      @class
+    ]}>
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <.icon
+            name={@kind == :info && "hero-information-circle" || "hero-exclamation-circle"}
+            class={[
+              "h-5 w-5",
+              @kind == :info && "text-blue-400",
+              @kind == :error && "text-rose-400"
+            ]}
+          />
+        </div>
+        <div class="ml-3 flex-1 md:flex md:justify-between">
+          <div>
+            <h3 class={[
+              "text-sm font-medium",
+              @kind == :info && "text-blue-800",
+              @kind == :error && "text-rose-800"
+            ]}>
+              <%= @title %>
+            </h3>
+            <div class={[
+              "mt-2 text-sm",
+              @kind == :info && "text-blue-700",
+              @kind == :error && "text-rose-700"
+            ]}>
+              <p><%= @message %></p>
+            </div>
+            <%= if @code do %>
+              <div class={[
+                "mt-2 rounded-md p-2 border",
+                @kind == :info && "bg-white border-blue-300",
+                @kind == :error && "bg-white border-rose-300"
+              ]}>
+                <code class={[
+                  "text-sm break-all",
+                  @kind == :info && "text-blue-800",
+                  @kind == :error && "text-rose-800"
+                ]}><%= @code %></code>
+              </div>
+            <% end %>
+          </div>
+          <%= if @dismiss_event do %>
+            <div class="mt-3 text-sm md:ml-6 md:mt-0">
+              <button
+                phx-click={@dismiss_event}
+                class={[
+                  "whitespace-nowrap font-medium",
+                  @kind == :info && "text-blue-700 hover:text-blue-600",
+                  @kind == :error && "text-rose-700 hover:text-rose-600"
+                ]}
+              >
+                Dismiss
+                <span aria-hidden="true"> &rarr;</span>
+              </button>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples
