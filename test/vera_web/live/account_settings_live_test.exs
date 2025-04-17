@@ -10,17 +10,17 @@ defmodule VeraWeb.AccountLive.SettingsTest do
       {:ok, _lv, html} =
         conn
         |> log_in_account(account_fixture())
-        |> live(~p"/accounts/settings")
+        |> live(~p"/settings")
 
       assert html =~ "Change Email"
       assert html =~ "Change Password"
     end
 
     test "redirects if account is not logged in", %{conn: conn} do
-      assert {:error, redirect} = live(conn, ~p"/accounts/settings")
+      assert {:error, redirect} = live(conn, ~p"/settings")
 
       assert {:redirect, %{to: path, flash: flash}} = redirect
-      assert path == ~p"/accounts/log_in"
+      assert path == ~p"/log_in"
       assert %{"error" => "You must log in to access this page."} = flash
     end
   end
@@ -35,7 +35,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
     test "updates the account email", %{conn: conn, password: password, account: account} do
       new_email = unique_account_email()
 
-      {:ok, lv, _html} = live(conn, ~p"/accounts/settings")
+      {:ok, lv, _html} = live(conn, ~p"/settings")
 
       result =
         lv
@@ -50,7 +50,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
     end
 
     test "renders errors with invalid data (phx-change)", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/settings")
+      {:ok, lv, _html} = live(conn, ~p"/settings")
 
       result =
         lv
@@ -66,7 +66,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
     end
 
     test "renders errors with invalid data (phx-submit)", %{conn: conn, account: account} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/settings")
+      {:ok, lv, _html} = live(conn, ~p"/settings")
 
       result =
         lv
@@ -92,7 +92,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
     test "updates the account password", %{conn: conn, account: account, password: password} do
       new_password = valid_account_password()
 
-      {:ok, lv, _html} = live(conn, ~p"/accounts/settings")
+      {:ok, lv, _html} = live(conn, ~p"/settings")
 
       form =
         form(lv, "#password_form", %{
@@ -108,7 +108,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
 
       new_password_conn = follow_trigger_action(form, conn)
 
-      assert redirected_to(new_password_conn) == ~p"/accounts/settings"
+      assert redirected_to(new_password_conn) == ~p"/settings"
 
       assert get_session(new_password_conn, :account_token) != get_session(conn, :account_token)
 
@@ -119,7 +119,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
     end
 
     test "renders errors with invalid data (phx-change)", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/settings")
+      {:ok, lv, _html} = live(conn, ~p"/settings")
 
       result =
         lv
@@ -138,7 +138,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
     end
 
     test "renders errors with invalid data (phx-submit)", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/settings")
+      {:ok, lv, _html} = live(conn, ~p"/settings")
 
       result =
         lv
@@ -172,27 +172,27 @@ defmodule VeraWeb.AccountLive.SettingsTest do
     end
 
     test "updates the account email once", %{conn: conn, account: account, token: token, email: email} do
-      {:error, redirect} = live(conn, ~p"/accounts/settings/confirm_email/#{token}")
+      {:error, redirect} = live(conn, ~p"/settings/confirm_email/#{token}")
 
       assert {:live_redirect, %{to: path, flash: flash}} = redirect
-      assert path == ~p"/accounts/settings"
+      assert path == ~p"/settings"
       assert %{"info" => message} = flash
       assert message == "Email changed successfully."
       refute Accounts.get_account_by_email(account.email)
       assert Accounts.get_account_by_email(email)
 
       # use confirm token again
-      {:error, redirect} = live(conn, ~p"/accounts/settings/confirm_email/#{token}")
+      {:error, redirect} = live(conn, ~p"/settings/confirm_email/#{token}")
       assert {:live_redirect, %{to: path, flash: flash}} = redirect
-      assert path == ~p"/accounts/settings"
+      assert path == ~p"/settings"
       assert %{"error" => message} = flash
       assert message == "Email change link is invalid or it has expired."
     end
 
     test "does not update email with invalid token", %{conn: conn, account: account} do
-      {:error, redirect} = live(conn, ~p"/accounts/settings/confirm_email/oops")
+      {:error, redirect} = live(conn, ~p"/settings/confirm_email/oops")
       assert {:live_redirect, %{to: path, flash: flash}} = redirect
-      assert path == ~p"/accounts/settings"
+      assert path == ~p"/settings"
       assert %{"error" => message} = flash
       assert message == "Email change link is invalid or it has expired."
       assert Accounts.get_account_by_email(account.email)
@@ -200,9 +200,9 @@ defmodule VeraWeb.AccountLive.SettingsTest do
 
     test "redirects if account is not logged in", %{token: token} do
       conn = build_conn()
-      {:error, redirect} = live(conn, ~p"/accounts/settings/confirm_email/#{token}")
+      {:error, redirect} = live(conn, ~p"/settings/confirm_email/#{token}")
       assert {:redirect, %{to: path, flash: flash}} = redirect
-      assert path == ~p"/accounts/log_in"
+      assert path == ~p"/log_in"
       assert %{"error" => message} = flash
       assert message == "You must log in to access this page."
     end

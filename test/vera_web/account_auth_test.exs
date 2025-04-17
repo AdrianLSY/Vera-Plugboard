@@ -231,7 +231,7 @@ defmodule VeraWeb.AccountAuthTest do
       conn = conn |> fetch_flash() |> AccountAuth.require_authenticated_account([])
       assert conn.halted
 
-      assert redirected_to(conn) == ~p"/accounts/log_in"
+      assert redirected_to(conn) == ~p"/log_in"
 
       assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
                "You must log in to access this page."

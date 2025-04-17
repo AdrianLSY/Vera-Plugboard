@@ -13,12 +13,12 @@ defmodule VeraWeb.AccountConfirmationInstructionsLiveTest do
 
   describe "Resend confirmation" do
     test "renders the resend confirmation page", %{conn: conn} do
-      {:ok, _lv, html} = live(conn, ~p"/accounts/confirm")
+      {:ok, _lv, html} = live(conn, ~p"/confirm")
       assert html =~ "Resend confirmation instructions"
     end
 
     test "sends a new confirmation token", %{conn: conn, account: account} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/confirm")
+      {:ok, lv, _html} = live(conn, ~p"/confirm")
 
       {:ok, conn} =
         lv
@@ -35,7 +35,7 @@ defmodule VeraWeb.AccountConfirmationInstructionsLiveTest do
     test "does not send confirmation token if account is confirmed", %{conn: conn, account: account} do
       Repo.update!(Accounts.Account.confirm_changeset(account))
 
-      {:ok, lv, _html} = live(conn, ~p"/accounts/confirm")
+      {:ok, lv, _html} = live(conn, ~p"/confirm")
 
       {:ok, conn} =
         lv
@@ -50,7 +50,7 @@ defmodule VeraWeb.AccountConfirmationInstructionsLiveTest do
     end
 
     test "does not send confirmation token if email is invalid", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/confirm")
+      {:ok, lv, _html} = live(conn, ~p"/confirm")
 
       {:ok, conn} =
         lv

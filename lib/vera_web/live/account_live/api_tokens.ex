@@ -7,7 +7,7 @@ defmodule VeraWeb.AccountLive.ApiTokens do
   @impl true
   def mount(_params, _session, socket) do
     account = socket.assigns.current_account
-    if connected?(socket), do: Phoenix.PubSub.subscribe(Vera.PubSub, "accounts/#{account.id}/api_tokens")
+    if connected?(socket), do: Phoenix.PubSub.subscribe(Vera.PubSub, "accounts/#{account.id}/tokens")
 
     # The context is "api-token" in your AccountToken module, not "api_token"
     tokens = list_account_tokens(account)

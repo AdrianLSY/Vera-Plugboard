@@ -10,7 +10,7 @@ defmodule VeraWeb.AccountSessionController do
 
   def create(conn, %{"_action" => "password_updated"} = params) do
     conn
-    |> put_session(:account_return_to, ~p"/accounts/settings")
+    |> put_session(:account_return_to, ~p"/settings")
     |> create(params, "Password updated successfully!")
   end
 
@@ -30,7 +30,7 @@ defmodule VeraWeb.AccountSessionController do
       conn
       |> put_flash(:error, "Invalid email or password")
       |> put_flash(:email, String.slice(email, 0, 160))
-      |> redirect(to: ~p"/accounts/log_in")
+      |> redirect(to: ~p"/log_in")
     end
   end
 

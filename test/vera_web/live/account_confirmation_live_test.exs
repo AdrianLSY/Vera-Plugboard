@@ -13,7 +13,7 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
 
   describe "Confirm account" do
     test "renders confirmation page", %{conn: conn} do
-      {:ok, _lv, html} = live(conn, ~p"/accounts/confirm/some-token")
+      {:ok, _lv, html} = live(conn, ~p"/confirm/some-token")
       assert html =~ "Confirm Account"
     end
 
@@ -23,7 +23,7 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
           Accounts.deliver_account_confirmation_instructions(account, url)
         end)
 
-      {:ok, lv, _html} = live(conn, ~p"/accounts/confirm/#{token}")
+      {:ok, lv, _html} = live(conn, ~p"/confirm/#{token}")
 
       result =
         lv
@@ -41,7 +41,7 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
       assert Repo.all(Accounts.AccountToken) == []
 
       # when not logged in
-      {:ok, lv, _html} = live(conn, ~p"/accounts/confirm/#{token}")
+      {:ok, lv, _html} = live(conn, ~p"/confirm/#{token}")
 
       result =
         lv
@@ -59,7 +59,7 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
         build_conn()
         |> log_in_account(account)
 
-      {:ok, lv, _html} = live(conn, ~p"/accounts/confirm/#{token}")
+      {:ok, lv, _html} = live(conn, ~p"/confirm/#{token}")
 
       result =
         lv
@@ -72,7 +72,7 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
     end
 
     test "does not confirm email with invalid token", %{conn: conn, account: account} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/confirm/invalid-token")
+      {:ok, lv, _html} = live(conn, ~p"/confirm/invalid-token")
 
       {:ok, conn} =
         lv

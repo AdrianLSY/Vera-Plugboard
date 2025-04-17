@@ -162,7 +162,7 @@ defmodule Vera.Accounts do
 
   ## Examples
 
-      iex> deliver_account_update_email_instructions(account, current_email, &url(~p"/accounts/settings/confirm_email/#{&1}"))
+      iex> deliver_account_update_email_instructions(account, current_email, &url(~p"/settings/confirm_email/#{&1}"))
       {:ok, %{to: ..., body: ...}}
 
   """
@@ -249,10 +249,10 @@ defmodule Vera.Accounts do
 
   ## Examples
 
-      iex> deliver_account_confirmation_instructions(account, &url(~p"/accounts/confirm/#{&1}"))
+      iex> deliver_account_confirmation_instructions(account, &url(~p"/confirm/#{&1}"))
       {:ok, %{to: ..., body: ...}}
 
-      iex> deliver_account_confirmation_instructions(confirmed_account, &url(~p"/accounts/confirm/#{&1}"))
+      iex> deliver_account_confirmation_instructions(confirmed_account, &url(~p"/confirm/#{&1}"))
       {:error, :already_confirmed}
 
   """
@@ -296,7 +296,7 @@ defmodule Vera.Accounts do
 
   ## Examples
 
-      iex> deliver_account_reset_password_instructions(account, &url(~p"/accounts/reset_password/#{&1}"))
+      iex> deliver_account_reset_password_instructions(account, &url(~p"/reset_password/#{&1}"))
       {:ok, %{to: ..., body: ...}}
 
   """

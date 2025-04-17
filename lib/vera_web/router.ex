@@ -41,33 +41,33 @@ defmodule VeraWeb.Router do
     pipe_through [:browser, :redirect_if_account_is_authenticated]
     live_session :redirect_if_account_is_authenticated,
       on_mount: [{VeraWeb.AccountAuth, :redirect_if_account_is_authenticated}] do
-      live "/accounts/register", AccountLive.Registration, :new
-      live "/accounts/log_in", AccountLive.Login, :new
-      live "/accounts/reset_password", AccountLive.ForgotPassword, :new
-      live "/accounts/reset_password/:token", AccountLive.ResetPassword, :edit
+      live "/register", AccountLive.Registration, :new
+      live "/log_in", AccountLive.Login, :new
+      live "/reset_password", AccountLive.ForgotPassword, :new
+      live "/reset_password/:token", AccountLive.ResetPassword, :edit
     end
-    post "/accounts/log_in", AccountSessionController, :create
+    post "/log_in", AccountSessionController, :create
   end
 
   scope "/", VeraWeb do
     pipe_through [:browser, :require_authenticated_account]
     live_session :require_authenticated_account,
       on_mount: [{VeraWeb.AccountAuth, :ensure_authenticated}] do
-      live "/accounts/settings", AccountLive.Settings, :edit
-      live "/accounts/settings/confirm_email/:token", AccountLive.Settings, :confirm_email
-      live "/accounts/api_tokens", AccountLive.ApiTokens, :index
+      live "/settings", AccountLive.Settings, :edit
+      live "/settings/confirm_email/:token", AccountLive.Settings, :confirm_email
+      live "/tokens", AccountLive.ApiTokens, :index
     end
   end
 
   scope "/", VeraWeb do
     pipe_through [:browser]
 
-    delete "/accounts/log_out", AccountSessionController, :delete
+    delete "/log_out", AccountSessionController, :delete
 
     live_session :current_account,
       on_mount: [{VeraWeb.AccountAuth, :mount_current_account}] do
-      live "/accounts/confirm/:token", AccountLive.Confirmation, :edit
-      live "/accounts/confirm", AccountLive.ConfirmationInstructions, :new
+      live "/confirm/:token", AccountLive.Confirmation, :edit
+      live "/confirm", AccountLive.ConfirmationInstructions, :new
     end
   end
 

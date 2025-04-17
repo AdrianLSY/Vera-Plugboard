@@ -20,8 +20,8 @@ defmodule VeraWeb.AccountLive.ForgotPassword do
         </:actions>
       </.simple_form>
       <p class="text-center text-sm mt-4">
-        <.link href={~p"/accounts/register"}>Register</.link>
-        | <.link href={~p"/accounts/log_in"}>Log in</.link>
+        <.link href={~p"/register"}>Register</.link>
+        | <.link href={~p"/log_in"}>Log in</.link>
       </p>
     </div>
     """
@@ -35,7 +35,7 @@ defmodule VeraWeb.AccountLive.ForgotPassword do
     if account = Accounts.get_account_by_email(email) do
       Accounts.deliver_account_reset_password_instructions(
         account,
-        &url(~p"/accounts/reset_password/#{&1}")
+        &url(~p"/reset_password/#{&1}")
       )
     end
 

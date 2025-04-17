@@ -11,7 +11,7 @@ defmodule VeraWeb.AccountLive.Registration do
         Register for an account
         <:subtitle>
           Already registered?
-          <.link navigate={~p"/accounts/log_in"} class="font-semibold text-brand hover:underline">
+          <.link navigate={~p"/log_in"} class="font-semibold text-brand hover:underline">
             Log in
           </.link>
           to your account now.
@@ -24,7 +24,7 @@ defmodule VeraWeb.AccountLive.Registration do
         phx-submit="save"
         phx-change="validate"
         phx-trigger-action={@trigger_submit}
-        action={~p"/accounts/log_in?_action=registered"}
+        action={~p"/log_in?_action=registered"}
         method="post"
       >
         <.error :if={@check_errors}>
@@ -59,7 +59,7 @@ defmodule VeraWeb.AccountLive.Registration do
         {:ok, _} =
           Accounts.deliver_account_confirmation_instructions(
             account,
-            &url(~p"/accounts/confirm/#{&1}")
+            &url(~p"/confirm/#{&1}")
           )
 
         changeset = Accounts.change_account_registration(account)

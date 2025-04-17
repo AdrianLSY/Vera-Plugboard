@@ -8,20 +8,20 @@ defmodule VeraWeb.AccountLive.Login do
         Log in to account
         <:subtitle>
           Don't have an account?
-          <.link navigate={~p"/accounts/register"} class="font-semibold text-brand hover:underline">
+          <.link navigate={~p"/register"} class="font-semibold text-brand hover:underline">
             Sign up
           </.link>
           for an account now.
         </:subtitle>
       </.header>
 
-      <.simple_form for={@form} id="login_form" action={~p"/accounts/log_in"} phx-update="ignore">
+      <.simple_form for={@form} id="login_form" action={~p"/log_in"} phx-update="ignore">
         <.input field={@form[:email]} type="email" label="Email" required />
         <.input field={@form[:password]} type="password" label="Password" required />
 
         <:actions>
           <.input field={@form[:remember_me]} type="checkbox" label="Keep me logged in" />
-          <.link href={~p"/accounts/reset_password"} class="text-sm text-brand hover:underline">
+          <.link href={~p"/reset_password"} class="text-sm text-brand hover:underline">
             Forgot your password?
           </.link>
         </:actions>

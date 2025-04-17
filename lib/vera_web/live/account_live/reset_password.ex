@@ -31,8 +31,8 @@ defmodule VeraWeb.AccountLive.ResetPassword do
       </.simple_form>
 
       <p class="text-center text-sm mt-4">
-        <.link href={~p"/accounts/register"}>Register</.link>
-        | <.link href={~p"/accounts/log_in"}>Log in</.link>
+        <.link href={~p"/register"}>Register</.link>
+        | <.link href={~p"/log_in"}>Log in</.link>
       </p>
     </div>
     """
@@ -61,7 +61,7 @@ defmodule VeraWeb.AccountLive.ResetPassword do
         {:noreply,
          socket
          |> put_flash(:info, "Password reset successfully.")
-         |> redirect(to: ~p"/accounts/log_in")}
+         |> redirect(to: ~p"/log_in")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, Map.put(changeset, :action, :insert))}

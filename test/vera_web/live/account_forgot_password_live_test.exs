@@ -9,18 +9,18 @@ defmodule VeraWeb.AccountForgotPasswordLiveTest do
 
   describe "Forgot password page" do
     test "renders email page", %{conn: conn} do
-      {:ok, lv, html} = live(conn, ~p"/accounts/reset_password")
+      {:ok, lv, html} = live(conn, ~p"/reset_password")
 
       assert html =~ "Forgot your password?"
-      assert has_element?(lv, ~s|a[href="#{~p"/accounts/register"}"]|, "Register")
-      assert has_element?(lv, ~s|a[href="#{~p"/accounts/log_in"}"]|, "Log in")
+      assert has_element?(lv, ~s|a[href="#{~p"/register"}"]|, "Register")
+      assert has_element?(lv, ~s|a[href="#{~p"/log_in"}"]|, "Log in")
     end
 
     test "redirects if already logged in", %{conn: conn} do
       result =
         conn
         |> log_in_account(account_fixture())
-        |> live(~p"/accounts/reset_password")
+        |> live(~p"/reset_password")
         |> follow_redirect(conn, ~p"/")
 
       assert {:ok, _conn} = result
@@ -33,7 +33,7 @@ defmodule VeraWeb.AccountForgotPasswordLiveTest do
     end
 
     test "sends a new reset password token", %{conn: conn, account: account} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/reset_password")
+      {:ok, lv, _html} = live(conn, ~p"/reset_password")
 
       {:ok, conn} =
         lv
@@ -48,7 +48,7 @@ defmodule VeraWeb.AccountForgotPasswordLiveTest do
     end
 
     test "does not send reset password token if email is invalid", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/reset_password")
+      {:ok, lv, _html} = live(conn, ~p"/reset_password")
 
       {:ok, conn} =
         lv
