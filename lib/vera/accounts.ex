@@ -350,4 +350,30 @@ defmodule Vera.Accounts do
       {:error, :account, changeset, _} -> {:error, changeset}
     end
   end
+
+  ## API
+
+  @doc """
+  Creates a new api token for an account.
+
+  The token returned must be saved somewhere safe.
+  This token cannot be recovered from the database.
+  """
+  def create_account_api_token(account) do
+    {encoded_token, account_token} = AccountToken.build_email_token(account, "api-token")
+    Repo.insert!(account_token)
+    encoded_token
+  end
+
+  @doc """
+  Fetches the account by API token.
+  """
+  def fetch_account_by_api_token(token) do
+    with {:ok, query} <- AccountToken.verify_email_token_query(token, "api-token"),
+         %Account{} = account <- Repo.one(query) do
+      {:ok, account}
+    else
+      _ -> :error
+    end
+  end
 end

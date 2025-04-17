@@ -505,4 +505,13 @@ defmodule Vera.AccountsTest do
       refute inspect(%Account{password: "123456"}) =~ "password: \"123456\""
     end
   end
+
+  describe "create_account_api_token/1 and fetch_account_by_api_token/1" do
+    test "creates and fetches by token" do
+      account = account_fixture()
+      token = Accounts.create_account_api_token(account)
+      assert Accounts.fetch_account_by_api_token(token) == {:ok, account}
+      assert Accounts.fetch_account_by_api_token("invalid") == :error
+    end
+  end
 end

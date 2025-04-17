@@ -14,6 +14,21 @@ defmodule VeraWeb.AccountAuth do
   @remember_me_options [sign: true, max_age: @max_age, same_site: "Lax"]
 
   @doc """
+  Fetches the account from the api token.
+  """
+  def fetch_api_account(conn, _opts) do
+    with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
+         {:ok, account} <- Accounts.fetch_account_by_api_token(token) do
+      assign(conn, :current_account, account)
+    else
+      _ ->
+        conn
+        |> send_resp(:unauthorized, "API token is invalid")
+        |> halt()
+    end
+  end
+
+  @doc """
   Logs the account in.
 
   It renews the session ID and clears the whole session

@@ -15,6 +15,7 @@ defmodule VeraWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug :fetch_api_account
   end
 
   scope "/", VeraWeb do
