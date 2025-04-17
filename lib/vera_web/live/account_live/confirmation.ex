@@ -1,4 +1,4 @@
-defmodule VeraWeb.AccountConfirmationLive do
+defmodule VeraWeb.AccountLive.Confirmation do
   use VeraWeb, :live_view
 
   alias Vera.Accounts

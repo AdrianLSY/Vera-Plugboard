@@ -1,4 +1,4 @@
-defmodule VeraWeb.AccountLoginLive do
+defmodule VeraWeb.AccountLive.Login do
   use VeraWeb, :live_view
 
   def render(assigns) do

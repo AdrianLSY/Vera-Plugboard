@@ -1,4 +1,4 @@
-defmodule VeraWeb.AccountResetPasswordLiveTest do
+defmodule VeraWeb.AccountLive.ResetPasswordTest do
   use VeraWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest

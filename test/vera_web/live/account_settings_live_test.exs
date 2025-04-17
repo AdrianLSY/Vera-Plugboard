@@ -1,4 +1,4 @@
-defmodule VeraWeb.AccountSettingsLiveTest do
+defmodule VeraWeb.AccountLive.SettingsTest do
   use VeraWeb.ConnCase, async: true
 
   alias Vera.Accounts

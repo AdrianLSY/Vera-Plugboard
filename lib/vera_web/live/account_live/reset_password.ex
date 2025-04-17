@@ -1,4 +1,4 @@
-defmodule VeraWeb.AccountResetPasswordLive do
+defmodule VeraWeb.AccountLive.ResetPassword do
   use VeraWeb, :live_view
 
   alias Vera.Accounts

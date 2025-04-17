@@ -41,10 +41,11 @@ defmodule VeraWeb.Router do
     pipe_through [:browser, :redirect_if_account_is_authenticated]
     live_session :redirect_if_account_is_authenticated,
       on_mount: [{VeraWeb.AccountAuth, :redirect_if_account_is_authenticated}] do
-      live "/accounts/register", AccountRegistrationLive, :new
-      live "/accounts/log_in", AccountLoginLive, :new
-      live "/accounts/reset_password", AccountForgotPasswordLive, :new
-      live "/accounts/reset_password/:token", AccountResetPasswordLive, :edit
+      live "/accounts/register", AccountLive.Registration, :new
+      live "/accounts/log_in", AccountLive.Login, :new
+      live "/accounts/reset_password", AccountLive.ForgotPassword, :new
+      live "/accounts/reset_password/:token", AccountLive.ResetPassword, :edit
+      live "/accounts/api_tokens", AccountLive.ApiTokens, :index
     end
     post "/accounts/log_in", AccountSessionController, :create
   end
@@ -53,8 +54,8 @@ defmodule VeraWeb.Router do
     pipe_through [:browser, :require_authenticated_account]
     live_session :require_authenticated_account,
       on_mount: [{VeraWeb.AccountAuth, :ensure_authenticated}] do
-      live "/accounts/settings", AccountSettingsLive, :edit
-      live "/accounts/settings/confirm_email/:token", AccountSettingsLive, :confirm_email
+      live "/accounts/settings", AccountLive.Settings, :edit
+      live "/accounts/settings/confirm_email/:token", AccountLive.Settings, :confirm_email
     end
   end
 
@@ -65,8 +66,8 @@ defmodule VeraWeb.Router do
 
     live_session :current_account,
       on_mount: [{VeraWeb.AccountAuth, :mount_current_account}] do
-      live "/accounts/confirm/:token", AccountConfirmationLive, :edit
-      live "/accounts/confirm", AccountConfirmationInstructionsLive, :new
+      live "/accounts/confirm/:token", AccountLive.Confirmation, :edit
+      live "/accounts/confirm", AccountLive.ConfirmationInstructions, :new
     end
   end
 
