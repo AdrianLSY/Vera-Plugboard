@@ -22,6 +22,12 @@ defmodule Vera.Services do
     |> Repo.all()
   end
 
+  def list_root_services do
+    Service.default_scope()
+    |> where([service], is_nil(service.parent_id))
+    |> Repo.all()
+  end
+
   @doc """
   Gets a single service.
 
@@ -164,7 +170,9 @@ defmodule Vera.Services do
 
   defp notify_subscribers({:ok, service}, [:service, :deleted, descendants, redirect_service_id]) do
     Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service.id}", {:service_deleted, service, redirect_service_id})
-    if service.parent_id == nil do
+    if service.parent_id do
+      Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service.parent_id}", {:service_deleted, service, nil})
+    else
       Phoenix.PubSub.broadcast(Vera.PubSub, "services", {:service_deleted, service})
     end
     descendants

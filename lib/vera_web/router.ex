@@ -45,7 +45,6 @@ defmodule VeraWeb.Router do
       live "/accounts/log_in", AccountLive.Login, :new
       live "/accounts/reset_password", AccountLive.ForgotPassword, :new
       live "/accounts/reset_password/:token", AccountLive.ResetPassword, :edit
-      live "/accounts/api_tokens", AccountLive.ApiTokens, :index
     end
     post "/accounts/log_in", AccountSessionController, :create
   end
@@ -56,6 +55,7 @@ defmodule VeraWeb.Router do
       on_mount: [{VeraWeb.AccountAuth, :ensure_authenticated}] do
       live "/accounts/settings", AccountLive.Settings, :edit
       live "/accounts/settings/confirm_email/:token", AccountLive.Settings, :confirm_email
+      live "/accounts/api_tokens", AccountLive.ApiTokens, :index
     end
   end
 

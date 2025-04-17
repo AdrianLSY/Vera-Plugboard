@@ -85,6 +85,7 @@ defmodule VeraWeb.ServiceLive.Show do
       service.id == socket.assigns.service.id ->
         {:noreply,
           socket
+          |> put_flash(:info, "Service deleted, redirected to closest ancestor")
           |> push_navigate(to: (if redirect_service_id, do: ~p"/services/#{redirect_service_id}", else: ~p"/services"))}
       service.parent_id == socket.assigns.service.id ->
         {:noreply,

@@ -6,9 +6,7 @@ defmodule VeraWeb.ServiceLive.Index do
 
   def mount(_params, _session, socket) do
     if connected?(socket), do: Phoenix.PubSub.subscribe(Vera.PubSub, "services")
-    services = Services.list_services()
-      |> Vera.Repo.preload([:parent])
-      |> Enum.filter(fn service -> is_nil(service.parent_id) end)
+    services = Services.list_root_services()
     {:ok, stream(socket, :services, services)}
   end
 
