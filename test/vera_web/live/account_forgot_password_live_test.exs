@@ -13,13 +13,13 @@ defmodule VeraWeb.AccountForgotPasswordLiveTest do
 
       assert html =~ "Forgot your password?"
       assert has_element?(lv, ~s|a[href="#{~p"/register"}"]|, "Register")
-      assert has_element?(lv, ~s|a[href="#{~p"/log_in"}"]|, "Log in")
+      assert has_element?(lv, ~s|a[href="#{~p"/login"}"]|, "Log in")
     end
 
     test "redirects if already logged in", %{conn: conn} do
       result =
         conn
-        |> log_in_account(account_fixture())
+        |> login_account(account_fixture())
         |> live(~p"/reset_password")
         |> follow_redirect(conn, ~p"/")
 

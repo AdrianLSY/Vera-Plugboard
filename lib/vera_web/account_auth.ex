@@ -40,7 +40,7 @@ defmodule VeraWeb.AccountAuth do
   disconnected on log out. The line can be safely removed
   if you are not using LiveView.
   """
-  def log_in_account(conn, account, params \\ %{}) do
+  def login_account(conn, account, params \\ %{}) do
     token = Accounts.generate_account_session_token(account)
     account_return_to = get_session(conn, :account_return_to)
 
@@ -173,7 +173,7 @@ defmodule VeraWeb.AccountAuth do
       socket =
         socket
         |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/log_in")
+        |> Phoenix.LiveView.redirect(to: ~p"/login")
 
       {:halt, socket}
     end
@@ -223,7 +223,7 @@ defmodule VeraWeb.AccountAuth do
       conn
       |> put_flash(:error, "You must log in to access this page.")
       |> maybe_store_return_to()
-      |> redirect(to: ~p"/log_in")
+      |> redirect(to: ~p"/login")
       |> halt()
     end
   end

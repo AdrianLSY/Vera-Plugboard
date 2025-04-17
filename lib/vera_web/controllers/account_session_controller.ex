@@ -24,13 +24,13 @@ defmodule VeraWeb.AccountSessionController do
     if account = Accounts.get_account_by_email_and_password(email, password) do
       conn
       |> put_flash(:info, info)
-      |> AccountAuth.log_in_account(account, account_params)
+      |> AccountAuth.login_account(account, account_params)
     else
       # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
       conn
       |> put_flash(:error, "Invalid email or password")
       |> put_flash(:email, String.slice(email, 0, 160))
-      |> redirect(to: ~p"/log_in")
+      |> redirect(to: ~p"/login")
     end
   end
 

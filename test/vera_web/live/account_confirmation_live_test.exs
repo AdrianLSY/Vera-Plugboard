@@ -57,7 +57,7 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
       # when logged in
       conn =
         build_conn()
-        |> log_in_account(account)
+        |> login_account(account)
 
       {:ok, lv, _html} = live(conn, ~p"/confirm/#{token}")
 

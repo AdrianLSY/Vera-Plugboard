@@ -42,11 +42,11 @@ defmodule VeraWeb.Router do
     live_session :redirect_if_account_is_authenticated,
       on_mount: [{VeraWeb.AccountAuth, :redirect_if_account_is_authenticated}] do
       live "/register", AccountLive.Registration, :new
-      live "/log_in", AccountLive.Login, :new
+      live "/login", AccountLive.Login, :new
       live "/reset_password", AccountLive.ForgotPassword, :new
       live "/reset_password/:token", AccountLive.ResetPassword, :edit
     end
-    post "/log_in", AccountSessionController, :create
+    post "/login", AccountSessionController, :create
   end
 
   scope "/", VeraWeb do

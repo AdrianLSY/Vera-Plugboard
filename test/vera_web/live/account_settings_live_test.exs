@@ -9,7 +9,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
     test "renders settings page", %{conn: conn} do
       {:ok, _lv, html} =
         conn
-        |> log_in_account(account_fixture())
+        |> login_account(account_fixture())
         |> live(~p"/settings")
 
       assert html =~ "Change Email"
@@ -20,7 +20,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
       assert {:error, redirect} = live(conn, ~p"/settings")
 
       assert {:redirect, %{to: path, flash: flash}} = redirect
-      assert path == ~p"/log_in"
+      assert path == ~p"/login"
       assert %{"error" => "You must log in to access this page."} = flash
     end
   end
@@ -29,7 +29,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
     setup %{conn: conn} do
       password = valid_account_password()
       account = account_fixture(%{password: password})
-      %{conn: log_in_account(conn, account), account: account, password: password}
+      %{conn: login_account(conn, account), account: account, password: password}
     end
 
     test "updates the account email", %{conn: conn, password: password, account: account} do
@@ -86,7 +86,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
     setup %{conn: conn} do
       password = valid_account_password()
       account = account_fixture(%{password: password})
-      %{conn: log_in_account(conn, account), account: account, password: password}
+      %{conn: login_account(conn, account), account: account, password: password}
     end
 
     test "updates the account password", %{conn: conn, account: account, password: password} do
@@ -168,7 +168,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
           Accounts.deliver_account_update_email_instructions(%{account | email: email}, account.email, url)
         end)
 
-      %{conn: log_in_account(conn, account), token: token, email: email, account: account}
+      %{conn: login_account(conn, account), token: token, email: email, account: account}
     end
 
     test "updates the account email once", %{conn: conn, account: account, token: token, email: email} do
@@ -202,7 +202,7 @@ defmodule VeraWeb.AccountLive.SettingsTest do
       conn = build_conn()
       {:error, redirect} = live(conn, ~p"/settings/confirm_email/#{token}")
       assert {:redirect, %{to: path, flash: flash}} = redirect
-      assert path == ~p"/log_in"
+      assert path == ~p"/login"
       assert %{"error" => message} = flash
       assert message == "You must log in to access this page."
     end

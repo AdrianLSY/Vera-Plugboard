@@ -61,7 +61,7 @@ defmodule VeraWeb.AccountLive.ResetPasswordTest do
           }
         )
         |> render_submit()
-        |> follow_redirect(conn, ~p"/log_in")
+        |> follow_redirect(conn, ~p"/login")
 
       refute get_session(conn, :account_token)
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Password reset successfully"
@@ -95,7 +95,7 @@ defmodule VeraWeb.AccountLive.ResetPasswordTest do
         lv
         |> element(~s|main a:fl-contains("Log in")|)
         |> render_click()
-        |> follow_redirect(conn, ~p"/log_in")
+        |> follow_redirect(conn, ~p"/login")
 
       assert conn.resp_body =~ "Log in"
     end

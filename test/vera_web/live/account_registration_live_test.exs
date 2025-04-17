@@ -15,7 +15,7 @@ defmodule VeraWeb.AccountRegistrationLiveTest do
     test "redirects if already logged in", %{conn: conn} do
       result =
         conn
-        |> log_in_account(account_fixture())
+        |> login_account(account_fixture())
         |> live(~p"/register")
         |> follow_redirect(conn, "/")
 
@@ -79,7 +79,7 @@ defmodule VeraWeb.AccountRegistrationLiveTest do
         lv
         |> element(~s|main a:fl-contains("Log in")|)
         |> render_click()
-        |> follow_redirect(conn, ~p"/log_in")
+        |> follow_redirect(conn, ~p"/login")
 
       assert login_html =~ "Log in"
     end

@@ -17,9 +17,9 @@ defmodule VeraWeb.AccountAuthTest do
     %{account: account_fixture(), conn: conn}
   end
 
-  describe "log_in_account/3" do
+  describe "login_account/3" do
     test "stores the account token in the session", %{conn: conn, account: account} do
-      conn = AccountAuth.log_in_account(conn, account)
+      conn = AccountAuth.login_account(conn, account)
       assert token = get_session(conn, :account_token)
       assert get_session(conn, :live_socket_id) == "accounts_sessions:#{Base.url_encode64(token)}"
       assert redirected_to(conn) == ~p"/"
@@ -27,17 +27,17 @@ defmodule VeraWeb.AccountAuthTest do
     end
 
     test "clears everything previously stored in the session", %{conn: conn, account: account} do
-      conn = conn |> put_session(:to_be_removed, "value") |> AccountAuth.log_in_account(account)
+      conn = conn |> put_session(:to_be_removed, "value") |> AccountAuth.login_account(account)
       refute get_session(conn, :to_be_removed)
     end
 
     test "redirects to the configured path", %{conn: conn, account: account} do
-      conn = conn |> put_session(:account_return_to, "/hello") |> AccountAuth.log_in_account(account)
+      conn = conn |> put_session(:account_return_to, "/hello") |> AccountAuth.login_account(account)
       assert redirected_to(conn) == "/hello"
     end
 
     test "writes a cookie if remember_me is configured", %{conn: conn, account: account} do
-      conn = conn |> fetch_cookies() |> AccountAuth.log_in_account(account, %{"remember_me" => "true"})
+      conn = conn |> fetch_cookies() |> AccountAuth.login_account(account, %{"remember_me" => "true"})
       assert get_session(conn, :account_token) == conn.cookies[@remember_me_cookie]
 
       assert %{value: signed_token, max_age: max_age} = conn.resp_cookies[@remember_me_cookie]
@@ -92,7 +92,7 @@ defmodule VeraWeb.AccountAuthTest do
 
     test "authenticates account from cookies", %{conn: conn, account: account} do
       logged_in_conn =
-        conn |> fetch_cookies() |> AccountAuth.log_in_account(account, %{"remember_me" => "true"})
+        conn |> fetch_cookies() |> AccountAuth.login_account(account, %{"remember_me" => "true"})
 
       account_token = logged_in_conn.cookies[@remember_me_cookie]
       %{value: signed_token} = logged_in_conn.resp_cookies[@remember_me_cookie]
@@ -231,7 +231,7 @@ defmodule VeraWeb.AccountAuthTest do
       conn = conn |> fetch_flash() |> AccountAuth.require_authenticated_account([])
       assert conn.halted
 
-      assert redirected_to(conn) == ~p"/log_in"
+      assert redirected_to(conn) == ~p"/login"
 
       assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
                "You must log in to access this page."
