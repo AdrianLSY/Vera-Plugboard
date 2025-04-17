@@ -42,7 +42,7 @@ defmodule VeraWeb.AccountAuthTest do
 
       assert %{value: signed_token, max_age: max_age} = conn.resp_cookies[@remember_me_cookie]
       assert signed_token != get_session(conn, :account_token)
-      assert max_age == 5_184_000
+      assert max_age == 60 * 60 * 24 * (System.get_env("PHX_SESSION_VALIDITY_IN_DAYS") |> String.to_integer())
     end
   end
 

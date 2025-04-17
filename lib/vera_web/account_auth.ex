@@ -9,7 +9,7 @@ defmodule VeraWeb.AccountAuth do
   # Make the remember me cookie valid for 60 days.
   # If you want bump or reduce this value, also change
   # the token expiry itself in AccountToken.
-  @max_age 60 * 60 * 24 * 60
+  @max_age 60 * 60 * 24 * (System.get_env("PHX_SESSION_VALIDITY_IN_DAYS") |> String.to_integer())
   @remember_me_cookie "_vera_web_account_remember_me"
   @remember_me_options [sign: true, max_age: @max_age, same_site: "Lax"]
 
