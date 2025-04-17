@@ -7,7 +7,7 @@
     </div>
     <:actions>
       <.button phx-click="create_token">
-        Generate New Token
+        Generate Token
       </.button>
     </:actions>
   </.header>
@@ -29,24 +29,23 @@
       message="Generate a new API token to get started."
       code={nil}
     />
-  <% else %>
-    <.table id="tokens" rows={@streams.tokens}>
-      <:col :let={{_id, token}} label="ID">
-        <%= token.id %>
-      </:col>
-      <:col :let={{_id, token}} label="Created">
-        <%= Calendar.strftime(token.inserted_at, "%Y-%m-%d %H:%M:%S") %>
-      </:col>
-      <:action :let={{_id, token}}>
-        <.link
-          phx-click="delete_token"
-          phx-value-id={token.id}
-          data-confirm="Are you sure you want to delete this API token? This action cannot be undone."
-          class="text-zinc-500 hover:text-zinc-700"
-        >
-          Delete
-        </.link>
-      </:action>
-    </.table>
   <% end %>
+  <.table id="tokens" rows={@streams.tokens}>
+    <:col :let={{_id, token}} label="ID">
+      <%= token.id %>
+    </:col>
+    <:col :let={{_id, token}} label="Generated at">
+      <%= Calendar.strftime(token.inserted_at, "%Y-%m-%d %H:%M:%S") %>
+    </:col>
+    <:action :let={{_id, token}}>
+      <.link
+        phx-click="delete_token"
+        phx-value-id={token.id}
+        data-confirm="Are you sure you want to delete this API token? This action cannot be undone."
+        class="text-zinc-500 hover:text-zinc-700"
+      >
+        Delete
+      </.link>
+    </:action>
+  </.table>
 </.content>

@@ -1,8 +1,8 @@
 defmodule VeraWeb.ServiceLive.Show do
   use VeraWeb, :live_view
 
-  alias Vera.Services
   alias Vera.Services.Service
+  alias Vera.Services.Services
 
   def mount(params, _session, socket) do
     if connected?(socket) do

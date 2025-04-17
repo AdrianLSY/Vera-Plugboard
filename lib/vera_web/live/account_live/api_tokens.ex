@@ -4,7 +4,6 @@ defmodule VeraWeb.AccountLive.ApiTokens do
   alias Vera.Accounts
   alias Vera.Accounts.AccountToken
 
-  @impl true
   def mount(_params, _session, socket) do
     account = socket.assigns.current_account
     if connected?(socket), do: Phoenix.PubSub.subscribe(Vera.PubSub, "accounts/#{account.id}/tokens")
@@ -18,38 +17,51 @@ defmodule VeraWeb.AccountLive.ApiTokens do
      |> assign(:new_token, nil)}
   end
 
-  @impl true
   def handle_event("create_token", _params, socket) do
     account = socket.assigns.current_account
     token = Accounts.create_account_api_token(account)
-
-    # Get the updated list of tokens
+    Phoenix.PubSub.broadcast(
+      Vera.PubSub,
+      "accounts/#{account.id}/tokens",
+      {:token_created, token, "API token created."}
+    )
     tokens = list_account_tokens(account)
-
     {:noreply,
      socket
      |> stream(:tokens, tokens, reset: true)
      |> assign(:new_token, token)}
   end
 
-  @impl true
   def handle_event("delete_token", %{"id" => token_id}, socket) do
-    # Convert string ID to integer
     {id, _} = Integer.parse(token_id)
-
-    # Find and delete the token
     token = Vera.Repo.get!(AccountToken, id)
     {:ok, _} = Vera.Repo.delete(token)
-
+    Phoenix.PubSub.broadcast(
+      Vera.PubSub,
+      "accounts/#{socket.assigns.current_account.id}/tokens",
+      {:token_deleted, token, "API token deleted."}
+    )
     {:noreply,
      socket
-     |> put_flash(:info, "API token deleted successfully.")
      |> stream_delete(:tokens, token)}
   end
-
-  @impl true
   def handle_event("dismiss_token", _params, socket) do
     {:noreply, assign(socket, :new_token, nil)}
+  end
+
+  def handle_info({:token_created, token, message}, socket) do
+    tokens = list_account_tokens(socket.assigns.current_account)
+    {:noreply,
+     socket
+     |> stream(:tokens, tokens, reset: true)
+     |> put_flash(:info, message)}
+  end
+
+  def handle_info({:token_deleted, token, message}, socket) do
+    {:noreply,
+     socket
+     |> stream_delete(:tokens, token)
+     |> put_flash(:info, message)}
   end
 
   defp list_account_tokens(account) do

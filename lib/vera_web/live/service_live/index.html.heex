@@ -19,27 +19,26 @@
       message="Create a new root service to get started."
       code={nil}
     />
-  <% else %>
-    <.table id="services" rows={@streams.services} row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service}") end}>
-      <:col :let={{_id, service}} label="ID">
-        {service.id}
-      </:col>
-      <:col :let={{_id, service}} label="Service">
-        {service.name}
-      </:col>
-      <:action :let={{_id, service}}>
-        <div class="sr-only">
-          <.link navigate={~p"/services/#{service}"}>Show</.link>
-        </div>
-        <.link patch={~p"/services/#{service}/edit"}>Edit</.link>
-      </:action>
-      <:action :let={{id, service}}>
-        <.link phx-click={JS.push("delete", value: %{id: service.id}) |> hide("##{id}")} data-confirm="Are you sure?">
-          Delete
-        </.link>
-      </:action>
-    </.table>
   <% end %>
+  <.table id="services" rows={@streams.services} row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service}") end}>
+    <:col :let={{_id, service}} label="ID">
+      {service.id}
+    </:col>
+    <:col :let={{_id, service}} label="Service">
+      {service.name}
+    </:col>
+    <:action :let={{_id, service}}>
+      <div class="sr-only">
+        <.link navigate={~p"/services/#{service}"}>Show</.link>
+      </div>
+      <.link patch={~p"/services/#{service}/edit"}>Edit</.link>
+    </:action>
+    <:action :let={{id, service}}>
+      <.link phx-click={JS.push("delete", value: %{id: service.id}) |> hide("##{id}")} data-confirm="Are you sure?">
+        Delete
+      </.link>
+    </:action>
+  </.table>
 </.content>
 
 <.modal :if={@live_action in [:new, :edit]} id="service-modal" show on_cancel={JS.patch(~p"/services")}>

@@ -1,8 +1,8 @@
 defmodule VeraWeb.ServiceLive.Index do
   use VeraWeb, :live_view
 
-  alias Vera.Services
   alias Vera.Services.Service
+  alias Vera.Services.Services
 
   def mount(_params, _session, socket) do
     if connected?(socket), do: Phoenix.PubSub.subscribe(Vera.PubSub, "services")

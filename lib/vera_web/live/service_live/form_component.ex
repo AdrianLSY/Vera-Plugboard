@@ -1,7 +1,7 @@
 defmodule VeraWeb.ServiceLive.FormComponent do
   use VeraWeb, :live_component
 
-  alias Vera.Services
+  alias Vera.Services.Services
 
   def render(assigns) do
     ~H"""

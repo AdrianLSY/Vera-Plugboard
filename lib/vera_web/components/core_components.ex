@@ -198,7 +198,7 @@ defmodule VeraWeb.CoreComponents do
             ]}>
               <p><%= @message %></p>
             </div>
-            <%= if @value do %>
+            <%= if @code do %>
               <div class={[
                 "mt-2 rounded-md p-2 border",
                 @kind == :info && "bg-white border-blue-300",
@@ -208,7 +208,7 @@ defmodule VeraWeb.CoreComponents do
                   "text-sm break-all",
                   @kind == :info && "text-blue-800",
                   @kind == :error && "text-rose-800"
-                ]}><%= @value %></code>
+                ]}><%= @code %></code>
               </div>
             <% end %>
           </div>

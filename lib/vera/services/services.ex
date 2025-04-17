@@ -1,4 +1,4 @@
-defmodule Vera.Services do
+defmodule Vera.Services.Services do
   @moduledoc """
   The Services context.
   """
