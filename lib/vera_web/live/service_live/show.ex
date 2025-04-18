@@ -3,6 +3,7 @@ defmodule VeraWeb.ServiceLive.Show do
 
   alias Vera.Services.Service
   alias Vera.Services.Services
+  alias Vera.Services.ServiceToken
 
   def mount(params, _session, socket) do
     if connected?(socket) do
@@ -17,16 +18,24 @@ defmodule VeraWeb.ServiceLive.Show do
     full_path = Service.full_path(service)
     consumers_connected = Vera.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()
     actions = Vera.Services.ServiceActionRegistry.get_actions(service.id)
+    tokens = list_service_tokens(service)
     socket = socket
       |> assign(:service, service)
       |> stream(:services, childrens)
+      |> stream(:tokens, tokens)
       |> assign(:full_path, full_path)
       |> assign(:consumers_connected, consumers_connected)
       |> assign(:actions, actions)
       |> assign(:page_title, page_title(socket.assigns.live_action))
+      |> assign(:new_token, nil)
       |> assign_form_service(socket.assigns.live_action, params)
 
     {:noreply, socket}
+  end
+
+  defp list_service_tokens(service) do
+    ServiceToken.by_service_and_contexts_query(service, ["api-token"])
+    |> Vera.Repo.all()
   end
 
   defp assign_form_service(socket, :new, _params) do
@@ -117,6 +126,31 @@ defmodule VeraWeb.ServiceLive.Show do
     {:ok, _} = Services.delete_service(service)
 
     {:noreply, stream_delete(socket, :services, service)}
+  end
+
+  def handle_event("create_token", _params, socket) do
+    service = socket.assigns.service
+    {token_value, token} = Vera.Services.ServiceToken.build_api_token(service)
+    {:ok, token} = Vera.Repo.insert(token)
+    tokens = list_service_tokens(service)
+    {:noreply,
+     socket
+     |> stream(:tokens, tokens, reset: true)
+     |> assign(:new_token, token_value)}
+  end
+
+  def handle_event("delete_token", %{"id" => token_id}, socket) do
+    {id, _} = Integer.parse(token_id)
+    token = Vera.Repo.get!(Vera.Services.ServiceToken, id)
+    {:ok, _} = Vera.Repo.delete(token)
+    {:noreply,
+     socket
+     |> stream_delete(:tokens, token)
+     |> put_flash(:info, "API token deleted successfully")}
+  end
+
+  def handle_event("dismiss_token", _params, socket) do
+    {:noreply, assign(socket, :new_token, nil)}
   end
 
   defp page_title(:new), do: "New Service"

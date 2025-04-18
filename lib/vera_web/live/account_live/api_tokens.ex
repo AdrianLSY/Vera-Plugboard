@@ -6,15 +6,18 @@ defmodule VeraWeb.AccountLive.ApiTokens do
 
   def mount(_params, _session, socket) do
     account = socket.assigns.current_account
-    if connected?(socket), do: Phoenix.PubSub.subscribe(Vera.PubSub, "accounts/#{account.id}/tokens")
-
-    # The context is "api-token" in your AccountToken module, not "api_token"
     tokens = list_account_tokens(account)
+    if connected?(socket), do: Phoenix.PubSub.subscribe(Vera.PubSub, "accounts/#{account.id}/tokens")
 
     {:ok,
      socket
      |> stream(:tokens, tokens)
      |> assign(:new_token, nil)}
+  end
+
+  defp list_account_tokens(account) do
+    AccountToken.by_account_and_contexts_query(account, ["api-token"])
+    |> Vera.Repo.all()
   end
 
   def handle_event("create_token", _params, socket) do
@@ -62,10 +65,5 @@ defmodule VeraWeb.AccountLive.ApiTokens do
      socket
      |> stream_delete(:tokens, token)
      |> put_flash(:info, message)}
-  end
-
-  defp list_account_tokens(account) do
-    AccountToken.by_account_and_contexts_query(account, ["api-token"])
-    |> Vera.Repo.all()
   end
 end

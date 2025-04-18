@@ -80,5 +80,6 @@ defmodule VeraWeb.Router do
     live "/services/:id/new", ServiceLive.Show, :new
     live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
     live "/services/:id/delete", ServiceLive.Show, :delete
+    live "/services/:id/tokens/new", ServiceLive.Show, :new_token
   end
 end
