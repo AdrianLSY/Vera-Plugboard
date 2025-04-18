@@ -1,11 +1,9 @@
 defmodule Vera.ServicesTest do
   use Vera.DataCase
 
-  alias Vera.Services
-
   describe "services" do
     alias Vera.Services.Service
-
+    alias Vera.Services.Services
     import Vera.ServicesFixtures
 
     @invalid_attrs %{name: nil}
