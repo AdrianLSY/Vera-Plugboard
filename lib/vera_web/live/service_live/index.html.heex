@@ -17,7 +17,6 @@
       kind={:info}
       title="No root services yet!"
       message="Create a new root service to get started."
-      code={nil}
     />
   <% end %>
   <.table id="services" rows={@streams.services} row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service}") end}>

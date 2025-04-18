@@ -137,7 +137,7 @@ defmodule VeraWeb.CoreComponents do
           "h-5 w-5 opacity-40 group-hover:opacity-70",
           @kind == :info && "text-blue-400",
           @kind == :error && "text-rose-400"
-        ]} />
+        ] |> Enum.filter(& &1) |> Enum.join(" ")} />
       </button>
     </div>
     """
@@ -159,7 +159,7 @@ defmodule VeraWeb.CoreComponents do
   attr :kind, :atom, default: :info, values: [:info, :error]
   attr :title, :string, required: true
   attr :message, :string, required: true
-  attr :value, :string, default: nil
+  attr :code, :string, default: nil
   attr :dismiss_event, :string, default: nil
   attr :class, :string, default: nil
 
@@ -179,7 +179,7 @@ defmodule VeraWeb.CoreComponents do
               "h-5 w-5",
               @kind == :info && "text-blue-400",
               @kind == :error && "text-rose-400"
-            ]}
+            ] |> Enum.filter(& &1) |> Enum.join(" ")}
           />
         </div>
         <div class="ml-3 flex-1 md:flex md:justify-between">

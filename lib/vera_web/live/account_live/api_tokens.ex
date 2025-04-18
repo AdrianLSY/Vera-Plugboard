@@ -49,7 +49,7 @@ defmodule VeraWeb.AccountLive.ApiTokens do
     {:noreply, assign(socket, :new_token, nil)}
   end
 
-  def handle_info({:token_created, token, message}, socket) do
+  def handle_info({:token_created, _token, message}, socket) do
     tokens = list_account_tokens(socket.assigns.current_account)
     {:noreply,
      socket
