@@ -124,6 +124,7 @@ defmodule VeraWeb.ServiceLive.Show do
   def handle_info({:token_created, token_value, token}, socket) do
     {:noreply,
      socket
+     |> put_flash(:info, "API token created")
      |> stream_insert(:tokens, token)
      |> assign(:new_token, token_value)}
   end
@@ -131,6 +132,7 @@ defmodule VeraWeb.ServiceLive.Show do
   def handle_info({:token_deleted, token}, socket) do
     {:noreply,
      socket
+     |> put_flash(:info, "API token deleted")
      |> stream_delete(:tokens, token)}
   end
 
