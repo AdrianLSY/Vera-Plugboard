@@ -23,12 +23,12 @@ defmodule VeraWeb.AccountLive.ApiTokens do
   def handle_event("create_token", _params, socket) do
     account = socket.assigns.current_account
     token = Accounts.create_account_api_token(account)
+    tokens = list_account_tokens(account)
     Phoenix.PubSub.broadcast(
       Vera.PubSub,
       "accounts/#{account.id}/tokens",
       {:token_created, token, "API token created."}
     )
-    tokens = list_account_tokens(account)
     {:noreply,
      socket
      |> stream(:tokens, tokens, reset: true)
