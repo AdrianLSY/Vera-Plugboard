@@ -137,8 +137,7 @@ defmodule VeraWeb.ServiceLive.Show do
   def handle_event("delete", %{"id" => id}, socket) do
     service = Services.get_service!(id)
     {:ok, _} = Services.delete_service(service)
-
-    {:noreply, stream_delete(socket, :services, service)}
+    {:noreply, socket}
   end
 
   def handle_event("create_token", _params, socket) do
@@ -147,10 +146,7 @@ defmodule VeraWeb.ServiceLive.Show do
     {:ok, token} = Vera.Repo.insert(token)
     tokens = list_service_tokens(service)
     Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service.id}", {:token_created, token_value, token})
-    {:noreply,
-     socket
-     |> stream(:tokens, tokens, reset: true)
-     |> assign(:new_token, token_value)}
+    {:noreply, socket}
   end
 
   def handle_event("delete_token", %{"id" => token_id}, socket) do
@@ -158,10 +154,7 @@ defmodule VeraWeb.ServiceLive.Show do
     token = Vera.Repo.get!(Vera.Services.ServiceToken, id)
     {:ok, _} = Vera.Repo.delete(token)
     Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{socket.assigns.service.id}", {:token_deleted, token})
-    {:noreply,
-     socket
-     |> stream_delete(:tokens, token)
-     |> put_flash(:info, "API token deleted successfully")}
+    {:noreply, socket}
   end
 
   def handle_event("dismiss_token", _params, socket) do
