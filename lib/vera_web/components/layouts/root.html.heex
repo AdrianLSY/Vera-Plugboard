@@ -20,7 +20,7 @@
         </div>
         <div class="flex items-center gap-4">
           <%= if @current_account do %>
-            <span class="text-white text-sm">{@current_account.role}</span>
+            <span class="text-white text-sm">{@current_account.email}</span>
             <.link
               href={~p"/services"}
               class="text-white text-sm font-medium hover:text-gray-300"
