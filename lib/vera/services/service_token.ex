@@ -5,9 +5,8 @@ defmodule Vera.Services.ServiceToken do
 
   @hash_algorithm :sha256
   @rand_size 32
-
-  # API token validity can be configured via environment variables
-  @api_token_validity_in_days System.get_env("PHX_API_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
+  @service_token_validity_in_days System.get_env("PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
+  @derive {Jason.Encoder, only: [:id, :context, :service_id, :inserted_at]}
 
   schema "services_tokens" do
     field :token, :binary
@@ -51,19 +50,18 @@ defmodule Vera.Services.ServiceToken do
   The query returns the service found by the token, if any.
 
   The given token is valid if it matches its hashed counterpart in the
-  database and has not expired (based on @api_token_validity_in_days).
+  database and has not expired (based on @service_token_validity_in_days).
   """
   def verify_api_token_query(token) do
     case Base.url_decode64(token, padding: false) do
       {:ok, decoded_token} ->
         hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
-
         query =
           from token in by_token_and_context_query(hashed_token, "api-token"),
             join: service in assoc(token, :service),
-            where: token.inserted_at > ago(@api_token_validity_in_days, "day") and
+            where: token.inserted_at > ago(@service_token_validity_in_days, "day") and
                    is_nil(service.deleted_at),
-            select: service
+            select: {service, token}  # <-- Select both service and token
 
         {:ok, query}
 
@@ -93,13 +91,13 @@ defmodule Vera.Services.ServiceToken do
   @doc """
   Returns all valid API tokens for a given service.
 
-  Only returns tokens that haven't expired based on @api_token_validity_in_days.
+  Only returns tokens that haven't expired based on @service_token_validity_in_days.
   """
   def list_valid_api_tokens(service) do
     from(t in ServiceToken,
       where: t.service_id == ^service.id and
              t.context == "api-token" and
-             t.inserted_at > ago(@api_token_validity_in_days, "day"))
+             t.inserted_at > ago(@service_token_validity_in_days, "day"))
   end
 
   @doc """
