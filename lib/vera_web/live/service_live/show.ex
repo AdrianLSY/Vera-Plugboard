@@ -146,7 +146,6 @@ defmodule VeraWeb.ServiceLive.Show do
     service = socket.assigns.service
     {token_value, token} = Vera.Services.ServiceToken.build_api_token(service)
     {:ok, token} = Vera.Repo.insert(token)
-    tokens = list_service_tokens(service)
     Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service.id}", {:token_created, token_value, token})
     {:noreply, socket}
   end
