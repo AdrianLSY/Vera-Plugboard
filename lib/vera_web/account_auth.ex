@@ -4,7 +4,7 @@ defmodule VeraWeb.AccountAuth do
   import Plug.Conn
   import Phoenix.Controller
 
-  alias Vera.Accounts
+  alias Vera.Accounts.Accounts
 
   # Make the remember me cookie valid for 60 days.
   # If you want bump or reduce this value, also change

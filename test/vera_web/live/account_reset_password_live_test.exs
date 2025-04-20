@@ -4,7 +4,7 @@ defmodule VeraWeb.AccountLive.ResetPasswordTest do
   import Phoenix.LiveViewTest
   import Vera.AccountsFixtures
 
-  alias Vera.Accounts
+  alias Vera.Accounts.Accounts
 
   setup do
     account = account_fixture()

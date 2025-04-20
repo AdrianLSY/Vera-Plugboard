@@ -1,7 +1,7 @@
 defmodule VeraWeb.AccountLive.Confirmation do
   use VeraWeb, :live_view
 
-  alias Vera.Accounts
+  alias Vera.Accounts.Accounts
 
   def render(%{live_action: :edit} = assigns) do
     ~H"""

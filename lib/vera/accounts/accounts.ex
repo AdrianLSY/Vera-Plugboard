@@ -1,4 +1,4 @@
-defmodule Vera.Accounts do
+defmodule Vera.Accounts.Accounts do
   @moduledoc """
   The Accounts context.
   """

@@ -55,7 +55,7 @@ defmodule VeraWeb.ConnCase do
   It returns an updated `conn`.
   """
   def login_account(conn, account) do
-    token = Vera.Accounts.generate_account_session_token(account)
+    token = Vera.Accounts.Accounts.generate_account_session_token(account)
 
     conn
     |> Phoenix.ConnTest.init_test_session(%{})

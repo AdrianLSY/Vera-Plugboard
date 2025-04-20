@@ -4,8 +4,9 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
   import Phoenix.LiveViewTest
   import Vera.AccountsFixtures
 
-  alias Vera.Accounts
   alias Vera.Repo
+  alias Vera.Accounts.Accounts
+  alias Vera.Accounts.AccountToken
 
   setup do
     %{account: account_fixture()}
@@ -38,7 +39,7 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
 
       assert Accounts.get_account!(account.id).confirmed_at
       refute get_session(conn, :account_token)
-      assert Repo.all(Accounts.AccountToken) == []
+      assert Repo.all(AccountToken) == []
 
       # when not logged in
       {:ok, lv, _html} = live(conn, ~p"/confirm/#{token}")

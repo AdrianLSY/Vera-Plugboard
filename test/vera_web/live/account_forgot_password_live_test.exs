@@ -4,8 +4,8 @@ defmodule VeraWeb.AccountForgotPasswordLiveTest do
   import Phoenix.LiveViewTest
   import Vera.AccountsFixtures
 
-  alias Vera.Accounts
   alias Vera.Repo
+  alias Vera.Accounts.AccountToken
 
   describe "Forgot password page" do
     test "renders email page", %{conn: conn} do
@@ -43,7 +43,7 @@ defmodule VeraWeb.AccountForgotPasswordLiveTest do
 
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "If your email is in our system"
 
-      assert Repo.get_by!(Accounts.AccountToken, account_id: account.id).context ==
+      assert Repo.get_by!(AccountToken, account_id: account.id).context ==
                "reset_password"
     end
 
@@ -57,7 +57,7 @@ defmodule VeraWeb.AccountForgotPasswordLiveTest do
         |> follow_redirect(conn, "/")
 
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "If your email is in our system"
-      assert Repo.all(Accounts.AccountToken) == []
+      assert Repo.all(AccountToken) == []
     end
   end
 end

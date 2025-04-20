@@ -1,7 +1,7 @@
-defmodule Vera.AccountsTest do
+defmodule Vera.Accounts.AccountsTest do
   use Vera.DataCase
 
-  alias Vera.Accounts
+  alias Vera.Accounts.Accounts
 
   import Vera.AccountsFixtures
   alias Vera.Accounts.{Account, AccountToken}

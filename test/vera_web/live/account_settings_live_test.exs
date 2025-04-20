@@ -1,7 +1,8 @@
 defmodule VeraWeb.AccountLive.SettingsTest do
   use VeraWeb.ConnCase, async: true
 
-  alias Vera.Accounts
+  alias Vera.Accounts.Accounts
+
   import Phoenix.LiveViewTest
   import Vera.AccountsFixtures
 

@@ -1,8 +1,8 @@
 defmodule VeraWeb.AccountSessionController do
   use VeraWeb, :controller
 
-  alias Vera.Accounts
   alias VeraWeb.AccountAuth
+  alias Vera.Accounts.Accounts
 
   def create(conn, %{"_action" => "registered"} = params) do
     create(conn, params, "Account created successfully!")

@@ -2,8 +2,9 @@ defmodule VeraWeb.AccountAuthTest do
   use VeraWeb.ConnCase, async: true
 
   alias Phoenix.LiveView
-  alias Vera.Accounts
   alias VeraWeb.AccountAuth
+  alias Vera.Accounts.Accounts
+
   import Vera.AccountsFixtures
 
   @remember_me_cookie "_vera_web_account_remember_me"

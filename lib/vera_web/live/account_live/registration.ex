@@ -1,8 +1,8 @@
 defmodule VeraWeb.AccountLive.Registration do
   use VeraWeb, :live_view
 
-  alias Vera.Accounts
   alias Vera.Accounts.Account
+  alias Vera.Accounts.Accounts
 
   def render(assigns) do
     ~H"""

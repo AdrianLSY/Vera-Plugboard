@@ -1,7 +1,7 @@
 defmodule VeraWeb.AccountLive.ApiTokens do
   use VeraWeb, :live_view
 
-  alias Vera.Accounts
+  alias Vera.Accounts.Accounts
   alias Vera.Accounts.AccountToken
 
   def mount(_params, _session, socket) do
