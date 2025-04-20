@@ -24,7 +24,7 @@ defmodule VeraWeb.AccountLive.ApiTokens do
     tokens = list_account_tokens(socket.assigns.current_account)
     {:noreply,
      socket
-     |> assign(:new_token, token)
+     |> assign(:new_token, token.value)
      |> stream(:tokens, tokens, reset: true)
      |> put_flash(:info, "API token created")}
   end

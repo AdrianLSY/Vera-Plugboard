@@ -362,7 +362,7 @@ defmodule Vera.Accounts.Accounts do
   def create_account_api_token(account) do
     {encoded_token, account_token} = AccountToken.build_email_token(account, "api-token")
     record = Repo.insert!(account_token)
-    %{
+    token =%{
       id: record.id,
       value: encoded_token,
       context: record.context,
@@ -370,6 +370,8 @@ defmodule Vera.Accounts.Accounts do
       inserted_at: record.inserted_at,
       expires_at: DateTime.add(record.inserted_at, @account_token_validity_in_days * 24 * 60 * 60, :second)
     }
+    Phoenix.PubSub.broadcast(Vera.PubSub, "accounts/#{account.id}/tokens", {:token_created, token})
+    token
   end
 
   @doc """
