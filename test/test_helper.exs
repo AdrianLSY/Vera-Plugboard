@@ -1,2 +1,2 @@
 ExUnit.start()
-Ecto.Adapters.SQL.Sandbox.mode(Vera.Repo, :manual)
+Ecto.Adapters.SQL.Sandbox.mode(Plugboard.Repo, :manual)

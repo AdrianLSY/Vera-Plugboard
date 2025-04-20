@@ -8,14 +8,14 @@ config :argon2_elixir, t_cost: 1, m_cost: 8
 # The MIX_TEST_PARTITION environment variable can be used
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
-config :vera, Vera.Repo,
+config :plugboard, Plugboard.Repo,
   url: System.get_env("PHX_TEST_DATABASE_URL"),
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
-config :vera, VeraWeb.Endpoint,
+config :plugboard, PlugboardWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: System.get_env("SECRET_KEY_BASE") ||
     raise("""
@@ -25,7 +25,7 @@ config :vera, VeraWeb.Endpoint,
   server: false
 
 # In test we don't send emails
-config :vera, Vera.Mailer, adapter: Swoosh.Adapters.Test
+config :plugboard, Plugboard.Mailer, adapter: Swoosh.Adapters.Test
 
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false

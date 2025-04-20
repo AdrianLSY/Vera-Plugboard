@@ -1,7 +1,7 @@
-defmodule Vera.ServicesFixtures do
+defmodule Plugboard.ServicesFixtures do
   @moduledoc """
   This module defines test helpers for creating
-  entities via the `Vera.Services` context.
+  entities via the `Plugboard.Services` context.
   """
 
   @doc """
@@ -14,7 +14,7 @@ defmodule Vera.ServicesFixtures do
       |> Enum.into(%{
         name: "some name#{System.unique_integer()}"
       })
-      |> Vera.Services.Services.create_service()
+      |> Plugboard.Services.Services.create_service()
 
     service
   end

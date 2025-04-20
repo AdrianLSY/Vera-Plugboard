@@ -1,4 +1,4 @@
-defmodule VeraWeb.ConnCase do
+defmodule PlugboardWeb.ConnCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -11,7 +11,7 @@ defmodule VeraWeb.ConnCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use VeraWeb.ConnCase, async: true`, although
+  by setting `use PlugboardWeb.ConnCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -20,19 +20,19 @@ defmodule VeraWeb.ConnCase do
   using do
     quote do
       # The default endpoint for testing
-      @endpoint VeraWeb.Endpoint
+      @endpoint PlugboardWeb.Endpoint
 
-      use VeraWeb, :verified_routes
+      use PlugboardWeb, :verified_routes
 
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
-      import VeraWeb.ConnCase
+      import PlugboardWeb.ConnCase
     end
   end
 
   setup tags do
-    Vera.DataCase.setup_sandbox(tags)
+    Plugboard.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 
@@ -45,7 +45,7 @@ defmodule VeraWeb.ConnCase do
   test context.
   """
   def register_and_login_account(%{conn: conn}) do
-    account = Vera.AccountsFixtures.account_fixture()
+    account = Plugboard.AccountsFixtures.account_fixture()
     %{conn: login_account(conn, account), account: account}
   end
 
@@ -55,7 +55,7 @@ defmodule VeraWeb.ConnCase do
   It returns an updated `conn`.
   """
   def login_account(conn, account) do
-    token = Vera.Accounts.Accounts.generate_account_session_token(account)
+    token = Plugboard.Accounts.Accounts.generate_account_session_token(account)
 
     conn
     |> Phoenix.ConnTest.init_test_session(%{})
