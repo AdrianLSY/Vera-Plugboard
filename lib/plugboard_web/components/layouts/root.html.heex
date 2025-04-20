@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" class="[scrollbar-gutter:stable]">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title default="Plugboard">
+      {assigns[:page_title]}
+    </.live_title>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
+    </script>
+  </head>
+
+  <body class="bg-white">
+    <header class="bg-black px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between py-3">
+        <div class="flex items-center gap-4">
+          <a href="/" class="text-white font-bold text-lg">Vera Plugboard</a>
+        </div>
+        <div class="flex items-center gap-4">
+          <%= if @current_account do %>
+            <span class="text-white text-sm">{@current_account.email}</span>
+            <.link
+              href={~p"/services"}
+              class="text-white text-sm font-medium hover:text-gray-300"
+            >
+              Services
+            </.link>
+            <.link
+              href={~p"/tokens"}
+              class="text-white text-sm font-medium hover:text-gray-300"
+            >
+              Tokens
+            </.link>
+            <.link
+              href={~p"/settings"}
+              class="text-white text-sm font-medium hover:text-gray-300"
+            >
+              Settings
+            </.link>
+            <.link
+              href={~p"/log_out"}
+              method="delete"
+              class="text-white text-sm font-medium hover:text-gray-300"
+            >
+              Log out
+            </.link>
+          <% else %>
+            <.link
+              href={~p"/register"}
+              class="text-white text-sm font-medium hover:text-gray-300"
+            >
+              Register
+            </.link>
+            <.link
+              href={~p"/login"}
+              class="text-white text-sm font-medium hover:text-gray-300"
+            >
+              Log in
+            </.link>
+          <% end %>
+        </div>
+      </div>
+    </header>
+    {@inner_content}
+  </body>
+</html>

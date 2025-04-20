@@ -1,1 +1,1 @@
-call "%~dp0\vera" eval Vera.Release.migrate
+call "%~dp0\plugboard" eval Plugboard.Release.migrate

@@ -1,4 +1,4 @@
-defmodule Vera.Repo.Migrations.CreateAccountsAuthTables do
+defmodule Plugboard.Repo.Migrations.CreateAccountsAuthTables do
   use Ecto.Migration
 
   def change do

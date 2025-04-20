@@ -2,4 +2,4 @@
 set -eu
 
 cd -P -- "$(dirname -- "$0")"
-exec ./vera eval Vera.Release.migrate
+exec ./plugboard eval Plugboard.Release.migrate

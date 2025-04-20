@@ -1,7 +1,7 @@
 import Config
 
 # Configure your database
-config :vera, Vera.Repo,
+config :plugboard, Plugboard.Repo,
   url: System.get_env("PHX_DEVELOPMENT_DATABASE_URL"),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
@@ -14,7 +14,7 @@ config :vera, Vera.Repo,
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
 # Binding to loopback ipv4 address prevents access from other machines.
-config :vera, VeraWeb.Endpoint,
+config :plugboard, PlugboardWeb.Endpoint,
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PHX_PORT") || "4000")],
   check_origin: false,
@@ -26,8 +26,8 @@ config :vera, VeraWeb.Endpoint,
     You can generate one by calling: mix phx.gen.secret
     """),
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:vera, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:vera, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:plugboard, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:plugboard, ~w(--watch)]}
   ]
 
 # ## SSL Support
@@ -54,17 +54,17 @@ config :vera, VeraWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :vera, VeraWeb.Endpoint,
+config :plugboard, PlugboardWeb.Endpoint,
   live_reload: [
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"priv/gettext/.*(po)$",
-      ~r"lib/vera_web/(controllers|live|components)/.*(ex|heex)$"
+      ~r"lib/plugboard_web/(controllers|live|components)/.*(ex|heex)$"
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :vera, dev_routes: true
+config :plugboard, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :console, format: "[$level] $message\n"

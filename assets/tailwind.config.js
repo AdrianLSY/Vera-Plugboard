@@ -8,8 +8,8 @@ const path = require("path")
 module.exports = {
   content: [
     "./js/**/*.js",
-    "../lib/vera_web.ex",
-    "../lib/vera_web/**/*.*ex"
+    "../lib/plugboard_web.ex",
+    "../lib/plugboard_web/**/*.*ex"
   ],
   theme: {
     extend: {

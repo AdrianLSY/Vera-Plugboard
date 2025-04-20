@@ -12,12 +12,12 @@ import Config
 # If you use `mix release`, you need to explicitly enable the server
 # by passing the PHX_SERVER=true when you start it:
 #
-#     PHX_SERVER=true bin/vera start
+#     PHX_SERVER=true bin/plugboard start
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
 if System.get_env("PHX_SERVER") do
-  config :vera, VeraWeb.Endpoint, server: true
+  config :plugboard, PlugboardWeb.Endpoint, server: true
 end
 
 if config_env() == :prod do
@@ -30,7 +30,7 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("PHX_ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
-  config :vera, Vera.Repo,
+  config :plugboard, Plugboard.Repo,
     # ssl: true,
     url: database_url,
     pool_size: String.to_integer(System.get_env("PHX_POOL_SIZE") || "10"),
@@ -63,9 +63,9 @@ if config_env() == :prod do
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PHX_PORT") || "4000")
 
-  config :vera, :dns_cluster_query, System.get_env("PHX_DNS_CLUSTER_QUERY")
+  config :plugboard, :dns_cluster_query, System.get_env("PHX_DNS_CLUSTER_QUERY")
 
-  config :vera, VeraWeb.Endpoint,
+  config :plugboard, PlugboardWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
       # Enable IPv6 and bind on all interfaces.
@@ -83,7 +83,7 @@ if config_env() == :prod do
   # To get SSL working, you will need to add the `https` key
   # to your endpoint configuration:
   #
-  #     config :vera, VeraWeb.Endpoint,
+  #     config :plugboard, PlugboardWeb.Endpoint,
   #       https: [
   #         ...,
   #         port: 443,
@@ -105,7 +105,7 @@ if config_env() == :prod do
   # We also recommend setting `force_ssl` in your config/prod.exs,
   # ensuring no data is ever sent via http, always redirecting to https:
   #
-  #     config :vera, VeraWeb.Endpoint,
+  #     config :plugboard, PlugboardWeb.Endpoint,
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
@@ -116,7 +116,7 @@ if config_env() == :prod do
   # Also, you may need to configure the Swoosh API client of your choice if you
   # are not using SMTP. Here is an example of the configuration:
   #
-  #     config :vera, Vera.Mailer,
+  #     config :plugboard, Plugboard.Mailer,
   #       adapter: Swoosh.Adapters.Mailgun,
   #       api_key: System.get_env("MAILGUN_API_KEY"),
   #       domain: System.get_env("MAILGUN_DOMAIN")
