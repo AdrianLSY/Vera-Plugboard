@@ -12,6 +12,13 @@
     </:actions>
   </.header>
 
+  <%= if length(@streams.services.inserts) == 0 do %>
+    <.flash_entry
+      kind={:info}
+      title="No root services yet!"
+      message="Create a new root service to get started."
+    />
+  <% end %>
   <.table id="services" rows={@streams.services} row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service}") end}>
     <:col :let={{_id, service}} label="ID">
       {service.id}

@@ -4,8 +4,9 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
   import Phoenix.LiveViewTest
   import Vera.AccountsFixtures
 
-  alias Vera.Accounts
   alias Vera.Repo
+  alias Vera.Accounts.Accounts
+  alias Vera.Accounts.AccountToken
 
   setup do
     %{account: account_fixture()}
@@ -13,7 +14,7 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
 
   describe "Confirm account" do
     test "renders confirmation page", %{conn: conn} do
-      {:ok, _lv, html} = live(conn, ~p"/accounts/confirm/some-token")
+      {:ok, _lv, html} = live(conn, ~p"/confirm/some-token")
       assert html =~ "Confirm Account"
     end
 
@@ -23,7 +24,7 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
           Accounts.deliver_account_confirmation_instructions(account, url)
         end)
 
-      {:ok, lv, _html} = live(conn, ~p"/accounts/confirm/#{token}")
+      {:ok, lv, _html} = live(conn, ~p"/confirm/#{token}")
 
       result =
         lv
@@ -38,10 +39,10 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
 
       assert Accounts.get_account!(account.id).confirmed_at
       refute get_session(conn, :account_token)
-      assert Repo.all(Accounts.AccountToken) == []
+      assert Repo.all(AccountToken) == []
 
       # when not logged in
-      {:ok, lv, _html} = live(conn, ~p"/accounts/confirm/#{token}")
+      {:ok, lv, _html} = live(conn, ~p"/confirm/#{token}")
 
       result =
         lv
@@ -57,9 +58,9 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
       # when logged in
       conn =
         build_conn()
-        |> log_in_account(account)
+        |> login_account(account)
 
-      {:ok, lv, _html} = live(conn, ~p"/accounts/confirm/#{token}")
+      {:ok, lv, _html} = live(conn, ~p"/confirm/#{token}")
 
       result =
         lv
@@ -72,7 +73,7 @@ defmodule VeraWeb.AccountConfirmationLiveTest do
     end
 
     test "does not confirm email with invalid token", %{conn: conn, account: account} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/confirm/invalid-token")
+      {:ok, lv, _html} = live(conn, ~p"/confirm/invalid-token")
 
       {:ok, conn} =
         lv

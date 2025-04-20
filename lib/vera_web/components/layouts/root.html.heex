@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="Vera" suffix=" · Phoenix Framework">
+    <.live_title default="Vera">
       {assigns[:page_title]}
     </.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
@@ -28,13 +28,19 @@
               Services
             </.link>
             <.link
-              href={~p"/accounts/settings"}
+              href={~p"/tokens"}
+              class="text-white text-sm font-medium hover:text-gray-300"
+            >
+              Tokens
+            </.link>
+            <.link
+              href={~p"/settings"}
               class="text-white text-sm font-medium hover:text-gray-300"
             >
               Settings
             </.link>
             <.link
-              href={~p"/accounts/log_out"}
+              href={~p"/log_out"}
               method="delete"
               class="text-white text-sm font-medium hover:text-gray-300"
             >
@@ -42,13 +48,13 @@
             </.link>
           <% else %>
             <.link
-              href={~p"/accounts/register"}
+              href={~p"/register"}
               class="text-white text-sm font-medium hover:text-gray-300"
             >
               Register
             </.link>
             <.link
-              href={~p"/accounts/log_in"}
+              href={~p"/login"}
               class="text-white text-sm font-medium hover:text-gray-300"
             >
               Log in

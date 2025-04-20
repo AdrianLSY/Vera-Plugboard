@@ -34,10 +34,16 @@ PHX_POSTGRES_DATABASE=vera
 PHX_POSTGRES_PORT=5432
 PHX_GENSTAGE_ENTITY_MAX_AGE=30000
 PHX_GENSTAGE_CLEANUP_INTERVAL=1000
+PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS=90
+PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS=90
+PHX_RESET_PASSWORD_VALIDITY_IN_DAYS=1
+PHX_CONFIRM_VALIDITY_IN_DAYS=1
+PHX_CHANGE_EMAIL_VALIDITY_IN_DAYS=1
+PHX_SESSION_VALIDITY_IN_DAYS=1
 ```
 This will serve as a starting point for your own environment variables. Feel free to change the values to suit your needs.
 
-## Running the server
+## Running the server1
 
 You will need to install elixir before you can run the server. Please follow the instructions on the official elixir
 website to install:

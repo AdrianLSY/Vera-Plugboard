@@ -5,13 +5,12 @@ defmodule Vera.Accounts.AccountToken do
 
   @hash_algorithm :sha256
   @rand_size 32
-
-  # It is very important to keep the reset password token expiry short,
-  # since someone with access to the email may take over the account.
-  @reset_password_validity_in_days 1
-  @confirm_validity_in_days 7
-  @change_email_validity_in_days 7
-  @session_validity_in_days 60
+  @account_token_validity_in_days System.get_env("PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
+  @reset_password_validity_in_days System.get_env("PHX_RESET_PASSWORD_VALIDITY_IN_DAYS") |> String.to_integer()
+  @confirm_validity_in_days System.get_env("PHX_CONFIRM_VALIDITY_IN_DAYS") |> String.to_integer()
+  @change_email_validity_in_days System.get_env("PHX_CHANGE_EMAIL_VALIDITY_IN_DAYS") |> String.to_integer()
+  @session_validity_in_days System.get_env("PHX_SESSION_VALIDITY_IN_DAYS") |> String.to_integer()
+  @derive {Jason.Encoder, only: [:context, :sent_to, :account_id, :inserted_at]}
 
   schema "accounts_tokens" do
     field :token, :binary
@@ -73,9 +72,6 @@ defmodule Vera.Accounts.AccountToken do
   the token in the application to gain access. Furthermore, if the user changes
   their email in the system, the tokens sent to the previous email are no longer
   valid.
-
-  Users can easily adapt the existing code to provide other types of delivery methods,
-  for example, by phone numbers.
   """
   def build_email_token(account, context) do
     build_hashed_token(account, context, account.email)
@@ -126,6 +122,7 @@ defmodule Vera.Accounts.AccountToken do
     end
   end
 
+  defp days_for_context("api-token"), do: @account_token_validity_in_days
   defp days_for_context("confirm"), do: @confirm_validity_in_days
   defp days_for_context("reset_password"), do: @reset_password_validity_in_days
 

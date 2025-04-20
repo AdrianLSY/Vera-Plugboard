@@ -109,7 +109,6 @@ defmodule VeraWeb.CoreComponents do
 
   def flash(assigns) do
     assigns = assign_new(assigns, :id, fn -> "flash-#{assigns.kind}" end)
-
     ~H"""
     <div
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
@@ -117,21 +116,119 @@ defmodule VeraWeb.CoreComponents do
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
       class={[
-        "fixed top-2 right-2 mr-2 w-80 sm:w-96 z-50 rounded-lg p-3 ring-1",
-        @kind == :info && "bg-blue-50 text-blue-800 ring-blue-500 fill-cyan-900",
-        @kind == :error && "bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900"
+        "fixed top-2 right-2 mr-2 w-80 sm:w-96 z-50 rounded-lg p-3 border",
+        @kind == :info && "bg-blue-50 text-blue-800 border-blue-300",
+        @kind == :error && "bg-rose-50 text-rose-900 border-rose-300"
       ]}
       {@rest}
     >
       <p :if={@title} class="flex items-center gap-1.5 text-sm font-semibold leading-6">
-        <.icon :if={@kind == :info} name="hero-information-circle-mini" class="h-4 w-4" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle-mini" class="h-4 w-4" />
+        <.icon :if={@kind == :info} name="hero-information-circle-mini" class="h-4 w-4 text-blue-400" />
+        <.icon :if={@kind == :error} name="hero-exclamation-circle-mini" class="h-4 w-4 text-rose-400" />
         {@title}
       </p>
-      <p class="mt-2 text-sm leading-5">{msg}</p>
+      <p class={[
+        "mt-2 text-sm leading-5",
+        @kind == :info && "text-blue-700",
+        @kind == :error && "text-rose-700"
+      ]}>{msg}</p>
       <button type="button" class="group absolute top-1 right-1 p-2" aria-label={gettext("close")}>
-        <.icon name="hero-x-mark-solid" class="h-5 w-5 opacity-40 group-hover:opacity-70" />
+        <.icon name="hero-x-mark-solid" class={[
+          "h-5 w-5 opacity-40 group-hover:opacity-70",
+          @kind == :info && "text-blue-400",
+          @kind == :error && "text-rose-400"
+        ] |> Enum.filter(& &1) |> Enum.join(" ")} />
       </button>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a flash entry with an icon, title, message, and optional dismiss button.
+
+  ## Examples
+
+      <.flash_entry
+        kind={:info}
+        title="New API token generated!"
+        message="Please copy your API token now. You will not see it again."
+        value={@token_value}
+        dismiss_event="dismiss_token"
+      />
+  """
+  attr :kind, :atom, default: :info, values: [:info, :error]
+  attr :title, :string, required: true
+  attr :message, :string, required: true
+  attr :code, :string, default: nil
+  attr :dismiss_event, :string, default: nil
+  attr :class, :string, default: nil
+
+  def flash_entry(assigns) do
+    ~H"""
+    <div class={[
+      "rounded-md p-4 mt-4 border",
+      @kind == :info && "bg-blue-50 border-blue-300",
+      @kind == :error && "bg-rose-50 border-rose-300",
+      @class
+    ]}>
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <.icon
+            name={@kind == :info && "hero-information-circle-mini" || "hero-exclamation-circle-mini"}
+            class={[
+              "h-5 w-5",
+              @kind == :info && "text-blue-400",
+              @kind == :error && "text-rose-400"
+            ] |> Enum.filter(& &1) |> Enum.join(" ")}
+          />
+        </div>
+        <div class="ml-3 flex-1 md:flex md:justify-between">
+          <div>
+            <h3 class={[
+              "text-sm font-medium",
+              @kind == :info && "text-blue-800",
+              @kind == :error && "text-rose-800"
+            ]}>
+              <%= @title %>
+            </h3>
+            <div class={[
+              "mt-2 text-sm",
+              @kind == :info && "text-blue-700",
+              @kind == :error && "text-rose-700"
+            ]}>
+              <p><%= @message %></p>
+            </div>
+            <%= if @code do %>
+              <div class={[
+                "mt-2 rounded-md p-2 border",
+                @kind == :info && "bg-white border-blue-300",
+                @kind == :error && "bg-white border-rose-300"
+              ]}>
+                <code class={[
+                  "text-sm break-all",
+                  @kind == :info && "text-blue-800",
+                  @kind == :error && "text-rose-800"
+                ]}><%= @code %></code>
+              </div>
+            <% end %>
+          </div>
+          <%= if @dismiss_event do %>
+            <div class="mt-3 text-sm md:ml-6 md:mt-0">
+              <button
+                phx-click={@dismiss_event}
+                class={[
+                  "whitespace-nowrap font-medium",
+                  @kind == :info && "text-blue-700 hover:text-blue-600",
+                  @kind == :error && "text-rose-700 hover:text-rose-600"
+                ]}
+              >
+                Dismiss
+                <span aria-hidden="true"> &rarr;</span>
+              </button>
+            </div>
+          <% end %>
+        </div>
+      </div>
     </div>
     """
   end

@@ -1,7 +1,7 @@
 defmodule VeraWeb.Router do
   use VeraWeb, :router
 
-  import VeraWeb.AccountAuth
+  import VeraWeb.Accounts.AccountAuth
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -25,6 +25,8 @@ defmodule VeraWeb.Router do
   scope "/", VeraWeb do
     pipe_through :api
     post "/", PageController, :request
+    post "/account_token/new", PageController, :account_token
+    post "/service_token/new", PageController, :service_token
   end
 
   if Application.compile_env(:vera, :dev_routes) do
@@ -39,33 +41,34 @@ defmodule VeraWeb.Router do
   scope "/", VeraWeb do
     pipe_through [:browser, :redirect_if_account_is_authenticated]
     live_session :redirect_if_account_is_authenticated,
-      on_mount: [{VeraWeb.AccountAuth, :redirect_if_account_is_authenticated}] do
-      live "/accounts/register", AccountRegistrationLive, :new
-      live "/accounts/log_in", AccountLoginLive, :new
-      live "/accounts/reset_password", AccountForgotPasswordLive, :new
-      live "/accounts/reset_password/:token", AccountResetPasswordLive, :edit
+      on_mount: [{VeraWeb.Accounts.AccountAuth, :redirect_if_account_is_authenticated}] do
+      live "/register", AccountLive.Registration, :new
+      live "/login", AccountLive.Login, :new
+      live "/reset_password", AccountLive.ForgotPassword, :new
+      live "/reset_password/:token", AccountLive.ResetPassword, :edit
     end
-    post "/accounts/log_in", AccountSessionController, :create
+    post "/login", AccountSessionController, :create
   end
 
   scope "/", VeraWeb do
     pipe_through [:browser, :require_authenticated_account]
     live_session :require_authenticated_account,
-      on_mount: [{VeraWeb.AccountAuth, :ensure_authenticated}] do
-      live "/accounts/settings", AccountSettingsLive, :edit
-      live "/accounts/settings/confirm_email/:token", AccountSettingsLive, :confirm_email
+      on_mount: [{VeraWeb.Accounts.AccountAuth, :ensure_authenticated}] do
+      live "/settings", AccountLive.Settings, :edit
+      live "/settings/confirm_email/:token", AccountLive.Settings, :confirm_email
+      live "/tokens", AccountLive.ApiTokens, :index
     end
   end
 
   scope "/", VeraWeb do
     pipe_through [:browser]
 
-    delete "/accounts/log_out", AccountSessionController, :delete
+    delete "/log_out", AccountSessionController, :delete
 
     live_session :current_account,
-      on_mount: [{VeraWeb.AccountAuth, :mount_current_account}] do
-      live "/accounts/confirm/:token", AccountConfirmationLive, :edit
-      live "/accounts/confirm", AccountConfirmationInstructionsLive, :new
+      on_mount: [{VeraWeb.Accounts.AccountAuth, :mount_current_account}] do
+      live "/confirm/:token", AccountLive.Confirmation, :edit
+      live "/confirm", AccountLive.ConfirmationInstructions, :new
     end
   end
 
@@ -78,5 +81,6 @@ defmodule VeraWeb.Router do
     live "/services/:id/new", ServiceLive.Show, :new
     live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
     live "/services/:id/delete", ServiceLive.Show, :delete
+    live "/services/:id/tokens/new", ServiceLive.Show, :new_token
   end
 end

@@ -1,42 +1,56 @@
 defmodule VeraWeb.Services.ServiceConsumerChannel do
   use Phoenix.Channel
+  alias Vera.Services.Services
+  alias Vera.Services.ServiceActionRegistry
+  alias Vera.Services.ServiceRequestRegistry
+  alias Vera.Services.ServiceConsumerRegistry
 
-  alias Vera.Services.Service
-  alias Vera.Repo
+  @service_token_validity_in_days System.get_env("PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
 
-  def join("service/" <> service_id, actions, socket) do
-    case Service.default_scope()
-    |> Repo.get(service_id) do
-      nil ->
-        {:error, %{reason: "Service not found"}}
-      service ->
-        if Vera.Services.ServiceConsumerRegistry.list_consumers(service_id) |> length() > 0 do
-          registered_actions = Vera.Services.ServiceActionRegistry.get_actions(service_id)
+  def join("service/" <> service_id, %{"token" => token, "actions" => actions}, socket) do
+    with {:ok, %{service: service, token: token}} <- Services.fetch_service_by_api_token(token) do
+      if service.id != service_id |> String.to_integer() do
+        {:error, %{reason: "Service API token is invalid"}}
+      else
+        token_response = %{
+          id: token.id,
+          context: token.context,
+          service_id: service.id,
+          inserted_at: token.inserted_at,
+          expires_at: DateTime.add(token.inserted_at, @service_token_validity_in_days * 24 * 60 * 60, :second)
+        }
+
+        if ServiceConsumerRegistry.list_consumers(service_id) |> length() > 0 do
+          registered_actions = ServiceActionRegistry.get_actions(service_id)
           if actions != registered_actions do
             {:error, %{reason: "Current consumer actions do not match other registered consumer actions"}}
           else
-            Vera.Services.ServiceConsumerRegistry.register(service_id, self())
-            {:ok, %{service: service, consumers_connected: Vera.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
+            ServiceConsumerRegistry.register(service_id, self())
+            {:ok, %{service: service, token: token_response, consumers_connected: ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
           end
         else
-          Vera.Services.ServiceConsumerRegistry.register(service_id, self())
-          Vera.Services.ServiceActionRegistry.register(service_id, actions)
-          {:ok, %{service: service, consumers_connected: Vera.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
+          ServiceConsumerRegistry.register(service_id, self())
+          ServiceActionRegistry.register(service_id, actions)
+          {:ok, %{service: service, token: token_response, consumers_connected: ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
         end
+      end
+    else
+      :error -> {:error, %{reason: "Service API token is invalid"}}
+      nil -> {:error, %{reason: "Service API token is invalid"}}
     end
   end
 
   def terminate(_reason, socket) do
     service_id = socket.assigns[:service_id]
-    Vera.Services.ServiceConsumerRegistry.unregister(service_id, self())
-    if Vera.Services.ServiceConsumerRegistry.list_consumers(service_id) |> length() == 0 do
-      Vera.Services.ServiceActionRegistry.unregister(service_id)
+    ServiceConsumerRegistry.unregister(service_id, self())
+    if ServiceConsumerRegistry.list_consumers(service_id) |> length() == 0 do
+      ServiceActionRegistry.unregister(service_id)
     end
     :ok
   end
 
   def handle_in("response", payload, socket) do
-    if pid = Vera.Services.ServiceRequestRegistry.get_requester(socket.ref) do
+    if pid = ServiceRequestRegistry.get_requester(socket.ref) do
       send(pid, {:response, payload})
     end
     {:noreply, socket}
@@ -63,6 +77,31 @@ defmodule VeraWeb.Services.ServiceConsumerChannel do
 
   def handle_info({:consumers_connected, consumers_connected}, socket) do
     push(socket, "consumers_connected", %{consumers_connected: consumers_connected})
+    {:noreply, socket}
+  end
+
+  def handle_info({:token_created, token, token}, socket) do
+    token_response = %{
+      id: token.id,
+      value: token,
+      context: token.context,
+      service_id: token.service_id,
+      inserted_at: token.inserted_at,
+      expires_at: DateTime.add(token.inserted_at, @service_token_validity_in_days * 24 * 60 * 60, :second)
+    }
+    push(socket, "token_created", %{token: token_response})
+    {:noreply, socket}
+  end
+
+  def handle_info({:token_deleted, token}, socket) do
+    token_response = %{
+      id: token.id,
+      context: token.context,
+      service_id: token.service_id,
+      inserted_at: token.inserted_at,
+      expires_at: DateTime.add(token.inserted_at, @service_token_validity_in_days * 24 * 60 * 60, :second)
+    }
+    push(socket, "token_deleted", %{token: token_response})
     {:noreply, socket}
   end
 end

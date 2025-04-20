@@ -6,7 +6,7 @@ defmodule VeraWeb.AccountRegistrationLiveTest do
 
   describe "Registration page" do
     test "renders registration page", %{conn: conn} do
-      {:ok, _lv, html} = live(conn, ~p"/accounts/register")
+      {:ok, _lv, html} = live(conn, ~p"/register")
 
       assert html =~ "Register"
       assert html =~ "Log in"
@@ -15,15 +15,15 @@ defmodule VeraWeb.AccountRegistrationLiveTest do
     test "redirects if already logged in", %{conn: conn} do
       result =
         conn
-        |> log_in_account(account_fixture())
-        |> live(~p"/accounts/register")
+        |> login_account(account_fixture())
+        |> live(~p"/register")
         |> follow_redirect(conn, "/")
 
       assert {:ok, _conn} = result
     end
 
     test "renders errors for invalid data", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/register")
+      {:ok, lv, _html} = live(conn, ~p"/register")
 
       result =
         lv
@@ -38,7 +38,7 @@ defmodule VeraWeb.AccountRegistrationLiveTest do
 
   describe "register account" do
     test "creates account and logs the account in", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/register")
+      {:ok, lv, _html} = live(conn, ~p"/register")
 
       email = unique_account_email()
       form = form(lv, "#registration_form", account: valid_account_attributes(email: email))
@@ -56,7 +56,7 @@ defmodule VeraWeb.AccountRegistrationLiveTest do
     end
 
     test "renders errors for duplicated email", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/register")
+      {:ok, lv, _html} = live(conn, ~p"/register")
 
       account = account_fixture(%{email: "test@email.com"})
 
@@ -73,13 +73,13 @@ defmodule VeraWeb.AccountRegistrationLiveTest do
 
   describe "registration navigation" do
     test "redirects to login page when the Log in button is clicked", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/register")
+      {:ok, lv, _html} = live(conn, ~p"/register")
 
       {:ok, _login_live, login_html} =
         lv
         |> element(~s|main a:fl-contains("Log in")|)
         |> render_click()
-        |> follow_redirect(conn, ~p"/accounts/log_in")
+        |> follow_redirect(conn, ~p"/login")
 
       assert login_html =~ "Log in"
     end

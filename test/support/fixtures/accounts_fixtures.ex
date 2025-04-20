@@ -1,7 +1,7 @@
 defmodule Vera.AccountsFixtures do
   @moduledoc """
   This module defines test helpers for creating
-  entities via the `Vera.Accounts` context.
+  entities via the `Vera.Accounts.Accounts` context.
   """
 
   def unique_account_email, do: "account#{System.unique_integer()}@example.com"
@@ -18,7 +18,7 @@ defmodule Vera.AccountsFixtures do
     {:ok, account} =
       attrs
       |> valid_account_attributes()
-      |> Vera.Accounts.register_account()
+      |> Vera.Accounts.Accounts.register_account()
 
     account
   end

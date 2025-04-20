@@ -1,6 +1,8 @@
 defmodule VeraWeb.ServiceLiveTest do
   use VeraWeb.ConnCase
 
+  alias Vera.Services.Services
+
   import Phoenix.LiveViewTest
   import Vera.ServicesFixtures
 
@@ -166,7 +168,7 @@ defmodule VeraWeb.ServiceLiveTest do
       {:ok, _show_live, html} = live(conn, ~p"/services/#{parent}")
 
       # Get the updated parent from the database to ensure it matches
-      updated_parent = Vera.Services.get_service!(parent.id)
+      updated_parent = Services.get_service!(parent.id)
       assert html =~ updated_parent.name
       assert updated_parent.name == @update_attrs.name
     end

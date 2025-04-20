@@ -1,7 +1,7 @@
-defmodule VeraWeb.AccountConfirmationInstructionsLive do
+defmodule VeraWeb.AccountLive.ConfirmationInstructions do
   use VeraWeb, :live_view
 
-  alias Vera.Accounts
+  alias Vera.Accounts.Accounts
 
   def render(assigns) do
     ~H"""
@@ -21,8 +21,8 @@ defmodule VeraWeb.AccountConfirmationInstructionsLive do
       </.simple_form>
 
       <p class="text-center mt-4">
-        <.link href={~p"/accounts/register"}>Register</.link>
-        | <.link href={~p"/accounts/log_in"}>Log in</.link>
+        <.link href={~p"/register"}>Register</.link>
+        | <.link href={~p"/login"}>Log in</.link>
       </p>
     </div>
     """
@@ -36,7 +36,7 @@ defmodule VeraWeb.AccountConfirmationInstructionsLive do
     if account = Accounts.get_account_by_email(email) do
       Accounts.deliver_account_confirmation_instructions(
         account,
-        &url(~p"/accounts/confirm/#{&1}")
+        &url(~p"/confirm/#{&1}")
       )
     end
 

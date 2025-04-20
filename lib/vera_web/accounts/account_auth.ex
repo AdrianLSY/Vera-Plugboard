@@ -1,17 +1,29 @@
-defmodule VeraWeb.AccountAuth do
+defmodule VeraWeb.Accounts.AccountAuth do
   use VeraWeb, :verified_routes
 
   import Plug.Conn
   import Phoenix.Controller
 
-  alias Vera.Accounts
+  alias Vera.Accounts.Accounts
 
   # Make the remember me cookie valid for 60 days.
   # If you want bump or reduce this value, also change
   # the token expiry itself in AccountToken.
-  @max_age 60 * 60 * 24 * 60
+  @max_age 60 * 60 * 24 * (System.get_env("PHX_SESSION_VALIDITY_IN_DAYS") |> String.to_integer())
   @remember_me_cookie "_vera_web_account_remember_me"
   @remember_me_options [sign: true, max_age: @max_age, same_site: "Lax"]
+
+  @doc """
+  Fetches the account from the api token.
+  """
+  def fetch_api_account(conn, _opts) do
+    with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
+      {:ok, account} <- Accounts.fetch_account_by_api_token(token) do
+        {:ok, account}
+    else
+      _ -> {:error, "API token is invalid"}
+    end
+  end
 
   @doc """
   Logs the account in.
@@ -25,7 +37,7 @@ defmodule VeraWeb.AccountAuth do
   disconnected on log out. The line can be safely removed
   if you are not using LiveView.
   """
-  def log_in_account(conn, account, params \\ %{}) do
+  def login_account(conn, account, params \\ %{}) do
     token = Accounts.generate_account_session_token(account)
     account_return_to = get_session(conn, :account_return_to)
 
@@ -135,13 +147,13 @@ defmodule VeraWeb.AccountAuth do
       defmodule VeraWeb.PageLive do
         use VeraWeb, :live_view
 
-        on_mount {VeraWeb.AccountAuth, :mount_current_account}
+        on_mount {VeraWeb.Accounts.AccountAuth, :mount_current_account}
         ...
       end
 
   Or use the `live_session` of your router to invoke the on_mount callback:
 
-      live_session :authenticated, on_mount: [{VeraWeb.AccountAuth, :ensure_authenticated}] do
+      live_session :authenticated, on_mount: [{VeraWeb.Accounts.AccountAuth, :ensure_authenticated}] do
         live "/profile", ProfileLive, :index
       end
   """
@@ -158,7 +170,7 @@ defmodule VeraWeb.AccountAuth do
       socket =
         socket
         |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/accounts/log_in")
+        |> Phoenix.LiveView.redirect(to: ~p"/login")
 
       {:halt, socket}
     end
@@ -208,7 +220,7 @@ defmodule VeraWeb.AccountAuth do
       conn
       |> put_flash(:error, "You must log in to access this page.")
       |> maybe_store_return_to()
-      |> redirect(to: ~p"/accounts/log_in")
+      |> redirect(to: ~p"/login")
       |> halt()
     end
   end

@@ -1,10 +1,10 @@
-defmodule VeraWeb.AccountResetPasswordLiveTest do
+defmodule VeraWeb.AccountLive.ResetPasswordTest do
   use VeraWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
   import Vera.AccountsFixtures
 
-  alias Vera.Accounts
+  alias Vera.Accounts.Accounts
 
   setup do
     account = account_fixture()
@@ -19,13 +19,13 @@ defmodule VeraWeb.AccountResetPasswordLiveTest do
 
   describe "Reset password page" do
     test "renders reset password with valid token", %{conn: conn, token: token} do
-      {:ok, _lv, html} = live(conn, ~p"/accounts/reset_password/#{token}")
+      {:ok, _lv, html} = live(conn, ~p"/reset_password/#{token}")
 
       assert html =~ "Reset Password"
     end
 
     test "does not render reset password with invalid token", %{conn: conn} do
-      {:error, {:redirect, to}} = live(conn, ~p"/accounts/reset_password/invalid")
+      {:error, {:redirect, to}} = live(conn, ~p"/reset_password/invalid")
 
       assert to == %{
                flash: %{"error" => "Reset password link is invalid or it has expired."},
@@ -34,7 +34,7 @@ defmodule VeraWeb.AccountResetPasswordLiveTest do
     end
 
     test "renders errors for invalid data", %{conn: conn, token: token} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/reset_password/#{token}")
+      {:ok, lv, _html} = live(conn, ~p"/reset_password/#{token}")
 
       result =
         lv
@@ -50,7 +50,7 @@ defmodule VeraWeb.AccountResetPasswordLiveTest do
 
   describe "Reset Password" do
     test "resets password once", %{conn: conn, token: token, account: account} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/reset_password/#{token}")
+      {:ok, lv, _html} = live(conn, ~p"/reset_password/#{token}")
 
       {:ok, conn} =
         lv
@@ -61,7 +61,7 @@ defmodule VeraWeb.AccountResetPasswordLiveTest do
           }
         )
         |> render_submit()
-        |> follow_redirect(conn, ~p"/accounts/log_in")
+        |> follow_redirect(conn, ~p"/login")
 
       refute get_session(conn, :account_token)
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Password reset successfully"
@@ -69,7 +69,7 @@ defmodule VeraWeb.AccountResetPasswordLiveTest do
     end
 
     test "does not reset password on invalid data", %{conn: conn, token: token} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/reset_password/#{token}")
+      {:ok, lv, _html} = live(conn, ~p"/reset_password/#{token}")
 
       result =
         lv
@@ -89,13 +89,13 @@ defmodule VeraWeb.AccountResetPasswordLiveTest do
 
   describe "Reset password navigation" do
     test "redirects to login page when the Log in button is clicked", %{conn: conn, token: token} do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/reset_password/#{token}")
+      {:ok, lv, _html} = live(conn, ~p"/reset_password/#{token}")
 
       {:ok, conn} =
         lv
         |> element(~s|main a:fl-contains("Log in")|)
         |> render_click()
-        |> follow_redirect(conn, ~p"/accounts/log_in")
+        |> follow_redirect(conn, ~p"/login")
 
       assert conn.resp_body =~ "Log in"
     end
@@ -104,13 +104,13 @@ defmodule VeraWeb.AccountResetPasswordLiveTest do
       conn: conn,
       token: token
     } do
-      {:ok, lv, _html} = live(conn, ~p"/accounts/reset_password/#{token}")
+      {:ok, lv, _html} = live(conn, ~p"/reset_password/#{token}")
 
       {:ok, conn} =
         lv
         |> element(~s|main a:fl-contains("Register")|)
         |> render_click()
-        |> follow_redirect(conn, ~p"/accounts/register")
+        |> follow_redirect(conn, ~p"/register")
 
       assert conn.resp_body =~ "Register"
     end

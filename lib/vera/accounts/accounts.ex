@@ -1,12 +1,12 @@
-defmodule Vera.Accounts do
+defmodule Vera.Accounts.Accounts do
   @moduledoc """
   The Accounts context.
   """
-
   import Ecto.Query, warn: false
   alias Vera.Repo
-
   alias Vera.Accounts.{Account, AccountToken, AccountNotifier}
+
+  @account_token_validity_in_days System.get_env("PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
 
   ## Database getters
 
@@ -162,7 +162,7 @@ defmodule Vera.Accounts do
 
   ## Examples
 
-      iex> deliver_account_update_email_instructions(account, current_email, &url(~p"/accounts/settings/confirm_email/#{&1}"))
+      iex> deliver_account_update_email_instructions(account, current_email, &url(~p"/settings/confirm_email/#{&1}"))
       {:ok, %{to: ..., body: ...}}
 
   """
@@ -249,10 +249,10 @@ defmodule Vera.Accounts do
 
   ## Examples
 
-      iex> deliver_account_confirmation_instructions(account, &url(~p"/accounts/confirm/#{&1}"))
+      iex> deliver_account_confirmation_instructions(account, &url(~p"/confirm/#{&1}"))
       {:ok, %{to: ..., body: ...}}
 
-      iex> deliver_account_confirmation_instructions(confirmed_account, &url(~p"/accounts/confirm/#{&1}"))
+      iex> deliver_account_confirmation_instructions(confirmed_account, &url(~p"/confirm/#{&1}"))
       {:error, :already_confirmed}
 
   """
@@ -296,7 +296,7 @@ defmodule Vera.Accounts do
 
   ## Examples
 
-      iex> deliver_account_reset_password_instructions(account, &url(~p"/accounts/reset_password/#{&1}"))
+      iex> deliver_account_reset_password_instructions(account, &url(~p"/reset_password/#{&1}"))
       {:ok, %{to: ..., body: ...}}
 
   """
@@ -348,6 +348,41 @@ defmodule Vera.Accounts do
     |> case do
       {:ok, %{account: account}} -> {:ok, account}
       {:error, :account, changeset, _} -> {:error, changeset}
+    end
+  end
+
+  ## API
+
+  @doc """
+  Creates a new api token for an account.
+
+  The token returned must be saved somewhere safe.
+  This token cannot be recovered from the database.
+  """
+  def create_account_api_token(account) do
+    {encoded_token, account_token} = AccountToken.build_email_token(account, "api-token")
+    record = Repo.insert!(account_token)
+    token =%{
+      id: record.id,
+      value: encoded_token,
+      context: record.context,
+      account_id: record.account_id,
+      inserted_at: record.inserted_at,
+      expires_at: DateTime.add(record.inserted_at, @account_token_validity_in_days * 24 * 60 * 60, :second)
+    }
+    Phoenix.PubSub.broadcast(Vera.PubSub, "accounts/#{account.id}/tokens", {:token_created, token})
+    token
+  end
+
+  @doc """
+  Fetches the account by API token.
+  """
+  def fetch_account_by_api_token(token) do
+    with {:ok, query} <- AccountToken.verify_email_token_query(token, "api-token"),
+        %Account{} = account <- Repo.one(query) do
+      {:ok, account}
+    else
+      _ -> :error
     end
   end
 end
