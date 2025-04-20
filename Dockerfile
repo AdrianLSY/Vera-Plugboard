@@ -7,13 +7,13 @@
 # This file is based on these images:
 #
 #   - https://hub.docker.com/r/hexpm/elixir/tags - for the build image
-#   - https://hub.docker.com/_/debian?tab=tags&page=1&name=bullseye-20250203-slim - for the release image
+#   - https://hub.docker.com/_/debian?tab=tags&page=1&name=bullseye-20250407-slim - for the release image
 #   - https://pkgs.org/ - resource for finding needed packages
-#   - Ex: hexpm/elixir:1.18.2-erlang-27.2.1-debian-bullseye-20250203-slim
+#   - Ex: hexpm/elixir:1.18.3-erlang-27.3.3-debian-bullseye-20250407-slim
 #
-ARG ELIXIR_VERSION=1.18.2
-ARG OTP_VERSION=27.2.1
-ARG DEBIAN_VERSION=bullseye-20250203-slim
+ARG ELIXIR_VERSION=1.18.3
+ARG OTP_VERSION=27.3.3
+ARG DEBIAN_VERSION=bullseye-20250407-slim
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
@@ -112,6 +112,8 @@ ENV MIX_ENV="prod"
 # Only copy the final release from the build stage
 COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/plugboard ./
 
+USER nobody
+
 # If using an environment that doesn't automatically reap zombie processes, it is
 # advised to add an init process such as tini via `apt-get install`
 # above and adding an entrypoint. See https://github.com/krallin/tini for details
@@ -120,8 +122,6 @@ COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/plugboard ./
 # Copy entrypoint script
 COPY entrypoint.sh ./
 RUN chmod +x entrypoint.sh
-
-USER nobody
 
 # Run the release
 CMD ["./entrypoint.sh"]
