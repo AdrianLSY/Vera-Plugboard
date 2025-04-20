@@ -2,11 +2,11 @@ defmodule Vera.Accounts.Accounts do
   @moduledoc """
   The Accounts context.
   """
-
   import Ecto.Query, warn: false
   alias Vera.Repo
-
   alias Vera.Accounts.{Account, AccountToken, AccountNotifier}
+
+  @account_token_validity_in_days System.get_env("PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
 
   ## Database getters
 
@@ -361,8 +361,15 @@ defmodule Vera.Accounts.Accounts do
   """
   def create_account_api_token(account) do
     {encoded_token, account_token} = AccountToken.build_email_token(account, "api-token")
-    Repo.insert!(account_token)
-    encoded_token
+    record = Repo.insert!(account_token)
+    %{
+      id: record.id,
+      value: encoded_token,
+      context: record.context,
+      account_id: record.account_id,
+      inserted_at: record.inserted_at,
+      expires_at: DateTime.add(record.inserted_at, @account_token_validity_in_days * 24 * 60 * 60, :second)
+    }
   end
 
   @doc """
@@ -370,7 +377,7 @@ defmodule Vera.Accounts.Accounts do
   """
   def fetch_account_by_api_token(token) do
     with {:ok, query} <- AccountToken.verify_email_token_query(token, "api-token"),
-         %Account{} = account <- Repo.one(query) do
+        %Account{} = account <- Repo.one(query) do
       {:ok, account}
     else
       _ -> :error

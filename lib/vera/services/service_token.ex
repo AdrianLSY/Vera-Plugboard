@@ -26,20 +26,24 @@ defmodule Vera.Services.ServiceToken do
   end
 
   @doc """
-  Builds a token and its hash to be used for API authentication for a service.
+  Builds a token and its hash for a service
 
-  The non-hashed token is returned to the caller and can be provided to the service owner,
-  while the hashed part is stored in the database. The original token cannot be reconstructed,
-  providing security in case of database breaches.
+  The hashed token is stored in the database. The original token cannot be reconstructed,
+  which means anyone with read-only access to the database cannot directly use
+  the token in the application to gain access.
   """
-  def build_api_token(service) do
+  def build_service_token(service, context) do
+    build_hashed_token(service, context)
+  end
+
+  defp build_hashed_token(service, context) do
     token = :crypto.strong_rand_bytes(@rand_size)
     hashed_token = :crypto.hash(@hash_algorithm, token)
 
     {Base.url_encode64(token, padding: false),
      %ServiceToken{
        token: hashed_token,
-       context: "api-token",
+       context: context,
        service_id: service.id
      }}
   end
@@ -50,18 +54,20 @@ defmodule Vera.Services.ServiceToken do
   The query returns the service found by the token, if any.
 
   The given token is valid if it matches its hashed counterpart in the
-  database and has not expired (based on @service_token_validity_in_days).
+  database. The token is valid if it matches the value in the database
+  and it has not expired.
   """
-  def verify_api_token_query(token) do
+  def verify_token_query(token, context) do
     case Base.url_decode64(token, padding: false) do
       {:ok, decoded_token} ->
         hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
+        days = days_for_context(context)
+
         query =
-          from token in by_token_and_context_query(hashed_token, "api-token"),
+          from token in by_token_and_context_query(hashed_token, context),
             join: service in assoc(token, :service),
-            where: token.inserted_at > ago(@service_token_validity_in_days, "day") and
-              is_nil(service.deleted_at),
-            select: {service, token}
+            where: token.inserted_at > ago(^days, "day"),
+            select: service
 
         {:ok, query}
 
@@ -69,6 +75,8 @@ defmodule Vera.Services.ServiceToken do
         :error
     end
   end
+
+  defp days_for_context("api-token"), do: @service_token_validity_in_days
 
   @doc """
   Returns the token struct for the given token value and context.

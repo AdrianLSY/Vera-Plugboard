@@ -2,11 +2,12 @@ defmodule Vera.Services.Services do
   @moduledoc """
   The Services context.
   """
-
   import Ecto.Query, warn: false
   alias Vera.Repo
-
   alias Vera.Services.Service
+  alias Vera.Services.ServiceToken
+
+  @service_token_validity_in_days System.get_env("PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
 
   @doc """
   Returns the list of services.
@@ -141,6 +142,39 @@ defmodule Vera.Services.Services do
   """
   def change_service(%Service{} = service, attrs \\ %{}) do
     Service.changeset(service, attrs)
+  end
+
+  @doc """
+  Creates a new api token for a service.
+
+  The token returned must be saved somewhere safe.
+  This token cannot be recovered from the database.
+  """
+  def create_service_api_token(service) do
+    {encoded_token, service_token} = ServiceToken.build_service_token(service, "api-token")
+    record = Repo.insert!(service_token)
+    token = %{
+      id: record.id,
+      value: encoded_token,
+      context: record.context,
+      service_id: record.service_id,
+      inserted_at: record.inserted_at,
+      expires_at: DateTime.add(record.inserted_at, @service_token_validity_in_days * 24 * 60 * 60, :second)
+    }
+    Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service.id}", {:token_created, token})
+    token
+  end
+
+  @doc """
+  Fetches the service by API token.
+  """
+  def fetch_service_by_api_token(token) do
+    with {:ok, query} <- ServiceToken.verify_token_query(token, "api-token"),
+        %Service{} = service <- Repo.one(query) do
+      {:ok, service}
+    else
+      _ -> :error
+    end
   end
 
   defp notify_subscribers({:ok, service}, [:service, :created]) do

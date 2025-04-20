@@ -1,8 +1,8 @@
-defmodule VeraWeb.AccountAuthTest do
+defmodule VeraWeb.Accounts.AccountAuthTest do
   use VeraWeb.ConnCase, async: true
 
   alias Phoenix.LiveView
-  alias VeraWeb.AccountAuth
+  alias VeraWeb.Accounts.AccountAuth
   alias Vera.Accounts.Accounts
 
   import Vera.AccountsFixtures

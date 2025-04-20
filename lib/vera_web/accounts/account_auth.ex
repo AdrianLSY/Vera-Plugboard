@@ -1,4 +1,4 @@
-defmodule VeraWeb.AccountAuth do
+defmodule VeraWeb.Accounts.AccountAuth do
   use VeraWeb, :verified_routes
 
   import Plug.Conn
@@ -18,14 +18,10 @@ defmodule VeraWeb.AccountAuth do
   """
   def fetch_api_account(conn, _opts) do
     with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
-         {:ok, account} <- Accounts.fetch_account_by_api_token(token) do
-      assign(conn, :current_account, account)
+      {:ok, account} <- Accounts.fetch_account_by_api_token(token) do
+        {:ok, account}
     else
-      _ ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(:unauthorized, %{message: "Request API token is invalid", status: "error"} |> Jason.encode!())
-        |> halt()
+      _ -> {:error, "API token is invalid"}
     end
   end
 
@@ -151,13 +147,13 @@ defmodule VeraWeb.AccountAuth do
       defmodule VeraWeb.PageLive do
         use VeraWeb, :live_view
 
-        on_mount {VeraWeb.AccountAuth, :mount_current_account}
+        on_mount {VeraWeb.Accounts.AccountAuth, :mount_current_account}
         ...
       end
 
   Or use the `live_session` of your router to invoke the on_mount callback:
 
-      live_session :authenticated, on_mount: [{VeraWeb.AccountAuth, :ensure_authenticated}] do
+      live_session :authenticated, on_mount: [{VeraWeb.Accounts.AccountAuth, :ensure_authenticated}] do
         live "/profile", ProfileLive, :index
       end
   """

@@ -121,12 +121,12 @@ defmodule VeraWeb.ServiceLive.Show do
     {:noreply, assign(socket, :actions, actions)}
   end
 
-  def handle_info({:token_created, token_value, token}, socket) do
+  def handle_info({:token_created, token}, socket) do
     {:noreply,
      socket
      |> put_flash(:info, "API token created")
      |> stream_insert(:tokens, token)
-     |> assign(:new_token, token_value)}
+     |> assign(:new_token, token.value)}
   end
 
   def handle_info({:token_deleted, token}, socket) do
@@ -144,9 +144,7 @@ defmodule VeraWeb.ServiceLive.Show do
 
   def handle_event("create_token", _params, socket) do
     service = socket.assigns.service
-    {token_value, token} = Vera.Services.ServiceToken.build_api_token(service)
-    {:ok, token} = Vera.Repo.insert(token)
-    Phoenix.PubSub.broadcast(Vera.PubSub, "service/#{service.id}", {:token_created, token_value, token})
+    Services.create_service_api_token(service)
     {:noreply, socket}
   end
 

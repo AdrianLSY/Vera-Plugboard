@@ -72,9 +72,6 @@ defmodule Vera.Accounts.AccountToken do
   the token in the application to gain access. Furthermore, if the user changes
   their email in the system, the tokens sent to the previous email are no longer
   valid.
-
-  Users can easily adapt the existing code to provide other types of delivery methods,
-  for example, by phone numbers.
   """
   def build_email_token(account, context) do
     build_hashed_token(account, context, account.email)

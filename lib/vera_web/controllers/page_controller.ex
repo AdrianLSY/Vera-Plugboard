@@ -1,6 +1,11 @@
 defmodule VeraWeb.PageController do
   use VeraWeb, :controller
 
+  alias Vera.Accounts.Accounts
+  alias Vera.Services.Services
+  alias VeraWeb.Accounts.AccountAuth
+  alias VeraWeb.Services.ServiceAuth
+
   def home(conn, _params) do
     # The home page is often custom made,
     # so skip the default app layout.
@@ -56,5 +61,35 @@ defmodule VeraWeb.PageController do
     conn
     |> put_status(:bad_request)
     |> json(%{status: "error", message: "service_id and payload parameters are required"})
+  end
+
+  def account_token(conn, _params) do
+    case AccountAuth.fetch_api_account(conn, nil) do
+      {:ok, account} ->
+        token = Accounts.create_account_api_token(account)
+        conn
+        |> put_status(:ok)
+        |> json(%{status: "success", message: "Account API token created", token: token})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{status: "error", message: reason})
+    end
+  end
+
+  def service_token(conn, _params) do
+    case ServiceAuth.fetch_api_service(conn, nil) do
+      {:ok, service} ->
+        token = Services.create_service_api_token(service)
+        conn
+        |> put_status(:ok)
+        |> json(%{status: "success", message: "Service API token created", token: token})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{status: "error", message: reason})
+    end
   end
 end
