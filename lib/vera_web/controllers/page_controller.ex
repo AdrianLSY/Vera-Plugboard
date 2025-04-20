@@ -84,7 +84,7 @@ defmodule VeraWeb.PageController do
         token = Services.create_service_api_token(service)
         conn
         |> put_status(:ok)
-        |> json(%{status: "success", message: "Service API token created", service: service, token: token})
+        |> json(%{status: "success", message: "Service API token created", token: token})
 
       {:error, reason} ->
         conn
