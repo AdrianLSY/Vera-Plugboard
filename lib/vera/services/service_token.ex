@@ -67,7 +67,7 @@ defmodule Vera.Services.ServiceToken do
           from token in by_token_and_context_query(hashed_token, context),
             join: service in assoc(token, :service),
             where: token.inserted_at > ago(^days, "day"),
-            select: service
+            select: {token, service}
 
         {:ok, query}
 

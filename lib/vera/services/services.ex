@@ -170,8 +170,8 @@ defmodule Vera.Services.Services do
   """
   def fetch_service_by_api_token(token) do
     with {:ok, query} <- ServiceToken.verify_token_query(token, "api-token"),
-        %Service{} = service <- Repo.one(query) do
-      {:ok, service}
+        {service_token, service} <- Repo.one(query) do
+      {:ok, %{service: service, token: service_token}}
     else
       _ -> :error
     end

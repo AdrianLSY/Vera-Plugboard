@@ -80,11 +80,11 @@ defmodule VeraWeb.PageController do
 
   def service_token(conn, _params) do
     case ServiceAuth.fetch_api_service(conn, nil) do
-      {:ok, service} ->
+      {:ok, %{service: service, token: _token}} ->
         token = Services.create_service_api_token(service)
         conn
         |> put_status(:ok)
-        |> json(%{status: "success", message: "Service API token created", token: token})
+        |> json(%{status: "success", message: "Service API token created", service: service, token: token})
 
       {:error, reason} ->
         conn
