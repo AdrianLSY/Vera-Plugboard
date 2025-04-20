@@ -24,7 +24,7 @@ defmodule VeraWeb.AccountAuth do
       _ ->
         conn
         |> put_resp_content_type("application/json")
-        |> send_resp(:unauthorized, %{message: "API token is invalid", status: "error"} |> Jason.encode!())
+        |> send_resp(:unauthorized, %{message: "Request API token is invalid", status: "error"} |> Jason.encode!())
         |> halt()
     end
   end
