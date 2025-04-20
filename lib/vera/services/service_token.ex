@@ -60,8 +60,8 @@ defmodule Vera.Services.ServiceToken do
           from token in by_token_and_context_query(hashed_token, "api-token"),
             join: service in assoc(token, :service),
             where: token.inserted_at > ago(@service_token_validity_in_days, "day") and
-                   is_nil(service.deleted_at),
-            select: {service, token}  # <-- Select both service and token
+              is_nil(service.deleted_at),
+            select: {service, token}
 
         {:ok, query}
 
@@ -117,7 +117,7 @@ defmodule Vera.Services.ServiceToken do
   def delete_all_tokens_for_service(service, context) do
     query = from(t in ServiceToken,
       where: t.service_id == ^service.id and
-             t.context == ^context)
+        t.context == ^context)
 
     Vera.Repo.delete_all(query)
   end

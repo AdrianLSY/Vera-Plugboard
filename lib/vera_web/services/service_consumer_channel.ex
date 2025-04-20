@@ -33,8 +33,8 @@ defmodule VeraWeb.Services.ServiceConsumerChannel do
         {:ok, %{service: service, token: token_response, consumers_connected: Vera.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
       end
     else
-      :error -> {:error, %{reason: "Invalid token"}}
-      nil -> {:error, %{reason: "Invalid token"}}
+      :error -> {:error, %{reason: "Service API token is invalid"}}
+      nil -> {:error, %{reason: "Service API token is invalid"}}
     end
   end
 
