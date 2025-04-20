@@ -13,48 +13,53 @@ defmodule VeraWeb.PageController do
   end
 
   def request(conn, %{"service_id" => service_id, "action" => action, "fields" => fields}) do
-    ref = UUID.uuid4()
-    # Restructure the fields to be flat
-    request = %{
-      service_id: service_id,
-      action: action,
-      fields: fields,
-      response_ref: ref
-    }
-
-    case Vera.Services.ServiceRequestProducer.enqueue(request) do
-      {:ok, _msg} ->
-        Vera.Services.ServiceRequestRegistry.register_request(ref, self())
-        receive do
-          {:response, response_payload} ->
-            case response_payload do
-              %{"status" => status, "message" => message} ->
-                if status == "success" do
-                  conn
-                  |> put_status(:ok)
-                  |> json(%{status: "success", message: message})
-                else
-                  conn
-                  |> put_status(:bad_request)
-                  |> json(%{status: "error", message: message})
+    case AccountAuth.fetch_api_account(conn, nil) do
+      {:ok, account} ->
+        ref = UUID.uuid4()
+        request = %{
+          service_id: service_id,
+          action: action,
+          fields: fields,
+          response_ref: ref
+        }
+        case Vera.Services.ServiceRequestProducer.enqueue(request) do
+          {:ok, _msg} ->
+            Vera.Services.ServiceRequestRegistry.register_request(ref, self())
+            receive do
+              {:response, response_payload} ->
+                case response_payload do
+                  %{"status" => status, "message" => message} ->
+                    if status == "success" do
+                      conn
+                      |> put_status(:ok)
+                      |> json(%{status: "success", message: message})
+                    else
+                      conn
+                      |> put_status(:bad_request)
+                      |> json(%{status: "error", message: message})
+                    end
+                  _ ->
+                    conn
+                    |> put_status(:bad_gateway)
+                    |> json(%{status: "error", message: "Invalid response format from service process"})
                 end
-              _ ->
+            after
+              30_000 ->
                 conn
-                |> put_status(:bad_gateway)
-                |> json(%{status: "error", message: "Invalid response format from service process"})
+                |> put_status(:request_timeout)
+                |> json(%{status: "error", message: "Request timed out"})
             end
-        after
-          30_000 ->
-            conn
-            |> put_status(:request_timeout)
-            |> json(%{status: "error", message: "Request timed out"})
-        end
 
-      {:error, error_msg} ->
+              {:error, error_msg} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{status: "error", message: error_msg})
+        end
+      {:error, reason} ->
         conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{status: "error", message: error_msg})
-    end
+        |> put_status(:unauthorized)
+        |> json(%{status: "error", message: reason})
+      end
   end
 
   def request(conn, _params) do
@@ -80,7 +85,7 @@ defmodule VeraWeb.PageController do
 
   def service_token(conn, _params) do
     case ServiceAuth.fetch_api_service(conn, nil) do
-      {:ok, %{service: service, token: _token}} ->
+      {:ok, service} ->
         token = Services.create_service_api_token(service)
         conn
         |> put_status(:ok)
