@@ -29,7 +29,8 @@ env:
   PHX_SESSION_VALIDITY_IN_DAYS: 1
 
 jobs:
-  build-and-test-deploy:
+  build-and-deploy:
+    name: Build and deploy
     runs-on: ubuntu-latest
 
     steps:
