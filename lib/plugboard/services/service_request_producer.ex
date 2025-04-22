@@ -1,5 +1,6 @@
 defmodule Plugboard.Services.ServiceRequestProducer do
   use GenStage
+  alias Plugboard.Services.ServiceConsumerRegistry
 
   @entity_max_age System.get_env("PHX_GENSTAGE_ENTITY_MAX_AGE") |> String.to_integer()
   @cleanup_interval System.get_env("PHX_GENSTAGE_CLEANUP_INTERVAL") |> String.to_integer()
@@ -16,7 +17,7 @@ defmodule Plugboard.Services.ServiceRequestProducer do
   end
 
   def enqueue(request) do
-    if Plugboard.Services.ServiceConsumerRegistry.list_consumers(request.service_id) != [] do
+    if ServiceConsumerRegistry.consumers(request.service_id) != [] do
       GenStage.cast(__MODULE__, {:enqueue, request})
       {:ok, "Message enqueued"}
     else

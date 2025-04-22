@@ -1,5 +1,6 @@
 defmodule Plugboard.Services.ServiceRequestConsumer do
   use GenStage
+  alias Plugboard.Services.ServiceConsumerRegistry
 
   def start_link(_args) do
     GenStage.start_link(__MODULE__, :ok)
@@ -12,7 +13,7 @@ defmodule Plugboard.Services.ServiceRequestConsumer do
   def handle_events(events, _from, state) do
   Enum.each(events, fn event ->
     service_id = event.service_id
-    consumer = Plugboard.Services.ServiceConsumerRegistry.get_consumer(service_id)
+    consumer = ServiceConsumerRegistry.cycle(service_id)
     if consumer do
       send(consumer, {:request, %{action: event.action, fields: event.fields, response_ref: event.response_ref}})
     end

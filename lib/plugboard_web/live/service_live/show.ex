@@ -18,7 +18,7 @@ defmodule PlugboardWeb.ServiceLive.Show do
     service = Services.get_service!(id) |> Plugboard.Repo.preload([:parent, :children])
     childrens = service.children |> Plugboard.Repo.preload([:parent])
     full_path = Service.full_path(service)
-    consumers_connected = ServiceConsumerRegistry.list_consumers(service.id) |> length
+    consumers_connected = ServiceConsumerRegistry.consumers_connected(service.id)
     actions = ServiceActionRegistry.get_actions(service.id)
     tokens = list_service_tokens(service)
     socket = socket
