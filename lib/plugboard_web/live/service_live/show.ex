@@ -4,6 +4,8 @@ defmodule PlugboardWeb.ServiceLive.Show do
   alias Plugboard.Services.Service
   alias Plugboard.Services.Services
   alias Plugboard.Services.ServiceToken
+  alias Plugboard.Services.ServiceActionRegistry
+  alias Plugboard.Services.ServiceConsumerRegistry
 
   def mount(params, _session, socket) do
     if connected?(socket) do
@@ -16,8 +18,8 @@ defmodule PlugboardWeb.ServiceLive.Show do
     service = Services.get_service!(id) |> Plugboard.Repo.preload([:parent, :children])
     childrens = service.children |> Plugboard.Repo.preload([:parent])
     full_path = Service.full_path(service)
-    consumers_connected = Plugboard.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()
-    actions = Plugboard.Services.ServiceActionRegistry.get_actions(service.id)
+    consumers_connected = ServiceConsumerRegistry.list_consumers(service.id) |> length
+    actions = ServiceActionRegistry.get_actions(service.id)
     tokens = list_service_tokens(service)
     socket = socket
       |> assign(:service, service)
