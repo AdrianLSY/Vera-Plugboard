@@ -4,7 +4,7 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   A consumer is a process that is listening in on PlugboardWeb.Services.ServiceConsumerChannel
   This genserver is deployed for each individual service and is responsible for managing its consumers.
 
-  Registration and unregistration of consumers are handled by genserver casts to ensure consistency.
+  Registration and unregistration of consumers are handled by genserver calls to ensure consistency.
   Running consumers(), cycle() and length will directly return the data from the ETS table directly.
   """
   use GenServer
@@ -57,8 +57,8 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   end
 
   @doc """
-  Returns the first consumer pid. cycling is done eventually
-  This method is NOT atomic. It is possible to cycle the same pid more than once.
+  Cycles through the consumers for a given service. Returns the next consumer pid.
+  This will effectively round-robin through the consumers.
   """
   def cycle(service_id) do
     table_name = table_name(service_id)
