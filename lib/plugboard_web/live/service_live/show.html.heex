@@ -11,7 +11,7 @@
         <% end %>
       </div>
       <div class="text-sm text-zinc-500">
-        <%= @consumers_connected %> consumer<%= if @consumers_connected > 1, do: "s" %> connected
+        <%= @num_consumers %> consumer<%= if @num_consumers > 1, do: "s" %> online
       </div>
     </div>
     <:actions>

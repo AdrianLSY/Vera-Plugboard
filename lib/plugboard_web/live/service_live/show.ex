@@ -18,7 +18,7 @@ defmodule PlugboardWeb.ServiceLive.Show do
     service = Services.get_service!(id) |> Plugboard.Repo.preload([:parent, :children])
     childrens = service.children |> Plugboard.Repo.preload([:parent])
     full_path = Service.full_path(service)
-    consumers_connected = ServiceConsumerRegistry.consumers_connected(service.id)
+    num_consumers = ServiceConsumerRegistry.num_consumers(service.id)
     actions = ServiceActionRegistry.actions(service.id)
     tokens = list_service_tokens(service)
     socket = socket
@@ -26,7 +26,7 @@ defmodule PlugboardWeb.ServiceLive.Show do
       |> stream(:services, childrens)
       |> stream(:tokens, tokens)
       |> assign(:full_path, full_path)
-      |> assign(:consumers_connected, consumers_connected)
+      |> assign(:num_consumers, num_consumers)
       |> assign(:actions, actions)
       |> assign(:page_title, page_title(socket.assigns.live_action))
       |> assign(:new_token, nil)
@@ -115,8 +115,8 @@ defmodule PlugboardWeb.ServiceLive.Show do
       |> assign(:full_path, full_path)}
   end
 
-  def handle_info({:consumers_connected, consumers_connected}, socket) do
-    {:noreply, assign(socket, :consumers_connected, consumers_connected)}
+  def handle_info({:num_consumers, num_consumers}, socket) do
+    {:noreply, assign(socket, :num_consumers, num_consumers)}
   end
 
   def handle_info({:actions, actions}, socket) do

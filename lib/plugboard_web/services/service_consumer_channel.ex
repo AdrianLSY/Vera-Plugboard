@@ -20,18 +20,18 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
           expires_at: DateTime.add(token.inserted_at, @service_token_validity_in_days * 24 * 60 * 60, :second)
         }
 
-        if ServiceConsumerRegistry.consumers_connected(service_id) > 0 do
+        if ServiceConsumerRegistry.num_consumers(service_id) > 0 do
           registered_actions = ServiceActionRegistry.actions(service_id)
           if actions != registered_actions do
             {:error, %{reason: "Current consumer actions do not match other registered consumer actions"}}
           else
             ServiceConsumerRegistry.register(service_id, self())
-            {:ok, %{service: service, token: token_response, consumers_connected: ServiceConsumerRegistry.consumers_connected(service.id)}, assign(socket, :service_id, service_id)}
+            {:ok, %{service: service, token: token_response, num_consumers: ServiceConsumerRegistry.num_consumers(service.id)}, assign(socket, :service_id, service_id)}
           end
         else
           ServiceConsumerRegistry.register(service_id, self())
           ServiceActionRegistry.register(service_id, actions)
-          {:ok, %{service: service, token: token_response, consumers_connected: ServiceConsumerRegistry.consumers_connected(service.id)}, assign(socket, :service_id, service_id)}
+          {:ok, %{service: service, token: token_response, num_consumers: ServiceConsumerRegistry.num_consumers(service.id)}, assign(socket, :service_id, service_id)}
         end
       end
     else
@@ -43,7 +43,7 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
   def terminate(_reason, socket) do
     service_id = socket.assigns[:service_id]
     ServiceConsumerRegistry.unregister(service_id, self())
-    if ServiceConsumerRegistry.consumers_connected(service_id) == 0 do
+    if ServiceConsumerRegistry.num_consumers(service_id) == 0 do
       ServiceActionRegistry.unregister(service_id)
     end
     :ok
@@ -75,8 +75,8 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
     {:noreply, socket}
   end
 
-  def handle_info({:consumers_connected, consumers_connected}, socket) do
-    push(socket, "consumers_connected", %{consumers_connected: consumers_connected})
+  def handle_info({:num_consumers, num_consumers}, socket) do
+    push(socket, "num_consumers", %{num_consumers: num_consumers})
     {:noreply, socket}
   end
 

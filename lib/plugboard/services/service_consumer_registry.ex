@@ -76,9 +76,12 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   @doc """
   Returns the number of consumers for a given service
   """
-  def consumers_connected(service_id) do
+  def num_consumers(service_id) do
     table_name = table_name(service_id)
-    :ets.info(table_name, :size)
+    case :ets.info(table_name, :size) do
+      :undefined -> 0
+      size -> size
+    end
   end
 
   @doc false
@@ -92,14 +95,14 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   def handle_call({:register, pid, service_id}, _from, state) do
     Process.monitor(pid)
     :ets.insert(state.table, {pid})
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service_id}", {:consumers_connected, consumers_connected(service_id)})
+    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service_id}", {:num_consumers, num_consumers(service_id)})
     {:reply, :ok, state}
   end
 
   @doc false
   def handle_call({:unregister, pid, service_id}, _from, state) do
     :ets.delete(state.table, pid)
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service_id}", {:consumers_connected, consumers_connected(service_id)})
+    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service_id}", {:num_consumers, num_consumers(service_id)})
     {:reply, :ok, state}
   end
 
