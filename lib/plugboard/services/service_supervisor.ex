@@ -11,14 +11,24 @@ defmodule Plugboard.Services.ServiceSupervisor do
   end
 
   def start_service(service_id) do
-    child_spec = {Plugboard.Services.ServiceConsumerRegistry, service_id: service_id}
-    DynamicSupervisor.start_child(__MODULE__, child_spec)
+    children = [
+      {Plugboard.Services.ServiceConsumerRegistry, service_id: service_id},
+      {Plugboard.Services.ServiceActionRegistry, service_id: service_id}
+    ]
+    DynamicSupervisor.start_child(__MODULE__, %{
+      id: {:service_supervisor, service_id},
+      start: {Supervisor, :start_link, [children, [strategy: :one_for_all]]},
+      type: :supervisor
+    })
   end
 
   def stop_service(service_id) do
-    case GenServer.whereis(Plugboard.Services.ServiceConsumerRegistry.via_tuple(service_id)) do
-      nil -> {:error, :not_found}
-      pid -> DynamicSupervisor.terminate_child(__MODULE__, pid)
+    case DynamicSupervisor.which_children(__MODULE__)
+    |> Enum.find(fn {id, _, _, _} -> id == {:service_supervisor, service_id} end) do
+      nil ->
+        {:error, :not_found}
+      {_, pid, _, _} ->
+        DynamicSupervisor.terminate_child(__MODULE__, pid)
     end
   end
 end

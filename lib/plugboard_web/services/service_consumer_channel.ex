@@ -21,7 +21,7 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
         }
 
         if ServiceConsumerRegistry.consumers_connected(service_id) > 0 do
-          registered_actions = ServiceActionRegistry.get_actions(service_id)
+          registered_actions = ServiceActionRegistry.actions(service_id)
           if actions != registered_actions do
             {:error, %{reason: "Current consumer actions do not match other registered consumer actions"}}
           else

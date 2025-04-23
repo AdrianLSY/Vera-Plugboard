@@ -5,7 +5,7 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   This genserver is deployed for each individual service and is responsible for managing its consumers.
 
   Registration and unregistration of consumers are handled by genserver calls to ensure consistency.
-  Running consumers(), cycle() and length will directly return the data from the ETS table directly.
+  Running consumers(), cycle() and length() will directly return the data from the ETS table directly.
   """
   use GenServer
 

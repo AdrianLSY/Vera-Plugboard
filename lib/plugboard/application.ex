@@ -15,7 +15,6 @@ defmodule Plugboard.Application do
       {Registry, keys: :unique, name: Plugboard.Services.ServiceRegistry},
       Plugboard.Services.ServiceSupervisor,
       Plugboard.Services.ServiceManager,
-      {Plugboard.Services.ServiceActionRegistry, []},
       {Plugboard.Services.ServiceRequestRegistry, []},
       {Plugboard.Services.ServiceRequestProducer, []},
       {Plugboard.Services.ServiceRequestConsumer, []},
