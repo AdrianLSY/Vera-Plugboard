@@ -1,6 +1,6 @@
 defmodule PlugboardWeb.ServiceLive.Show do
   use PlugboardWeb, :live_view
-
+  alias Phoenix.PubSub
   alias Plugboard.Services.Service
   alias Plugboard.Services.Services
   alias Plugboard.Services.ServiceToken
@@ -9,7 +9,7 @@ defmodule PlugboardWeb.ServiceLive.Show do
 
   def mount(params, _session, socket) do
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "service/#{params["id"]}")
+      PubSub.subscribe(Plugboard.PubSub, "service/#{params["id"]}")
     end
     {:ok, stream(socket, :services, [])}
   end
@@ -154,7 +154,7 @@ defmodule PlugboardWeb.ServiceLive.Show do
     {id, _} = Integer.parse(token_id)
     token = Plugboard.Repo.get!(Plugboard.Services.ServiceToken, id)
     {:ok, _} = Plugboard.Repo.delete(token)
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{socket.assigns.service.id}", {:token_deleted, token})
+    PubSub.broadcast(Plugboard.PubSub, "service/#{socket.assigns.service.id}", {:token_deleted, token})
     {:noreply, socket}
   end
 

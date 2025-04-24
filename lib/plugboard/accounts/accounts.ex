@@ -3,6 +3,7 @@ defmodule Plugboard.Accounts.Accounts do
   The Accounts context.
   """
   import Ecto.Query, warn: false
+  alias Phoenix.PubSub
   alias Plugboard.Repo
   alias Plugboard.Accounts.{Account, AccountToken, AccountNotifier}
 
@@ -370,7 +371,7 @@ defmodule Plugboard.Accounts.Accounts do
       inserted_at: record.inserted_at,
       expires_at: DateTime.add(record.inserted_at, @account_token_validity_in_days * 24 * 60 * 60, :second)
     }
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "accounts/#{account.id}/tokens", {:token_created, token})
+    PubSub.broadcast(Plugboard.PubSub, "accounts/#{account.id}/tokens", {:token_created, token})
     token
   end
 

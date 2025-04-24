@@ -16,7 +16,7 @@ defmodule PlugboardWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
-    socket "/", PlugboardWeb.Services.ServiceConsumerSocket,
+  socket "/", PlugboardWeb.Services.ServiceConsumerSocket,
     websocket: true,
     longpoll: false
 

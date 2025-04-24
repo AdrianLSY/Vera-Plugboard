@@ -8,6 +8,7 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   Running consumers(), cycle() and length() will directly return the data from the ETS table directly.
   """
   use GenServer
+  alias Phoenix.PubSub
 
   @doc false
   def start_link(opts) do
@@ -95,14 +96,14 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   def handle_call({:register, pid, service_id}, _from, state) do
     Process.monitor(pid)
     :ets.insert(state.table, {pid})
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service_id}", {:num_consumers, num_consumers(service_id)})
+    PubSub.broadcast(Plugboard.PubSub, "service/#{service_id}", {:num_consumers, num_consumers(service_id)})
     {:reply, :ok, state}
   end
 
   @doc false
   def handle_call({:unregister, pid, service_id}, _from, state) do
     :ets.delete(state.table, pid)
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service_id}", {:num_consumers, num_consumers(service_id)})
+    PubSub.broadcast(Plugboard.PubSub, "service/#{service_id}", {:num_consumers, num_consumers(service_id)})
     {:reply, :ok, state}
   end
 

@@ -8,6 +8,7 @@ defmodule Plugboard.Services.ServiceActionRegistry do
   Running actions() will return the data from the ETS table directly bypassing the GenServer for performance.
   """
   use GenServer
+  alias Phoenix.PubSub
 
   @doc false
   def start_link(opts) do
@@ -46,8 +47,8 @@ defmodule Plugboard.Services.ServiceActionRegistry do
   @doc """
   Registers the action for the given service_id.
   """
-  def register(service_id, action) when is_map(action) do
-    GenServer.call(via_tuple(service_id), {:register, action})
+  def register(service_id, actions) when is_map(actions) do
+    GenServer.call(via_tuple(service_id), {:register, actions})
   end
 
   @doc """
@@ -76,14 +77,14 @@ defmodule Plugboard.Services.ServiceActionRegistry do
   @doc false
   def handle_call({:register, action}, _from, state) do
     :ets.insert(state.table, {"actions", action})
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{state.service_id}", {:actions, action})
+    PubSub.broadcast(Plugboard.PubSub, "service/#{state.service_id}", {:actions, action})
     {:reply, :ok, state}
   end
 
   @doc false
   def handle_call(:unregister, _from, state) do
     :ets.delete(state.table, "actions")
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{state.service_id}", {:actions, %{}})
+    PubSub.broadcast(Plugboard.PubSub, "service/#{state.service_id}", {:actions, %{}})
     {:reply, :ok, state}
   end
 end

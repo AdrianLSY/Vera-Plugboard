@@ -1,13 +1,13 @@
 defmodule PlugboardWeb.AccountLive.ApiTokens do
   use PlugboardWeb, :live_view
-
+  alias Phoenix.PubSub
   alias Plugboard.Accounts.Accounts
   alias Plugboard.Accounts.AccountToken
 
   def mount(_params, _session, socket) do
     account = socket.assigns.current_account
     tokens = list_account_tokens(account)
-    if connected?(socket), do: Phoenix.PubSub.subscribe(Plugboard.PubSub, "accounts/#{account.id}/tokens")
+    if connected?(socket), do: PubSub.subscribe(Plugboard.PubSub, "accounts/#{account.id}/tokens")
 
     {:ok,
      socket
@@ -40,7 +40,7 @@ defmodule PlugboardWeb.AccountLive.ApiTokens do
   def handle_event("create_token", _params, socket) do
     account = socket.assigns.current_account
     token = Accounts.create_account_api_token(account)
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "accounts/#{socket.assigns.current_account.id}/tokens", {:token_created, token})
+    PubSub.broadcast(Plugboard.PubSub, "accounts/#{socket.assigns.current_account.id}/tokens", {:token_created, token})
     {:noreply, socket}
   end
 
@@ -48,7 +48,7 @@ defmodule PlugboardWeb.AccountLive.ApiTokens do
     {id, _} = Integer.parse(token_id)
     token = Plugboard.Repo.get!(AccountToken, id)
     {:ok, _} = Plugboard.Repo.delete(token)
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "accounts/#{socket.assigns.current_account.id}/tokens", {:token_deleted, token})
+    PubSub.broadcast(Plugboard.PubSub, "accounts/#{socket.assigns.current_account.id}/tokens", {:token_deleted, token})
     {:noreply, socket}
   end
 
