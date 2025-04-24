@@ -84,10 +84,10 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
     {:noreply, socket}
   end
 
-  def handle_info({:token_created, token, token}, socket) do
+  def handle_info({:token_created, token}, socket) do
     token_response = %{
       id: token.id,
-      value: token,
+      value: token.value,
       context: token.context,
       service_id: token.service_id,
       inserted_at: token.inserted_at,
