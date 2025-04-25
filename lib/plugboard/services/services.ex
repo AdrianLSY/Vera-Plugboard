@@ -64,10 +64,7 @@ defmodule Plugboard.Services.Services do
       {:error, %Ecto.Changeset{}}
   """
   def create_service(attrs \\ %{}) do
-    %Service{}
-    |> Service.changeset(attrs)
-    |> Repo.insert()
-    |> notify_subscribers([:service, :created])
+    Service.create(attrs)
   end
 
   @doc """
@@ -102,24 +99,14 @@ defmodule Plugboard.Services.Services do
 
   """
   def delete_service(%Service{} = service) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
-
-    # Get all descendants first
     descendants = Service.descendants(service)
 
-    # Start a transaction to update all records
     result = Plugboard.Repo.transaction(fn ->
-      # Update the service and all its descendants with deleted_at
       descendants
       |> Enum.each(fn descendant ->
-        Ecto.Changeset.change(descendant, %{deleted_at: now})
-        |> Plugboard.Repo.update!()
+        Service.delete(descendant)
       end)
-
-      # Update the main service
-      updated_service = service
-      |> Ecto.Changeset.change(%{deleted_at: now})
-      |> Plugboard.Repo.update!()
+      {:ok, updated_service} = Service.delete(service)
 
       {updated_service, descendants}
     end)

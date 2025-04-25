@@ -43,27 +43,25 @@ defmodule Plugboard.Services.Service do
     end
   end
 
-  # TODO: Handle undeleting a service
-  # Genservers are not automatically restarted when a service is undeleted.
-  # For now, we will just keep genservers running for soft deleted services.
-
   # @doc """
   # Soft deletes a service and stops its associated GenServer.
   # """
-  # def delete(service) do
-  #   result =
-  #     service
-  #     |> change(%{deleted_at: DateTime.utc_now()})
-  #     |> Plugboard.Repo.update()
+  def delete(service) do
+    result =
+      service
+      |> change(%{deleted_at: DateTime.utc_now()})
+      |> Plugboard.Repo.update()
 
-  #   case result do
-  #     {:ok, service} ->
-  #       # Stop the service's GenServer
-  #       ServiceManager.handle_service_deleted(service)
-  #       result
-  #     error -> error
-  #   end
-  # end
+    case result do
+      {:ok, service} ->
+        # TODO: Handle undeleting a service
+        # Genservers are not automatically restarted when a service is undeleted.
+        # For now, we will just keep genservers running for soft deleted services.
+        # ServiceManager.handle_service_deleted(service)
+        result
+      error -> error
+    end
+  end
 
   @doc """
   Returns the list of descendants of a service ordered by their hierarchy level.
