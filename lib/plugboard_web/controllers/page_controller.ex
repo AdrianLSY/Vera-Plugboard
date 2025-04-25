@@ -17,12 +17,11 @@ defmodule PlugboardWeb.PageController do
       {:ok, _account} ->
         ref = UUID.uuid4()
         request = %{
-          service_id: service_id,
           action: action,
           fields: fields,
           response_ref: ref
         }
-        case Plugboard.Services.ServiceRequestProducer.enqueue(request) do
+        case Plugboard.Services.ServiceRequestProducer.enqueue(service_id, request) do
           {:ok, _msg} ->
             Plugboard.Services.ServiceRequestRegistry.register_request(ref, self())
             receive do

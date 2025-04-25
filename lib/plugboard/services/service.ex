@@ -53,7 +53,7 @@ defmodule Plugboard.Services.Service do
       |> Plugboard.Repo.update()
 
     case result do
-      {:ok, service} ->
+      {:ok, _service} ->
         # TODO: Handle undeleting a service
         # Genservers are not automatically restarted when a service is undeleted.
         # For now, we will just keep genservers running for soft deleted services.

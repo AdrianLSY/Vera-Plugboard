@@ -13,7 +13,9 @@ defmodule Plugboard.Services.ServiceSupervisor do
   def start_service(service_id) do
     children = [
       {Plugboard.Services.ServiceConsumerRegistry, service_id: service_id},
-      {Plugboard.Services.ServiceActionRegistry, service_id: service_id}
+      {Plugboard.Services.ServiceActionRegistry, service_id: service_id},
+      {Plugboard.Services.ServiceRequestProducer, service_id: service_id},
+      {Plugboard.Services.ServiceRequestConsumer, service_id: service_id}
     ]
     DynamicSupervisor.start_child(__MODULE__, %{
       id: {:service_supervisor, service_id},

@@ -5,27 +5,40 @@ defmodule Plugboard.Services.ServiceRequestProducer do
   @entity_max_age System.get_env("PHX_GENSTAGE_ENTITY_MAX_AGE") |> String.to_integer()
   @cleanup_interval System.get_env("PHX_GENSTAGE_CLEANUP_INTERVAL") |> String.to_integer()
 
-  def start_link(initial_requests \\ []) do
-    GenStage.start_link(__MODULE__, initial_requests, name: __MODULE__)
+  @doc false
+  def start_link(opts) do
+    service_id = Keyword.fetch!(opts, :service_id)
+    name = via_tuple(service_id)
+    GenStage.start_link(__MODULE__, %{service_id: service_id}, name: name)
   end
 
-  def init(requests) do
-    current_time = System.system_time(:millisecond)
-    wrapped_requests = Enum.map(requests, fn msg -> {current_time, msg} end)
+  @doc """
+  Creates a unique name for the GenServer based on the service_id
+  """
+  def via_tuple(service_id) do
+    {:via, Registry, {Plugboard.Services.ServiceRegistry, {__MODULE__, to_string(service_id)}}}
+  end
+
+  @doc false
+  def init(%{service_id: service_id}) do
     schedule_cleanup()
-    {:producer, {wrapped_requests, 0}}
+    {:producer, {[], 0, service_id}}
   end
 
-  def enqueue(request) do
-    if ServiceConsumerRegistry.consumers(request.service_id) != [] do
-      GenStage.cast(__MODULE__, {:enqueue, request})
+  @doc """
+  Enqueues a request for a specific service
+  """
+  def enqueue(service_id, request) do
+    if ServiceConsumerRegistry.consumers(service_id) != [] do
+      GenStage.cast(via_tuple(service_id), {:enqueue, request})
       {:ok, "Message enqueued"}
     else
       {:error, "No service consumers are available to handle the request"}
     end
   end
 
-  def handle_demand(incoming_demand, {requests, pending_demand}) do
+  @doc false
+  def handle_demand(incoming_demand, {requests, pending_demand, service_id}) do
     current_time = System.system_time(:millisecond)
     valid_requests = Enum.filter(requests, fn {timestamp, _msg} ->
       current_time - timestamp <= @entity_max_age
@@ -33,19 +46,22 @@ defmodule Plugboard.Services.ServiceRequestProducer do
     new_demand = incoming_demand + pending_demand
     {to_dispatch, remaining} = Enum.split(valid_requests, new_demand)
     dispatched_requests = Enum.map(to_dispatch, fn {_, msg} -> msg end)
-    {:noreply, dispatched_requests, {remaining, new_demand - length(to_dispatch)}}
+    {:noreply, dispatched_requests, {remaining, new_demand - length(to_dispatch), service_id}}
   end
 
-  def handle_cast({:enqueue, request}, {requests, 0}) do
+  @doc false
+  def handle_cast({:enqueue, request}, {requests, 0, service_id}) do
     timestamped = {System.system_time(:millisecond), request}
-    {:noreply, [], {requests ++ [timestamped], 0}}
+    {:noreply, [], {requests ++ [timestamped], 0, service_id}}
   end
 
-  def handle_cast({:enqueue, request}, {requests, demand}) do
-    {:noreply, [request], {requests, demand - 1}}
+  @doc false
+  def handle_cast({:enqueue, request}, {requests, demand, service_id}) do
+    {:noreply, [request], {requests, demand - 1, service_id}}
   end
 
-  def handle_info(:cleanup, {requests, pending_demand}) do
+  @doc false
+  def handle_info(:cleanup, {requests, pending_demand, service_id}) do
     schedule_cleanup()
     current_time = System.system_time(:millisecond)
 
@@ -54,7 +70,7 @@ defmodule Plugboard.Services.ServiceRequestProducer do
       current_time - timestamp <= @entity_max_age
     end)
 
-    {:noreply, [], {filtered_requests, pending_demand}}
+    {:noreply, [], {filtered_requests, pending_demand, service_id}}
   end
 
   defp schedule_cleanup do

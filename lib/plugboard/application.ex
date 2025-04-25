@@ -13,11 +13,9 @@ defmodule Plugboard.Application do
       {Phoenix.PubSub, name: Plugboard.PubSub},
       {Finch, name: Plugboard.Finch},
       {Registry, keys: :unique, name: Plugboard.Services.ServiceRegistry},
+      {Plugboard.Services.ServiceRequestRegistry, []},
       Plugboard.Services.ServiceSupervisor,
       Plugboard.Services.ServiceManager,
-      {Plugboard.Services.ServiceRequestRegistry, []},
-      {Plugboard.Services.ServiceRequestProducer, []},
-      {Plugboard.Services.ServiceRequestConsumer, []},
       PlugboardWeb.Endpoint
     ]
 
