@@ -21,8 +21,16 @@ defmodule Plugboard.Services.ServiceRequestProducer do
 
   @doc false
   def init(%{service_id: service_id}) do
+    # Create ETS table for this service
+    table_name = get_table_name(service_id)
+    :ets.new(table_name, [:ordered_set, :protected, :named_table])
+
     schedule_cleanup()
-    {:producer, {[], 0, service_id}}
+    {:producer, {0, service_id}}
+  end
+
+  defp get_table_name(service_id) do
+    :"service_requests_#{service_id}"
   end
 
   @doc """
@@ -38,39 +46,64 @@ defmodule Plugboard.Services.ServiceRequestProducer do
   end
 
   @doc false
-  def handle_demand(incoming_demand, {requests, pending_demand, service_id}) do
+  def handle_demand(incoming_demand, {pending_demand, service_id}) do
+    table_name = get_table_name(service_id)
     current_time = System.system_time(:millisecond)
-    valid_requests = Enum.filter(requests, fn {timestamp, _msg} ->
-      current_time - timestamp <= @entity_max_age
-    end)
     new_demand = incoming_demand + pending_demand
-    {to_dispatch, remaining} = Enum.split(valid_requests, new_demand)
-    dispatched_requests = Enum.map(to_dispatch, fn {_, msg} -> msg end)
-    {:noreply, dispatched_requests, {remaining, new_demand - length(to_dispatch), service_id}}
+
+    # Fetch and remove up to new_demand items from ETS
+    {dispatched_requests, remaining_demand} =
+      :ets.foldl(
+        fn {timestamp, msg}, {acc, demand} ->
+          if demand > 0 and current_time - timestamp <= @entity_max_age do
+            :ets.delete(table_name, timestamp)
+            {[msg | acc], demand - 1}
+          else
+            {acc, demand}
+          end
+        end,
+        {[], new_demand},
+        table_name
+      )
+
+    {:noreply, Enum.reverse(dispatched_requests), {remaining_demand, service_id}}
   end
 
   @doc false
-  def handle_cast({:enqueue, request}, {requests, 0, service_id}) do
-    timestamped = {System.system_time(:millisecond), request}
-    {:noreply, [], {requests ++ [timestamped], 0, service_id}}
+  def handle_cast({:enqueue, request}, {0, service_id}) do
+    # Store in ETS with timestamp as key
+    table_name = get_table_name(service_id)
+    timestamp = System.system_time(:millisecond)
+    :ets.insert(table_name, {timestamp, request})
+
+    {:noreply, [], {0, service_id}}
   end
 
   @doc false
-  def handle_cast({:enqueue, request}, {requests, demand, service_id}) do
-    {:noreply, [request], {requests, demand - 1, service_id}}
+  def handle_cast({:enqueue, request}, {demand, service_id}) do
+    # Directly dispatch if there's existing demand
+    {:noreply, [request], {demand - 1, service_id}}
   end
 
   @doc false
-  def handle_info(:cleanup, {requests, pending_demand, service_id}) do
+  def handle_info(:cleanup, {pending_demand, service_id}) do
     schedule_cleanup()
+    table_name = get_table_name(service_id)
     current_time = System.system_time(:millisecond)
 
-    filtered_requests = requests
-    |> Enum.filter(fn {timestamp, _msg} ->
-      current_time - timestamp <= @entity_max_age
-    end)
+    # Delete expired entries
+    :ets.foldl(
+      fn {timestamp, _msg}, _ ->
+        if current_time - timestamp > @entity_max_age do
+          :ets.delete(table_name, timestamp)
+        end
+        nil
+      end,
+      nil,
+      table_name
+    )
 
-    {:noreply, [], {filtered_requests, pending_demand, service_id}}
+    {:noreply, [], {pending_demand, service_id}}
   end
 
   defp schedule_cleanup do
