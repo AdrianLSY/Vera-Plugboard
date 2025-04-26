@@ -13,7 +13,7 @@ defmodule Plugboard.Services.ServiceRequestConsumer do
   Creates a unique name for the GenServer based on the service_id
   """
   def via_tuple(service_id) do
-    {:via, Registry, {Plugboard.Services.ServiceRegistry, {__MODULE__, to_string(service_id)}}}
+    {:via, Registry, {Plugboard.Services.ServiceConsumerRegistry, {__MODULE__, to_string(service_id)}}}
   end
 
   @doc false
@@ -31,7 +31,7 @@ defmodule Plugboard.Services.ServiceRequestConsumer do
 
     Enum.each(events, fn event ->
       # Get the next available consumer using round-robin
-      consumer = ServiceConsumerRegistry.cycle(service_id)
+      consumer = ServiceConsumerRegistry.cycle_consumers(service_id)
 
       if consumer do
         # Ensure event has the expected structure

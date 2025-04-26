@@ -1,8 +1,4 @@
 defmodule Plugboard.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
-  @moduledoc false
-
   use Application
 
   def start(_type, _args) do
@@ -12,8 +8,7 @@ defmodule Plugboard.Application do
       {DNSCluster, query: Application.get_env(:plugboard, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Plugboard.PubSub},
       {Finch, name: Plugboard.Finch},
-      {Registry, keys: :unique, name: Plugboard.Services.ServiceRegistry},
-      {Plugboard.Services.ServiceRequestRegistry, []},
+      {Registry, keys: :unique, name: Plugboard.Services.ServiceConsumerRegistry},
       Plugboard.Services.ServiceSupervisor,
       Plugboard.Services.ServiceManager,
       PlugboardWeb.Endpoint

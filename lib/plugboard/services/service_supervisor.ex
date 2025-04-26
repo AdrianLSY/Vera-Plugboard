@@ -1,5 +1,8 @@
 defmodule Plugboard.Services.ServiceSupervisor do
   use DynamicSupervisor
+  alias Plugboard.Services.ServiceRequestProducer
+  alias Plugboard.Services.ServiceRequestConsumer
+  alias Plugboard.Services.ServiceConsumerRegistry
 
   def start_link(_arg) do
     DynamicSupervisor.start_link(__MODULE__, [], name: __MODULE__)
@@ -12,11 +15,11 @@ defmodule Plugboard.Services.ServiceSupervisor do
 
   def start_service(service_id) do
     children = [
-      {Plugboard.Services.ServiceConsumerRegistry, service_id: service_id},
-      {Plugboard.Services.ServiceActionRegistry, service_id: service_id},
-      {Plugboard.Services.ServiceRequestProducer, service_id: service_id},
-      {Plugboard.Services.ServiceRequestConsumer, service_id: service_id}
+      {ServiceRequestProducer, service_id: service_id},
+      {ServiceRequestConsumer, service_id: service_id},
+      {ServiceConsumerRegistry, service_id: service_id}
     ]
+
     DynamicSupervisor.start_child(__MODULE__, %{
       id: {:service_supervisor, service_id},
       start: {Supervisor, :start_link, [children, [strategy: :one_for_all]]},

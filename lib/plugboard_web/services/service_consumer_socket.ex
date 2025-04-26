@@ -1,7 +1,6 @@
 defmodule PlugboardWeb.Services.ServiceConsumerSocket do
   use Phoenix.Socket
   alias Plugboard.Services.Services
-  alias Plugboard.Services.ServiceActionRegistry
   alias Plugboard.Services.ServiceConsumerRegistry
 
   @service_token_validity_in_days System.get_env("PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
@@ -13,7 +12,7 @@ defmodule PlugboardWeb.Services.ServiceConsumerSocket do
       service_id = to_string(service.id)
 
       if ServiceConsumerRegistry.num_consumers(service_id) > 0 do
-        registered_actions = ServiceActionRegistry.actions(service_id)
+        registered_actions = ServiceConsumerRegistry.actions(service_id)
 
         if Jason.decode!(actions) != registered_actions do
           {:error, %{reason: "Current consumer actions do not match other registered consumer actions"}}

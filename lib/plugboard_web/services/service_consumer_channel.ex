@@ -1,8 +1,6 @@
 defmodule PlugboardWeb.Services.ServiceConsumerChannel do
   use Phoenix.Channel
   alias Phoenix.PubSub
-  alias Plugboard.Services.ServiceActionRegistry
-  alias Plugboard.Services.ServiceRequestRegistry
   alias Plugboard.Services.ServiceConsumerRegistry
 
   @service_token_validity_in_days System.get_env("PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
@@ -13,10 +11,10 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
     actions = socket.assigns.actions
     service_id = socket.assigns.service_id
 
-    ServiceConsumerRegistry.register(service_id, self())
+    ServiceConsumerRegistry.register_consumer(service_id, self())
 
     if ServiceConsumerRegistry.num_consumers(service_id) == 1 do
-      ServiceActionRegistry.register(service_id, Jason.decode!(actions))
+      ServiceConsumerRegistry.register_actions(service_id, Jason.decode!(actions))
     end
 
     # Subscribe to service-specific PubSub topics
@@ -27,16 +25,16 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
 
   def terminate(_reason, socket) do
     service_id = socket.assigns[:service_id]
-    ServiceConsumerRegistry.unregister(service_id, self())
+    ServiceConsumerRegistry.unregister_consumer(service_id, self())
     if ServiceConsumerRegistry.num_consumers(service_id) == 0 do
-      ServiceActionRegistry.unregister(service_id)
+      ServiceConsumerRegistry.unregister_actions(service_id)
     end
     PubSub.unsubscribe(Plugboard.PubSub, "service/#{service_id}")
     :ok
   end
 
   def handle_in("response", payload, socket) do
-    if pid = ServiceRequestRegistry.get_requester(socket.ref) do
+    if pid = ServiceConsumerRegistry.get_requester(socket.assigns.service_id, socket.ref) do
       send(pid, {:response, payload})
     end
     {:noreply, socket}

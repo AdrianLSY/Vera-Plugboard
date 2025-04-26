@@ -16,7 +16,7 @@ defmodule Plugboard.Services.ServiceRequestProducer do
   Creates a unique name for the GenServer based on the service_id
   """
   def via_tuple(service_id) do
-    {:via, Registry, {Plugboard.Services.ServiceRegistry, {__MODULE__, to_string(service_id)}}}
+    {:via, Registry, {Plugboard.Services.ServiceConsumerRegistry, {__MODULE__, to_string(service_id)}}}
   end
 
   @doc false

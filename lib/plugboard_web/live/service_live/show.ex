@@ -4,7 +4,6 @@ defmodule PlugboardWeb.ServiceLive.Show do
   alias Plugboard.Services.Service
   alias Plugboard.Services.Services
   alias Plugboard.Services.ServiceToken
-  alias Plugboard.Services.ServiceActionRegistry
   alias Plugboard.Services.ServiceConsumerRegistry
 
   def mount(params, _session, socket) do
@@ -19,7 +18,7 @@ defmodule PlugboardWeb.ServiceLive.Show do
     childrens = service.children |> Plugboard.Repo.preload([:parent])
     full_path = Service.full_path(service)
     num_consumers = ServiceConsumerRegistry.num_consumers(service.id)
-    actions = ServiceActionRegistry.actions(service.id)
+    actions = ServiceConsumerRegistry.actions(service.id)
     tokens = list_service_tokens(service)
     socket = socket
       |> assign(:service, service)
