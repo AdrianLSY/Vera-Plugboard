@@ -64,7 +64,11 @@ defmodule Plugboard.Services.Services do
       {:error, %Ecto.Changeset{}}
   """
   def create_service(attrs \\ %{}) do
-    Service.create(attrs)
+    result = Service.create(attrs)
+    case result do
+      {:ok, service} -> notify_subscribers({:ok, service}, [:service, :created])
+      error -> error
+    end
   end
 
   @doc """

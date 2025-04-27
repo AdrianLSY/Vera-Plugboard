@@ -49,7 +49,7 @@ defmodule Plugboard.Services.Service do
   def delete(service) do
     result =
       service
-      |> change(%{deleted_at: DateTime.utc_now()})
+      |> change(%{deleted_at: DateTime.utc_now() |> DateTime.truncate(:second)})
       |> Plugboard.Repo.update()
 
     case result do
