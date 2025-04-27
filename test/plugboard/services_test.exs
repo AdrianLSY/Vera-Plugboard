@@ -2,6 +2,7 @@ defmodule Plugboard.ServicesTest do
   use Plugboard.DataCase
 
   describe "services" do
+    alias Phoenix.PubSub
     alias Plugboard.Services.Service
     alias Plugboard.Services.Services
     import Plugboard.ServicesFixtures
@@ -122,7 +123,7 @@ defmodule Plugboard.ServicesTest do
     end
 
     test "create_service/1 broadcasts to appropriate topics for root service" do
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "services")
+      PubSub.subscribe(Plugboard.PubSub, "services")
 
       {:ok, service} = Services.create_service(%{name: "Root Service"})
 
@@ -131,7 +132,7 @@ defmodule Plugboard.ServicesTest do
 
     test "create_service/1 broadcasts to appropriate topics for child service" do
       parent = service_fixture()
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "service/#{parent.id}")
+      PubSub.subscribe(Plugboard.PubSub, "service/#{parent.id}")
 
       {:ok, child} = Services.create_service(%{name: "Child", parent_id: parent.id})
 
@@ -143,9 +144,9 @@ defmodule Plugboard.ServicesTest do
       {:ok, child} = Services.create_service(%{name: "Child", parent_id: parent.id})
       {:ok, grandchild} = Services.create_service(%{name: "Grandchild", parent_id: child.id})
 
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "service/#{child.id}")
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "service/#{parent.id}")
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "service/#{grandchild.id}")
+      PubSub.subscribe(Plugboard.PubSub, "service/#{child.id}")
+      PubSub.subscribe(Plugboard.PubSub, "service/#{parent.id}")
+      PubSub.subscribe(Plugboard.PubSub, "service/#{grandchild.id}")
 
       {:ok, updated_child} = Services.update_service(child, %{name: "Updated Child"})
 
@@ -158,9 +159,9 @@ defmodule Plugboard.ServicesTest do
       {:ok, child} = Services.create_service(%{name: "Child", parent_id: parent.id})
       {:ok, grandchild} = Services.create_service(%{name: "Grandchild", parent_id: child.id})
 
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "service/#{parent.id}")
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "service/#{child.id}")
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "service/#{grandchild.id}")
+      PubSub.subscribe(Plugboard.PubSub, "service/#{parent.id}")
+      PubSub.subscribe(Plugboard.PubSub, "service/#{child.id}")
+      PubSub.subscribe(Plugboard.PubSub, "service/#{grandchild.id}")
 
       {:ok, _} = Services.delete_service(parent)
 
@@ -177,7 +178,7 @@ defmodule Plugboard.ServicesTest do
     end
 
     test "create_service/1 with failed changeset doesn't broadcast" do
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "services")
+      PubSub.subscribe(Plugboard.PubSub, "services")
 
       {:error, _changeset} = Services.create_service(%{name: nil})
 
@@ -186,7 +187,7 @@ defmodule Plugboard.ServicesTest do
 
     test "update_service/2 broadcasts to services topic for root service update" do
       service = service_fixture()
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "services")
+      PubSub.subscribe(Plugboard.PubSub, "services")
 
       {:ok, updated_service} = Services.update_service(service, %{name: "Updated Root"})
 
@@ -195,7 +196,7 @@ defmodule Plugboard.ServicesTest do
 
     test "delete_service/1 broadcasts to services topic for root service deletion" do
       service = service_fixture()
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "services")
+      PubSub.subscribe(Plugboard.PubSub, "services")
 
       {:ok, _} = Services.delete_service(service)
 

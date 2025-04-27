@@ -5,6 +5,9 @@ defmodule PlugboardWeb.PageController do
   alias Plugboard.Services.Services
   alias PlugboardWeb.Accounts.AccountAuth
   alias PlugboardWeb.Services.ServiceAuth
+  alias Plugboard.Services.ServiceRequestProducer
+  alias Plugboard.Services.ServiceConsumerRegistry
+
 
   def home(conn, _params) do
     # The home page is often custom made,
@@ -17,14 +20,13 @@ defmodule PlugboardWeb.PageController do
       {:ok, _account} ->
         ref = UUID.uuid4()
         request = %{
-          service_id: service_id,
           action: action,
           fields: fields,
           response_ref: ref
         }
-        case Plugboard.Services.ServiceRequestProducer.enqueue(request) do
+        case ServiceRequestProducer.enqueue(service_id, request) do
           {:ok, _msg} ->
-            Plugboard.Services.ServiceRequestRegistry.register_request(ref, self())
+            ServiceConsumerRegistry.register_request(service_id, ref, self())
             receive do
               {:response, response_payload} ->
                 case response_payload do

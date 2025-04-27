@@ -1,56 +1,40 @@
 defmodule PlugboardWeb.Services.ServiceConsumerChannel do
   use Phoenix.Channel
-  alias Plugboard.Services.Services
-  alias Plugboard.Services.ServiceActionRegistry
-  alias Plugboard.Services.ServiceRequestRegistry
+  alias Phoenix.PubSub
   alias Plugboard.Services.ServiceConsumerRegistry
 
   @service_token_validity_in_days System.get_env("PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
 
-  def join("service/" <> service_id, %{"token" => token, "actions" => actions}, socket) do
-    with {:ok, %{service: service, token: token}} <- Services.fetch_service_by_api_token(token) do
-      if service.id != service_id |> String.to_integer() do
-        {:error, %{reason: "Service API token is invalid"}}
-      else
-        token_response = %{
-          id: token.id,
-          context: token.context,
-          service_id: service.id,
-          inserted_at: token.inserted_at,
-          expires_at: DateTime.add(token.inserted_at, @service_token_validity_in_days * 24 * 60 * 60, :second)
-        }
+  def join("service", _params, socket) do
+    service = socket.assigns.service
+    token = socket.assigns.token
+    actions = socket.assigns.actions
+    service_id = socket.assigns.service_id
 
-        if ServiceConsumerRegistry.list_consumers(service_id) |> length() > 0 do
-          registered_actions = ServiceActionRegistry.get_actions(service_id)
-          if actions != registered_actions do
-            {:error, %{reason: "Current consumer actions do not match other registered consumer actions"}}
-          else
-            ServiceConsumerRegistry.register(service_id, self())
-            {:ok, %{service: service, token: token_response, consumers_connected: ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
-          end
-        else
-          ServiceConsumerRegistry.register(service_id, self())
-          ServiceActionRegistry.register(service_id, actions)
-          {:ok, %{service: service, token: token_response, consumers_connected: ServiceConsumerRegistry.list_consumers(service.id) |> length()}, assign(socket, :service_id, service_id)}
-        end
-      end
-    else
-      :error -> {:error, %{reason: "Service API token is invalid"}}
-      nil -> {:error, %{reason: "Service API token is invalid"}}
+    ServiceConsumerRegistry.register_consumer(service_id, self())
+
+    if ServiceConsumerRegistry.num_consumers(service_id) == 1 do
+      ServiceConsumerRegistry.register_actions(service_id, Jason.decode!(actions))
     end
+
+    # Subscribe to service-specific PubSub topics
+    PubSub.subscribe(Plugboard.PubSub, "service/#{service_id}")
+
+    {:ok, %{service: service, token: token, num_consumers: ServiceConsumerRegistry.num_consumers(service.id)}, socket}
   end
 
   def terminate(_reason, socket) do
     service_id = socket.assigns[:service_id]
-    ServiceConsumerRegistry.unregister(service_id, self())
-    if ServiceConsumerRegistry.list_consumers(service_id) |> length() == 0 do
-      ServiceActionRegistry.unregister(service_id)
+    ServiceConsumerRegistry.unregister_consumer(service_id, self())
+    if ServiceConsumerRegistry.num_consumers(service_id) == 0 do
+      ServiceConsumerRegistry.unregister_actions(service_id)
     end
+    PubSub.unsubscribe(Plugboard.PubSub, "service/#{service_id}")
     :ok
   end
 
   def handle_in("response", payload, socket) do
-    if pid = ServiceRequestRegistry.get_requester(socket.ref) do
+    if pid = ServiceConsumerRegistry.get_requester(socket.assigns.service_id, socket.ref) do
       send(pid, {:response, payload})
     end
     {:noreply, socket}
@@ -75,15 +59,19 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
     {:noreply, socket}
   end
 
-  def handle_info({:consumers_connected, consumers_connected}, socket) do
-    push(socket, "consumers_connected", %{consumers_connected: consumers_connected})
+  def handle_info({:num_consumers, num_consumers}, socket) do
+    push(socket, "num_consumers", %{num_consumers: num_consumers})
     {:noreply, socket}
   end
 
-  def handle_info({:token_created, token, token}, socket) do
+  def handle_info({:actions, _actions}, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_info({:token_created, token}, socket) do
     token_response = %{
       id: token.id,
-      value: token,
+      value: token.value,
       context: token.context,
       service_id: token.service_id,
       inserted_at: token.inserted_at,

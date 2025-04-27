@@ -1,11 +1,11 @@
 defmodule PlugboardWeb.ServiceLive.Index do
   use PlugboardWeb, :live_view
-
+  alias Phoenix.PubSub
   alias Plugboard.Services.Service
   alias Plugboard.Services.Services
 
   def mount(_params, _session, socket) do
-    if connected?(socket), do: Phoenix.PubSub.subscribe(Plugboard.PubSub, "services")
+    if connected?(socket), do: PubSub.subscribe(Plugboard.PubSub, "services")
     services = Services.list_root_services()
     {:ok, stream(socket, :services, services)}
   end

@@ -2,6 +2,7 @@ defmodule Plugboard.Services.Service do
   use Ecto.Schema
   import Ecto.Query
   import Ecto.Changeset
+  alias Plugboard.Services.ServiceManager
 
   @derive {Jason.Encoder, only: [:id, :name, :inserted_at, :updated_at]}
 
@@ -25,21 +26,49 @@ defmodule Plugboard.Services.Service do
   end
 
   @doc """
+  Creates a service and starts its associated GenServer.
+  """
+  def create(attrs) do
+    result =
+      %__MODULE__{}
+      |> changeset(attrs)
+      |> Plugboard.Repo.insert()
+
+    case result do
+      {:ok, service} ->
+        # Start the service's GenServer
+        ServiceManager.handle_service_created(service)
+        result
+      error -> error
+    end
+  end
+
+  # @doc """
+  # Soft deletes a service and stops its associated GenServer.
+  # """
+  def delete(service) do
+    result =
+      service
+      |> change(%{deleted_at: DateTime.utc_now() |> DateTime.truncate(:second)})
+      |> Plugboard.Repo.update()
+
+    case result do
+      {:ok, _service} ->
+        # TODO: Handle undeleting a service
+        # Genservers are not automatically restarted when a service is undeleted.
+        # For now, we will just keep genservers running for soft deleted services.
+        # ServiceManager.handle_service_deleted(service)
+        result
+      error -> error
+    end
+  end
+
+  @doc """
   Returns the list of descendants of a service ordered by their hierarchy level.
   Descendants include all children, grandchildren, and further nested services.
 
   The results are ordered by their level in the hierarchy, with direct children first,
   followed by grandchildren, and so on.
-
-  ## Examples
-
-      iex> service = %Service{id: 1, name: "Parent"}
-      iex> descendants(service)
-      [
-        %Service{id: 2, name: "Child", parent_id: 1},
-        %Service{id: 3, name: "Grandchild", parent_id: 2},
-        ...
-      ]
   """
   def descendants(service) do
     Plugboard.Repo.all(
@@ -84,17 +113,6 @@ defmodule Plugboard.Services.Service do
 
   The results are ordered from root to current service, making it useful for
   building breadcrumb trails or displaying complete hierarchical paths.
-
-  ## Examples
-
-      iex> service = %Service{id: 3, name: "Grandchild", parent_id: 2}
-      iex> full_path(service)
-      [
-        %Service{id: 1, name: "Root", parent_id: nil},
-        %Service{id: 2, name: "Parent", parent_id: 1},
-        %Service{id: 3, name: "Grandchild", parent_id: 2}
-      ]
-
   """
   def full_path(service) do
     Plugboard.Repo.all(

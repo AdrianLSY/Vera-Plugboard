@@ -1,13 +1,14 @@
 defmodule PlugboardWeb.ServiceLive.Show do
   use PlugboardWeb, :live_view
-
+  alias Phoenix.PubSub
   alias Plugboard.Services.Service
   alias Plugboard.Services.Services
   alias Plugboard.Services.ServiceToken
+  alias Plugboard.Services.ServiceConsumerRegistry
 
   def mount(params, _session, socket) do
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(Plugboard.PubSub, "service/#{params["id"]}")
+      PubSub.subscribe(Plugboard.PubSub, "service/#{params["id"]}")
     end
     {:ok, stream(socket, :services, [])}
   end
@@ -16,15 +17,15 @@ defmodule PlugboardWeb.ServiceLive.Show do
     service = Services.get_service!(id) |> Plugboard.Repo.preload([:parent, :children])
     childrens = service.children |> Plugboard.Repo.preload([:parent])
     full_path = Service.full_path(service)
-    consumers_connected = Plugboard.Services.ServiceConsumerRegistry.list_consumers(service.id) |> length()
-    actions = Plugboard.Services.ServiceActionRegistry.get_actions(service.id)
+    num_consumers = ServiceConsumerRegistry.num_consumers(service.id)
+    actions = ServiceConsumerRegistry.actions(service.id)
     tokens = list_service_tokens(service)
     socket = socket
       |> assign(:service, service)
       |> stream(:services, childrens)
       |> stream(:tokens, tokens)
       |> assign(:full_path, full_path)
-      |> assign(:consumers_connected, consumers_connected)
+      |> assign(:num_consumers, num_consumers)
       |> assign(:actions, actions)
       |> assign(:page_title, page_title(socket.assigns.live_action))
       |> assign(:new_token, nil)
@@ -113,8 +114,8 @@ defmodule PlugboardWeb.ServiceLive.Show do
       |> assign(:full_path, full_path)}
   end
 
-  def handle_info({:consumers_connected, consumers_connected}, socket) do
-    {:noreply, assign(socket, :consumers_connected, consumers_connected)}
+  def handle_info({:num_consumers, num_consumers}, socket) do
+    {:noreply, assign(socket, :num_consumers, num_consumers)}
   end
 
   def handle_info({:actions, actions}, socket) do
@@ -152,7 +153,7 @@ defmodule PlugboardWeb.ServiceLive.Show do
     {id, _} = Integer.parse(token_id)
     token = Plugboard.Repo.get!(Plugboard.Services.ServiceToken, id)
     {:ok, _} = Plugboard.Repo.delete(token)
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{socket.assigns.service.id}", {:token_deleted, token})
+    PubSub.broadcast(Plugboard.PubSub, "service/#{socket.assigns.service.id}", {:token_deleted, token})
     {:noreply, socket}
   end
 

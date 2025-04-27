@@ -3,6 +3,7 @@ defmodule Plugboard.Services.Services do
   The Services context.
   """
   import Ecto.Query, warn: false
+  alias Phoenix.PubSub
   alias Plugboard.Repo
   alias Plugboard.Services.Service
   alias Plugboard.Services.ServiceToken
@@ -63,10 +64,11 @@ defmodule Plugboard.Services.Services do
       {:error, %Ecto.Changeset{}}
   """
   def create_service(attrs \\ %{}) do
-    %Service{}
-    |> Service.changeset(attrs)
-    |> Repo.insert()
-    |> notify_subscribers([:service, :created])
+    result = Service.create(attrs)
+    case result do
+      {:ok, service} -> notify_subscribers({:ok, service}, [:service, :created])
+      error -> error
+    end
   end
 
   @doc """
@@ -101,24 +103,14 @@ defmodule Plugboard.Services.Services do
 
   """
   def delete_service(%Service{} = service) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
-
-    # Get all descendants first
     descendants = Service.descendants(service)
 
-    # Start a transaction to update all records
     result = Plugboard.Repo.transaction(fn ->
-      # Update the service and all its descendants with deleted_at
       descendants
       |> Enum.each(fn descendant ->
-        Ecto.Changeset.change(descendant, %{deleted_at: now})
-        |> Plugboard.Repo.update!()
+        Service.delete(descendant)
       end)
-
-      # Update the main service
-      updated_service = service
-      |> Ecto.Changeset.change(%{deleted_at: now})
-      |> Plugboard.Repo.update!()
+      {:ok, updated_service} = Service.delete(service)
 
       {updated_service, descendants}
     end)
@@ -161,7 +153,7 @@ defmodule Plugboard.Services.Services do
       inserted_at: record.inserted_at,
       expires_at: DateTime.add(record.inserted_at, @service_token_validity_in_days * 24 * 60 * 60, :second)
     }
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service.id}", {:token_created, token})
+    PubSub.broadcast(Plugboard.PubSub, "service/#{service.id}", {:token_created, token})
     token
   end
 
@@ -178,40 +170,40 @@ defmodule Plugboard.Services.Services do
   end
 
   defp notify_subscribers({:ok, service}, [:service, :created]) do
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service.id}", {:service_created, service})
+    PubSub.broadcast(Plugboard.PubSub, "service/#{service.id}", {:service_created, service})
     if service.parent_id do
-      Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service.parent_id}", {:service_created, service})
+      PubSub.broadcast(Plugboard.PubSub, "service/#{service.parent_id}", {:service_created, service})
     else
-      Phoenix.PubSub.broadcast(Plugboard.PubSub, "services", {:service_created, service})
+      PubSub.broadcast(Plugboard.PubSub, "services", {:service_created, service})
     end
     {:ok, service}
   end
 
   defp notify_subscribers({:ok, service}, [:service, :updated]) do
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service.id}", {:service_updated, service})
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service.id}", {:path_updated, Service.full_path(service)})
+    PubSub.broadcast(Plugboard.PubSub, "service/#{service.id}", {:service_updated, service})
+    PubSub.broadcast(Plugboard.PubSub, "service/#{service.id}", {:path_updated, Service.full_path(service)})
     if service.parent_id do
-      Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service.parent_id}", {:service_updated, service})
+      PubSub.broadcast(Plugboard.PubSub, "service/#{service.parent_id}", {:service_updated, service})
     else
-      Phoenix.PubSub.broadcast(Plugboard.PubSub, "services", {:service_updated, service})
+      PubSub.broadcast(Plugboard.PubSub, "services", {:service_updated, service})
     end
     Service.descendants(service)
     |> Enum.each(fn descendant ->
-      Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{descendant.id}", {:path_updated, Service.full_path(descendant)})
+      PubSub.broadcast(Plugboard.PubSub, "service/#{descendant.id}", {:path_updated, Service.full_path(descendant)})
     end)
     {:ok, service}
   end
 
   defp notify_subscribers({:ok, service}, [:service, :deleted, descendants, redirect_service_id]) do
-    Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service.id}", {:service_deleted, service, redirect_service_id})
+    PubSub.broadcast(Plugboard.PubSub, "service/#{service.id}", {:service_deleted, service, redirect_service_id})
     if service.parent_id do
-      Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{service.parent_id}", {:service_deleted, service, nil})
+      PubSub.broadcast(Plugboard.PubSub, "service/#{service.parent_id}", {:service_deleted, service, nil})
     else
-      Phoenix.PubSub.broadcast(Plugboard.PubSub, "services", {:service_deleted, service})
+      PubSub.broadcast(Plugboard.PubSub, "services", {:service_deleted, service})
     end
     descendants
     |> Enum.each(fn descendant ->
-      Phoenix.PubSub.broadcast(Plugboard.PubSub, "service/#{descendant.id}", {:service_deleted, descendant, redirect_service_id})
+      PubSub.broadcast(Plugboard.PubSub, "service/#{descendant.id}", {:service_deleted, descendant, redirect_service_id})
     end)
     {:ok, service}
   end
