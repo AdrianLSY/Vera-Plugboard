@@ -18,8 +18,8 @@ defmodule PlugboardWeb.Accounts.AccountAuth do
   """
   def fetch_api_account(conn, _opts) do
     with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
-      {:ok, account} <- Accounts.fetch_account_by_api_token(token) do
-        {:ok, account}
+         {:ok, account} <- Accounts.fetch_account_by_api_token(token) do
+      {:ok, account}
     else
       _ -> {:error, "API token is invalid"}
     end

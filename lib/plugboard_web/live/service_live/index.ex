@@ -39,27 +39,28 @@ defmodule PlugboardWeb.ServiceLive.Index do
 
   def handle_info({:service_created, service}, socket) do
     service = Plugboard.Repo.preload(service, [:parent])
+
     {:noreply,
-      socket
-      |> put_flash(:info, "Service created")
-      |> stream_insert(:services, service)}
+     socket
+     |> put_flash(:info, "Service created")
+     |> stream_insert(:services, service)}
   end
 
   def handle_info({:service_updated, service}, socket) do
     service = Plugboard.Repo.preload(service, [:parent])
+
     {:noreply,
-      socket
-      |> put_flash(:info, "Service updated")
-      |> stream_insert(:services, service)}
+     socket
+     |> put_flash(:info, "Service updated")
+     |> stream_insert(:services, service)}
   end
 
   def handle_info({:service_deleted, service}, socket) do
     {:noreply,
-      socket
-      |> put_flash(:info, "Service deleted")
-      |> stream_delete(:services, service)}
+     socket
+     |> put_flash(:info, "Service deleted")
+     |> stream_delete(:services, service)}
   end
-
 
   def handle_event("delete", %{"id" => id}, socket) do
     service = Services.get_service!(id)

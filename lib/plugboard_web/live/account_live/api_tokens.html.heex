@@ -31,10 +31,10 @@
   <% end %>
   <.table id="tokens" rows={@streams.tokens}>
     <:col :let={{_id, token}} label="ID">
-      <%= token.id %>
+      {token.id}
     </:col>
     <:col :let={{_id, token}} label="Generated at">
-      <%= Calendar.strftime(token.inserted_at, "%Y-%m-%d %H:%M:%S") %>
+      {Calendar.strftime(token.inserted_at, "%Y-%m-%d %H:%M:%S")}
     </:col>
     <:action :let={{_id, token}}>
       <.link

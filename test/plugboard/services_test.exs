@@ -81,8 +81,9 @@ defmodule Plugboard.ServicesTest do
       descendants = Service.descendants(parent)
 
       assert length(descendants) == 3
+
       assert Enum.map(descendants, & &1.id) |> Enum.sort() ==
-             [child1.id, child2.id, grandchild.id] |> Enum.sort()
+               [child1.id, child2.id, grandchild.id] |> Enum.sort()
     end
 
     test "full_path/1 returns path from root to service" do

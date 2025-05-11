@@ -10,7 +10,13 @@ defmodule PlugboardWeb.ServiceLive.FormComponent do
         {@title}
       </.header>
 
-      <.simple_form for={@form} id="service-form" phx-target={@myself} phx-change="validate" phx-submit="save">
+      <.simple_form
+        for={@form}
+        id="service-form"
+        phx-target={@myself}
+        phx-change="validate"
+        phx-submit="save"
+      >
         <.input field={@form[:name]} type="text" label="Name" />
         <input type="hidden" name="service[parent_id]" value={@form[:parent_id].value} />
         <:actions>

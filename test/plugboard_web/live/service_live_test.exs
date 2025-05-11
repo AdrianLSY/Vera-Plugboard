@@ -44,15 +44,16 @@ defmodule PlugboardWeb.ServiceLiveTest do
       {:ok, index_live, _html} = live(conn, ~p"/services")
 
       assert index_live |> element("a", "Create Service") |> render_click() =~
-        "New Service"
+               "New Service"
 
       assert_patch(index_live, ~p"/services/new")
 
       assert index_live
-        |> form("#service-form", service: @invalid_attrs)
-        |> render_change() =~ "can&#39;t be blank"
+             |> form("#service-form", service: @invalid_attrs)
+             |> render_change() =~ "can&#39;t be blank"
 
-      html = index_live
+      html =
+        index_live
         |> form("#service-form", service: @create_attrs)
         |> render_submit()
 
@@ -64,13 +65,13 @@ defmodule PlugboardWeb.ServiceLiveTest do
       {:ok, index_live, _html} = live(conn, ~p"/services")
 
       assert index_live |> element("#services-#{service.id} a", "Edit") |> render_click() =~
-        "Edit Service"
+               "Edit Service"
 
       assert_patch(index_live, ~p"/services/#{service}/edit")
 
       assert index_live
-        |> form("#service-form", service: @invalid_attrs)
-        |> render_change() =~ "can&#39;t be blank"
+             |> form("#service-form", service: @invalid_attrs)
+             |> render_change() =~ "can&#39;t be blank"
 
       # First render the form submission
       index_live
@@ -106,15 +107,16 @@ defmodule PlugboardWeb.ServiceLiveTest do
       {:ok, show_live, _html} = live(conn, ~p"/services/#{parent}")
 
       assert show_live |> element("a", "Create Service") |> render_click() =~
-        "New Service"
+               "New Service"
 
       assert_patch(show_live, ~p"/services/#{parent}/new")
 
       assert show_live
-        |> form("#service-form", service: @invalid_attrs)
-        |> render_change() =~ "can&#39;t be blank"
+             |> form("#service-form", service: @invalid_attrs)
+             |> render_change() =~ "can&#39;t be blank"
 
-      html = show_live
+      html =
+        show_live
         |> form("#service-form", service: @create_child_attrs)
         |> render_submit()
 
@@ -126,15 +128,16 @@ defmodule PlugboardWeb.ServiceLiveTest do
       {:ok, show_live, _html} = live(conn, ~p"/services/#{parent}")
 
       assert show_live |> element("#services-#{child.id} a", "Edit") |> render_click() =~
-        "Edit Service"
+               "Edit Service"
 
       assert_patch(show_live, ~p"/services/#{parent}/edit/#{child.id}")
 
       assert show_live
-        |> form("#service-form", service: @invalid_attrs)
-        |> render_change() =~ "can&#39;t be blank"
+             |> form("#service-form", service: @invalid_attrs)
+             |> render_change() =~ "can&#39;t be blank"
 
-      html = show_live
+      html =
+        show_live
         |> form("#service-form", service: @update_attrs)
         |> render_submit()
 
@@ -158,8 +161,8 @@ defmodule PlugboardWeb.ServiceLiveTest do
 
       # Submit the update form
       edit_live
-        |> form("#service-form", service: @update_attrs)
-        |> render_submit()
+      |> form("#service-form", service: @update_attrs)
+      |> render_submit()
 
       # Wait briefly for the update to be applied
       Process.sleep(100)
@@ -200,7 +203,11 @@ defmodule PlugboardWeb.ServiceLiveTest do
       assert html =~ "2 consumers online"
     end
 
-    test "handles form assignment for different actions", %{conn: conn, parent: parent, child: child} do
+    test "handles form assignment for different actions", %{
+      conn: conn,
+      parent: parent,
+      child: child
+    } do
       # Test :new action
       {:ok, _new_live, html} = live(conn, ~p"/services/#{parent}/new")
       assert html =~ "New Service"

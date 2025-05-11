@@ -33,17 +33,24 @@ defmodule PlugboardWeb.Accounts.AccountAuthTest do
     end
 
     test "redirects to the configured path", %{conn: conn, account: account} do
-      conn = conn |> put_session(:account_return_to, "/hello") |> AccountAuth.login_account(account)
+      conn =
+        conn |> put_session(:account_return_to, "/hello") |> AccountAuth.login_account(account)
+
       assert redirected_to(conn) == "/hello"
     end
 
     test "writes a cookie if remember_me is configured", %{conn: conn, account: account} do
-      conn = conn |> fetch_cookies() |> AccountAuth.login_account(account, %{"remember_me" => "true"})
+      conn =
+        conn |> fetch_cookies() |> AccountAuth.login_account(account, %{"remember_me" => "true"})
+
       assert get_session(conn, :account_token) == conn.cookies[@remember_me_cookie]
 
       assert %{value: signed_token, max_age: max_age} = conn.resp_cookies[@remember_me_cookie]
       assert signed_token != get_session(conn, :account_token)
-      assert max_age == 60 * 60 * 24 * (System.get_env("PHX_SESSION_VALIDITY_IN_DAYS") |> String.to_integer())
+
+      assert max_age ==
+               60 * 60 * 24 *
+                 (System.get_env("PHX_SESSION_VALIDITY_IN_DAYS") |> String.to_integer())
     end
   end
 
@@ -87,7 +94,12 @@ defmodule PlugboardWeb.Accounts.AccountAuthTest do
   describe "fetch_current_account/2" do
     test "authenticates account from session", %{conn: conn, account: account} do
       account_token = Accounts.generate_account_session_token(account)
-      conn = conn |> put_session(:account_token, account_token) |> AccountAuth.fetch_current_account([])
+
+      conn =
+        conn
+        |> put_session(:account_token, account_token)
+        |> AccountAuth.fetch_current_account([])
+
       assert conn.assigns.current_account.id == account.id
     end
 
@@ -129,7 +141,9 @@ defmodule PlugboardWeb.Accounts.AccountAuthTest do
       assert updated_socket.assigns.current_account.id == account.id
     end
 
-    test "assigns nil to current_account assign if there isn't a valid account_token", %{conn: conn} do
+    test "assigns nil to current_account assign if there isn't a valid account_token", %{
+      conn: conn
+    } do
       account_token = "invalid_token"
       session = conn |> put_session(:account_token, account_token) |> get_session()
 
@@ -150,7 +164,10 @@ defmodule PlugboardWeb.Accounts.AccountAuthTest do
   end
 
   describe "on_mount :ensure_authenticated" do
-    test "authenticates current_account based on a valid account_token", %{conn: conn, account: account} do
+    test "authenticates current_account based on a valid account_token", %{
+      conn: conn,
+      account: account
+    } do
       account_token = Accounts.generate_account_session_token(account)
       session = conn |> put_session(:account_token, account_token) |> get_session()
 
@@ -215,7 +232,11 @@ defmodule PlugboardWeb.Accounts.AccountAuthTest do
 
   describe "redirect_if_account_is_authenticated/2" do
     test "redirects if account is authenticated", %{conn: conn, account: account} do
-      conn = conn |> assign(:current_account, account) |> AccountAuth.redirect_if_account_is_authenticated([])
+      conn =
+        conn
+        |> assign(:current_account, account)
+        |> AccountAuth.redirect_if_account_is_authenticated([])
+
       assert conn.halted
       assert redirected_to(conn) == ~p"/"
     end
@@ -265,7 +286,9 @@ defmodule PlugboardWeb.Accounts.AccountAuthTest do
     end
 
     test "does not redirect if account is authenticated", %{conn: conn, account: account} do
-      conn = conn |> assign(:current_account, account) |> AccountAuth.require_authenticated_account([])
+      conn =
+        conn |> assign(:current_account, account) |> AccountAuth.require_authenticated_account([])
+
       refute conn.halted
       refute conn.status
     end

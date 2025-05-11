@@ -7,7 +7,8 @@ defmodule Plugboard.Accounts.Accounts do
   alias Plugboard.Repo
   alias Plugboard.Accounts.{Account, AccountToken, AccountNotifier}
 
-  @account_token_validity_in_days System.get_env("PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
+  @account_token_validity_in_days System.get_env("PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS")
+                                  |> String.to_integer()
 
   ## Database getters
 
@@ -155,7 +156,10 @@ defmodule Plugboard.Accounts.Accounts do
 
     Ecto.Multi.new()
     |> Ecto.Multi.update(:account, changeset)
-    |> Ecto.Multi.delete_all(:tokens, AccountToken.by_account_and_contexts_query(account, [context]))
+    |> Ecto.Multi.delete_all(
+      :tokens,
+      AccountToken.by_account_and_contexts_query(account, [context])
+    )
   end
 
   @doc ~S"""
@@ -167,12 +171,21 @@ defmodule Plugboard.Accounts.Accounts do
       {:ok, %{to: ..., body: ...}}
 
   """
-  def deliver_account_update_email_instructions(%Account{} = account, current_email, update_email_url_fun)
+  def deliver_account_update_email_instructions(
+        %Account{} = account,
+        current_email,
+        update_email_url_fun
+      )
       when is_function(update_email_url_fun, 1) do
-    {encoded_token, account_token} = AccountToken.build_email_token(account, "change:#{current_email}")
+    {encoded_token, account_token} =
+      AccountToken.build_email_token(account, "change:#{current_email}")
 
     Repo.insert!(account_token)
-    AccountNotifier.deliver_update_email_instructions(account, update_email_url_fun.(encoded_token))
+
+    AccountNotifier.deliver_update_email_instructions(
+      account,
+      update_email_url_fun.(encoded_token)
+    )
   end
 
   @doc """
@@ -264,7 +277,11 @@ defmodule Plugboard.Accounts.Accounts do
     else
       {encoded_token, account_token} = AccountToken.build_email_token(account, "confirm")
       Repo.insert!(account_token)
-      AccountNotifier.deliver_confirmation_instructions(account, confirmation_url_fun.(encoded_token))
+
+      AccountNotifier.deliver_confirmation_instructions(
+        account,
+        confirmation_url_fun.(encoded_token)
+      )
     end
   end
 
@@ -287,7 +304,10 @@ defmodule Plugboard.Accounts.Accounts do
   defp confirm_account_multi(account) do
     Ecto.Multi.new()
     |> Ecto.Multi.update(:account, Account.confirm_changeset(account))
-    |> Ecto.Multi.delete_all(:tokens, AccountToken.by_account_and_contexts_query(account, ["confirm"]))
+    |> Ecto.Multi.delete_all(
+      :tokens,
+      AccountToken.by_account_and_contexts_query(account, ["confirm"])
+    )
   end
 
   ## Reset password
@@ -305,7 +325,11 @@ defmodule Plugboard.Accounts.Accounts do
       when is_function(reset_password_url_fun, 1) do
     {encoded_token, account_token} = AccountToken.build_email_token(account, "reset_password")
     Repo.insert!(account_token)
-    AccountNotifier.deliver_reset_password_instructions(account, reset_password_url_fun.(encoded_token))
+
+    AccountNotifier.deliver_reset_password_instructions(
+      account,
+      reset_password_url_fun.(encoded_token)
+    )
   end
 
   @doc """
@@ -363,14 +387,17 @@ defmodule Plugboard.Accounts.Accounts do
   def create_account_api_token(account) do
     {encoded_token, account_token} = AccountToken.build_email_token(account, "api-token")
     record = Repo.insert!(account_token)
-    token =%{
+
+    token = %{
       id: record.id,
       value: encoded_token,
       context: record.context,
       account_id: record.account_id,
       inserted_at: record.inserted_at,
-      expires_at: DateTime.add(record.inserted_at, @account_token_validity_in_days * 24 * 60 * 60, :second)
+      expires_at:
+        DateTime.add(record.inserted_at, @account_token_validity_in_days * 24 * 60 * 60, :second)
     }
+
     PubSub.broadcast(Plugboard.PubSub, "accounts/#{account.id}/tokens", {:token_created, token})
     token
   end
@@ -380,7 +407,7 @@ defmodule Plugboard.Accounts.Accounts do
   """
   def fetch_account_by_api_token(token) do
     with {:ok, query} <- AccountToken.verify_email_token_query(token, "api-token"),
-        %Account{} = account <- Repo.one(query) do
+         %Account{} = account <- Repo.one(query) do
       {:ok, account}
     else
       _ -> :error

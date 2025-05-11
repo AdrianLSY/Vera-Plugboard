@@ -9,7 +9,11 @@ defmodule Plugboard.Services.Service do
   schema "services" do
     field :name, :string
     belongs_to :parent, Plugboard.Services.Service
-    has_many :children, Plugboard.Services.Service, foreign_key: :parent_id, where: [deleted_at: nil]
+
+    has_many :children, Plugboard.Services.Service,
+      foreign_key: :parent_id,
+      where: [deleted_at: nil]
+
     field :deleted_at, :utc_datetime
     timestamps(type: :utc_datetime)
   end
@@ -39,7 +43,9 @@ defmodule Plugboard.Services.Service do
         # Start the service's GenServer
         ServiceManager.handle_service_created(service)
         result
-      error -> error
+
+      error ->
+        error
     end
   end
 
@@ -59,7 +65,9 @@ defmodule Plugboard.Services.Service do
         # For now, we will just keep genservers running for soft deleted services.
         # ServiceManager.handle_service_deleted(service)
         result
-      error -> error
+
+      error ->
+        error
     end
   end
 
@@ -73,8 +81,9 @@ defmodule Plugboard.Services.Service do
   def descendants(service) do
     Plugboard.Repo.all(
       from s in __MODULE__,
-      where: fragment(
-        "? IN (
+        where:
+          fragment(
+            "? IN (
           WITH RECURSIVE descendants AS (
             SELECT id, parent_id, name, 1 as level
             FROM services
@@ -87,10 +96,10 @@ defmodule Plugboard.Services.Service do
           )
           SELECT id FROM descendants
         )",
-        s.id,
-        ^service.id
-      ),
-      order_by: fragment("(
+            s.id,
+            ^service.id
+          ),
+        order_by: fragment("(
         WITH RECURSIVE descendants AS (
           SELECT id, parent_id, name, 1 as level
           FROM services
@@ -117,8 +126,9 @@ defmodule Plugboard.Services.Service do
   def full_path(service) do
     Plugboard.Repo.all(
       from s in __MODULE__,
-      where: fragment(
-        "? IN (
+        where:
+          fragment(
+            "? IN (
           WITH RECURSIVE ancestors AS (
             SELECT id, parent_id, name, 1 as level
             FROM services
@@ -131,10 +141,10 @@ defmodule Plugboard.Services.Service do
           SELECT id FROM ancestors
           ORDER BY level
         )",
-        s.id,
-        ^service.id
-      ),
-      order_by: fragment("(
+            s.id,
+            ^service.id
+          ),
+        order_by: fragment("(
         WITH RECURSIVE ancestors AS (
           SELECT id, parent_id, name, 1 as level
           FROM services

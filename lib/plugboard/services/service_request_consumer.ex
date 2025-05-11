@@ -13,7 +13,8 @@ defmodule Plugboard.Services.ServiceRequestConsumer do
   Creates a unique name for the GenServer based on the service_id
   """
   def via_tuple(service_id) do
-    {:via, Registry, {Plugboard.Services.ServiceConsumerRegistry, {__MODULE__, to_string(service_id)}}}
+    {:via, Registry,
+     {Plugboard.Services.ServiceConsumerRegistry, {__MODULE__, to_string(service_id)}}}
   end
 
   @doc false
@@ -35,27 +36,28 @@ defmodule Plugboard.Services.ServiceRequestConsumer do
 
       if consumer do
         # Ensure event has the expected structure
-        request = case event do
-          %{action: _, fields: _, response_ref: _} = structured_event ->
-            # Event already has the right structure
-            %{
-              action: structured_event.action,
-              fields: structured_event.fields,
-              response_ref: structured_event.response_ref
-            }
+        request =
+          case event do
+            %{action: _, fields: _, response_ref: _} = structured_event ->
+              # Event already has the right structure
+              %{
+                action: structured_event.action,
+                fields: structured_event.fields,
+                response_ref: structured_event.response_ref
+              }
 
-          # Handle case where event might be a map without the exact keys
-          event when is_map(event) ->
-            %{
-              action: Map.get(event, :action) || Map.get(event, "action"),
-              fields: Map.get(event, :fields) || Map.get(event, "fields") || %{},
-              response_ref: Map.get(event, :response_ref) || Map.get(event, "response_ref")
-            }
+            # Handle case where event might be a map without the exact keys
+            event when is_map(event) ->
+              %{
+                action: Map.get(event, :action) || Map.get(event, "action"),
+                fields: Map.get(event, :fields) || Map.get(event, "fields") || %{},
+                response_ref: Map.get(event, :response_ref) || Map.get(event, "response_ref")
+              }
 
-          # Handle case where event is not a map at all
-          _ ->
-            %{action: "process", fields: %{data: event}, response_ref: nil}
-        end
+            # Handle case where event is not a map at all
+            _ ->
+              %{action: "process", fields: %{data: event}, response_ref: nil}
+          end
 
         send(consumer, {:request, request})
       end

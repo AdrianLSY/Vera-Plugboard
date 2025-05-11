@@ -6,12 +6,12 @@
         <%= for service <- @full_path do %>
           <span class="mx-1 text-zinc-500">→</span>
           <.link navigate={~p"/services/#{service.id}"} class="hover:text-zinc-700">
-            <%= service.id %>∙<%= service.name %>
+            {service.id}∙{service.name}
           </.link>
         <% end %>
       </div>
       <div class="text-sm text-zinc-500">
-        <%= @num_consumers %> consumer<%= if @num_consumers > 1, do: "s" %> online
+        {@num_consumers} consumer{if @num_consumers > 1, do: "s"} online
       </div>
     </div>
     <:actions>
@@ -28,12 +28,16 @@
       message="Create a new child service to get started."
     />
   <% end %>
-  <.table id="services" rows={@streams.services} row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service.id}") end}>
+  <.table
+    id="services"
+    rows={@streams.services}
+    row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service.id}") end}
+  >
     <:col :let={{_id, service}} label="ID">
-      <%= service.id %>
+      {service.id}
     </:col>
     <:col :let={{_id, service}} label="Service">
-      <%= service.name %>
+      {service.name}
     </:col>
     <:action :let={{_id, service}}>
       <div class="sr-only">
@@ -42,20 +46,25 @@
       <.link patch={~p"/services/#{@service}/edit/#{service.id}"}>Edit</.link>
     </:action>
     <:action :let={{id, service}}>
-      <.link phx-click={JS.push("delete", value: %{id: service.id}) |> hide("##{id}")} data-confirm="Are you sure?">
+      <.link
+        phx-click={JS.push("delete", value: %{id: service.id}) |> hide("##{id}")}
+        data-confirm="Are you sure?"
+      >
         Delete
       </.link>
     </:action>
   </.table>
 </.content>
 
-<br>
+<br />
 
 <.content>
   <.header>
     <div class="flex flex-col gap-1">
       <div class="text-lg font-semibold text-zinc-900">
-        <.link navigate={~p"/services/#{@service.id}"} class="hover:text-zinc-700">API Tokens</.link>
+        <.link navigate={~p"/services/#{@service.id}"} class="hover:text-zinc-700">
+          API Tokens
+        </.link>
       </div>
     </div>
     <:actions>
@@ -84,10 +93,10 @@
   <% end %>
   <.table id="tokens" rows={@streams.tokens}>
     <:col :let={{_id, token}} label="ID">
-      <%= token.id %>
+      {token.id}
     </:col>
     <:col :let={{_id, token}} label="Generated at">
-      <%= Calendar.strftime(token.inserted_at, "%Y-%m-%d %H:%M:%S") %>
+      {Calendar.strftime(token.inserted_at, "%Y-%m-%d %H:%M:%S")}
     </:col>
     <:action :let={{_id, token}}>
       <.link
@@ -103,7 +112,7 @@
 </.content>
 
 <%= if @actions != %{} do %>
-  <br>
+  <br />
   <.content>
     <div class="mb-4 font-semibold">
       <div class="text-lg text-zinc-900">
@@ -117,7 +126,12 @@
   </.content>
 <% end %>
 
-<.modal :if={@live_action in [:new, :edit]} id="service-modal" show on_cancel={JS.patch(~p"/services/#{@service}")}>
+<.modal
+  :if={@live_action in [:new, :edit]}
+  id="service-modal"
+  show
+  on_cancel={JS.patch(~p"/services/#{@service}")}
+>
   <.live_component
     module={PlugboardWeb.ServiceLive.FormComponent}
     id={@form_service.id || :new}

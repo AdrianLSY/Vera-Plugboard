@@ -29,9 +29,10 @@ defmodule Plugboard.Services.ServiceSupervisor do
 
   def stop_service(service_id) do
     case DynamicSupervisor.which_children(__MODULE__)
-    |> Enum.find(fn {id, _, _, _} -> id == {:service_supervisor, service_id} end) do
+         |> Enum.find(fn {id, _, _, _} -> id == {:service_supervisor, service_id} end) do
       nil ->
         {:error, :not_found}
+
       {_, pid, _, _} ->
         DynamicSupervisor.terminate_child(__MODULE__, pid)
     end

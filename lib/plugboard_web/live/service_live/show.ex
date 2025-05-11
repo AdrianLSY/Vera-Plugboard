@@ -10,6 +10,7 @@ defmodule PlugboardWeb.ServiceLive.Show do
     if connected?(socket) do
       PubSub.subscribe(Plugboard.PubSub, "service/#{params["id"]}")
     end
+
     {:ok, stream(socket, :services, [])}
   end
 
@@ -20,7 +21,9 @@ defmodule PlugboardWeb.ServiceLive.Show do
     num_consumers = ServiceConsumerRegistry.num_consumers(service.id)
     actions = ServiceConsumerRegistry.actions(service.id)
     tokens = list_service_tokens(service)
-    socket = socket
+
+    socket =
+      socket
       |> assign(:service, service)
       |> stream(:services, childrens)
       |> stream(:tokens, tokens)
@@ -62,11 +65,12 @@ defmodule PlugboardWeb.ServiceLive.Show do
 
   def handle_info({:service_created, service}, socket) do
     service = Plugboard.Repo.preload(service, [:parent])
+
     if service.parent_id == socket.assigns.service.id do
       {:noreply,
-        socket
-        |> put_flash(:info, "Child service created")
-        |> stream_insert(:services, service)}
+       socket
+       |> put_flash(:info, "Child service created")
+       |> stream_insert(:services, service)}
     else
       {:noreply, socket}
     end
@@ -74,16 +78,19 @@ defmodule PlugboardWeb.ServiceLive.Show do
 
   def handle_info({:service_updated, service}, socket) do
     service = Plugboard.Repo.preload(service, [:parent])
+
     cond do
       service.id == socket.assigns.service.id ->
         {:noreply,
-          socket
-          |> assign(:service, service)}
+         socket
+         |> assign(:service, service)}
+
       service.parent_id == socket.assigns.service.id ->
         {:noreply,
-          socket
-          |> put_flash(:info, "Child service updated")
-          |> stream_insert(:services, service)}
+         socket
+         |> put_flash(:info, "Child service updated")
+         |> stream_insert(:services, service)}
+
       true ->
         {:noreply, socket}
     end
@@ -91,17 +98,26 @@ defmodule PlugboardWeb.ServiceLive.Show do
 
   def handle_info({:service_deleted, service, redirect_service_id}, socket) do
     service = Plugboard.Repo.preload(service, [:parent])
+
     cond do
       service.id == socket.assigns.service.id ->
         {:noreply,
-          socket
-          |> put_flash(:info, "Service deleted, redirected to closest ancestor")
-          |> push_navigate(to: (if redirect_service_id, do: ~p"/services/#{redirect_service_id}", else: ~p"/services"))}
+         socket
+         |> put_flash(:info, "Service deleted, redirected to closest ancestor")
+         |> push_navigate(
+           to:
+             if(redirect_service_id,
+               do: ~p"/services/#{redirect_service_id}",
+               else: ~p"/services"
+             )
+         )}
+
       service.parent_id == socket.assigns.service.id ->
         {:noreply,
-          socket
-          |> put_flash(:info, "Child service deleted")
-          |> stream_delete(:services, service)}
+         socket
+         |> put_flash(:info, "Child service deleted")
+         |> stream_delete(:services, service)}
+
       true ->
         {:noreply, socket}
     end
@@ -109,9 +125,9 @@ defmodule PlugboardWeb.ServiceLive.Show do
 
   def handle_info({:path_updated, full_path}, socket) do
     {:noreply,
-      socket
-      |> put_flash(:info, "Service path updated")
-      |> assign(:full_path, full_path)}
+     socket
+     |> put_flash(:info, "Service path updated")
+     |> assign(:full_path, full_path)}
   end
 
   def handle_info({:num_consumers, num_consumers}, socket) do
@@ -153,7 +169,13 @@ defmodule PlugboardWeb.ServiceLive.Show do
     {id, _} = Integer.parse(token_id)
     token = Plugboard.Repo.get!(Plugboard.Services.ServiceToken, id)
     {:ok, _} = Plugboard.Repo.delete(token)
-    PubSub.broadcast(Plugboard.PubSub, "service/#{socket.assigns.service.id}", {:token_deleted, token})
+
+    PubSub.broadcast(
+      Plugboard.PubSub,
+      "service/#{socket.assigns.service.id}",
+      {:token_deleted, token}
+    )
+
     {:noreply, socket}
   end
 

@@ -20,11 +20,12 @@ config :plugboard, PlugboardWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: System.get_env("SECRET_KEY_BASE") ||
-    raise("""
-    environment variable SECRET_KEY_BASE is missing.
-    You can generate one by calling: mix phx.gen.secret
-    """),
+  secret_key_base:
+    System.get_env("SECRET_KEY_BASE") ||
+      raise("""
+      environment variable SECRET_KEY_BASE is missing.
+      You can generate one by calling: mix phx.gen.secret
+      """),
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:plugboard, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:plugboard, ~w(--watch)]}

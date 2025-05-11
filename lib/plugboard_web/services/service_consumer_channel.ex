@@ -3,7 +3,8 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
   alias Phoenix.PubSub
   alias Plugboard.Services.ServiceConsumerRegistry
 
-  @service_token_validity_in_days System.get_env("PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
+  @service_token_validity_in_days System.get_env("PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS")
+                                  |> String.to_integer()
 
   def join("service", _params, socket) do
     service = socket.assigns.service
@@ -20,15 +21,22 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
     # Subscribe to service-specific PubSub topics
     PubSub.subscribe(Plugboard.PubSub, "service/#{service_id}")
 
-    {:ok, %{service: service, token: token, num_consumers: ServiceConsumerRegistry.num_consumers(service.id)}, socket}
+    {:ok,
+     %{
+       service: service,
+       token: token,
+       num_consumers: ServiceConsumerRegistry.num_consumers(service.id)
+     }, socket}
   end
 
   def terminate(_reason, socket) do
     service_id = socket.assigns[:service_id]
     ServiceConsumerRegistry.unregister_consumer(service_id, self())
+
     if ServiceConsumerRegistry.num_consumers(service_id) == 0 do
       ServiceConsumerRegistry.unregister_actions(service_id)
     end
+
     PubSub.unsubscribe(Plugboard.PubSub, "service/#{service_id}")
     :ok
   end
@@ -37,6 +45,7 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
     if pid = ServiceConsumerRegistry.get_requester(socket.assigns.service_id, socket.ref) do
       send(pid, {:response, payload})
     end
+
     {:noreply, socket}
   end
 
@@ -75,8 +84,10 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
       context: token.context,
       service_id: token.service_id,
       inserted_at: token.inserted_at,
-      expires_at: DateTime.add(token.inserted_at, @service_token_validity_in_days * 24 * 60 * 60, :second)
+      expires_at:
+        DateTime.add(token.inserted_at, @service_token_validity_in_days * 24 * 60 * 60, :second)
     }
+
     push(socket, "token_created", %{token: token_response})
     {:noreply, socket}
   end
@@ -87,8 +98,10 @@ defmodule PlugboardWeb.Services.ServiceConsumerChannel do
       context: token.context,
       service_id: token.service_id,
       inserted_at: token.inserted_at,
-      expires_at: DateTime.add(token.inserted_at, @service_token_validity_in_days * 24 * 60 * 60, :second)
+      expires_at:
+        DateTime.add(token.inserted_at, @service_token_validity_in_days * 24 * 60 * 60, :second)
     }
+
     push(socket, "token_deleted", %{token: token_response})
     {:noreply, socket}
   end
