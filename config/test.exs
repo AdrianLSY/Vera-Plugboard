@@ -17,11 +17,12 @@ config :plugboard, Plugboard.Repo,
 # you can enable the server option below.
 config :plugboard, PlugboardWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: System.get_env("SECRET_KEY_BASE") ||
-    raise("""
-    environment variable SECRET_KEY_BASE is missing.
-    You can generate one by calling: mix phx.gen.secret
-    """),
+  secret_key_base:
+    System.get_env("SECRET_KEY_BASE") ||
+      raise("""
+      environment variable SECRET_KEY_BASE is missing.
+      You can generate one by calling: mix phx.gen.secret
+      """),
   server: false
 
 # In test we don't send emails

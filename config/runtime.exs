@@ -48,13 +48,15 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  signing_salt = System.get_env("PHX_SIGNING_SALT") ||
+  signing_salt =
+    System.get_env("PHX_SIGNING_SALT") ||
       raise """
       environment variable PHX_SIGNING_SALT is missing.
       You can generate one by calling: mix phx.gen.secret
       """
 
-  encryption_salt = System.get_env("PHX_ENCRYPTION_SALT") ||
+  encryption_salt =
+    System.get_env("PHX_ENCRYPTION_SALT") ||
       raise """
       environment variable PHX_ENCRYPTION_SALT is missing.
       You can generate one by calling: mix phx.gen.secret

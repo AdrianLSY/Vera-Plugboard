@@ -36,7 +36,8 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   Creates a unique name for the GenServer based on the service_id
   """
   def via_tuple(service_id) do
-    {:via, Registry, {Plugboard.Services.ServiceConsumerRegistry, {__MODULE__, to_string(service_id)}}}
+    {:via, Registry,
+     {Plugboard.Services.ServiceConsumerRegistry, {__MODULE__, to_string(service_id)}}}
   end
 
   #
@@ -69,6 +70,7 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   """
   def consumers(service_id) do
     table_name = consumers_table_name(service_id)
+
     try do
       :ets.tab2list(table_name) |> Enum.map(fn {pid} -> pid end)
     rescue
@@ -83,8 +85,11 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   def cycle_consumers(service_id) do
     table_name = consumers_table_name(service_id)
     pids = :ets.tab2list(table_name) |> Enum.map(fn {pid} -> pid end)
+
     case pids do
-      [] -> nil
+      [] ->
+        nil
+
       pids ->
         current_index = Process.get({:cycle_index, service_id}, 0)
         next_index = rem(current_index + 1, length(pids))
@@ -98,6 +103,7 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   """
   def num_consumers(service_id) do
     table_name = consumers_table_name(service_id)
+
     case :ets.info(table_name, :size) do
       :undefined -> 0
       size -> size
@@ -135,6 +141,7 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   """
   def actions(service_id) do
     table_name = actions_table_name(service_id)
+
     try do
       case :ets.lookup(table_name, "actions") do
         [{_key, actions}] -> actions
@@ -169,12 +176,13 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   """
   def get_requester(service_id, response_ref) do
     table_name = requests_table_name(service_id)
+
     try do
       case :ets.lookup(table_name, response_ref) do
-
         [{^response_ref, pid, _timestamp}] ->
           GenServer.cast(via_tuple(service_id), {:unregister_request, response_ref})
           pid
+
         [] ->
           nil
       end
@@ -193,30 +201,33 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
     consumers_table = :ets.new(consumers_table_name(service_id), [:named_table, :set])
 
     # Initialize actions table
-    actions_table = :ets.new(actions_table_name(service_id), [
-      :set,
-      :named_table,
-      :protected,
-      read_concurrency: true
-    ])
+    actions_table =
+      :ets.new(actions_table_name(service_id), [
+        :set,
+        :named_table,
+        :protected,
+        read_concurrency: true
+      ])
 
     # Initialize requests table
-    requests_table = :ets.new(requests_table_name(service_id), [
-      :set,
-      :named_table,
-      :protected,
-      read_concurrency: true
-    ])
+    requests_table =
+      :ets.new(requests_table_name(service_id), [
+        :set,
+        :named_table,
+        :protected,
+        read_concurrency: true
+      ])
 
     # Schedule cleanup for requests
     schedule_cleanup()
 
-    {:ok, %{
-      consumers_table: consumers_table,
-      actions_table: actions_table,
-      requests_table: requests_table,
-      service_id: service_id
-    }}
+    {:ok,
+     %{
+       consumers_table: consumers_table,
+       actions_table: actions_table,
+       requests_table: requests_table,
+       service_id: service_id
+     }}
   end
 
   # Consumer handlers
@@ -224,22 +235,26 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   def handle_call({:register_consumer, pid, service_id}, _from, state) do
     Process.monitor(pid)
     :ets.insert(state.consumers_table, {pid})
+
     PubSub.broadcast(
       Plugboard.PubSub,
       "service/#{service_id}",
       {:num_consumers, num_consumers(service_id)}
     )
+
     {:reply, :ok, state}
   end
 
   @doc false
   def handle_call({:unregister_consumer, pid, service_id}, _from, state) do
     :ets.delete(state.consumers_table, pid)
+
     PubSub.broadcast(
       Plugboard.PubSub,
       "service/#{service_id}",
       {:num_consumers, num_consumers(service_id)}
     )
+
     {:reply, :ok, state}
   end
 
@@ -247,22 +262,26 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   @doc false
   def handle_call({:register_actions, actions}, _from, state) do
     :ets.insert(state.actions_table, {"actions", actions})
+
     PubSub.broadcast(
       Plugboard.PubSub,
       "service/#{state.service_id}",
       {:actions, actions}
     )
+
     {:reply, :ok, state}
   end
 
   @doc false
   def handle_call({:unregister_actions}, _from, state) do
     :ets.delete(state.actions_table, "actions")
+
     PubSub.broadcast(
       Plugboard.PubSub,
       "service/#{state.service_id}",
       {:actions, %{}}
     )
+
     {:reply, :ok, state}
   end
 
@@ -284,11 +303,13 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{service_id: service_id} = state)
       when service_id != :request_registry do
     :ets.delete(state.consumers_table, pid)
+
     PubSub.broadcast(
       Plugboard.PubSub,
       "service/#{service_id}",
       {:num_consumers, num_consumers(service_id)}
     )
+
     {:noreply, state}
   end
 
@@ -300,9 +321,7 @@ defmodule Plugboard.Services.ServiceConsumerRegistry do
 
     # Find all entries older than the max age
     :ets.select_delete(state.requests_table, [
-      {{:_, :_, :"$1"},
-       [{:>, {:-, current_time, :"$1"}, @entity_max_age}],
-       [true]}
+      {{:_, :_, :"$1"}, [{:>, {:-, current_time, :"$1"}, @entity_max_age}], [true]}
     ])
 
     {:noreply, state}

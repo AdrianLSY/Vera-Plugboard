@@ -31,6 +31,7 @@ defmodule PlugboardWeb.Router do
 
   if Application.compile_env(:plugboard, :dev_routes) do
     import Phoenix.LiveDashboard.Router
+
     scope "/dev" do
       pipe_through :browser
       live_dashboard "/dashboard", metrics: PlugboardWeb.Telemetry
@@ -40,6 +41,7 @@ defmodule PlugboardWeb.Router do
 
   scope "/", PlugboardWeb do
     pipe_through [:browser, :redirect_if_account_is_authenticated]
+
     live_session :redirect_if_account_is_authenticated,
       on_mount: [{PlugboardWeb.Accounts.AccountAuth, :redirect_if_account_is_authenticated}] do
       live "/register", AccountLive.Registration, :new
@@ -47,11 +49,13 @@ defmodule PlugboardWeb.Router do
       live "/reset_password", AccountLive.ForgotPassword, :new
       live "/reset_password/:token", AccountLive.ResetPassword, :edit
     end
+
     post "/login", AccountSessionController, :create
   end
 
   scope "/", PlugboardWeb do
     pipe_through [:browser, :require_authenticated_account]
+
     live_session :require_authenticated_account,
       on_mount: [{PlugboardWeb.Accounts.AccountAuth, :ensure_authenticated}] do
       live "/settings", AccountLive.Settings, :edit

@@ -109,6 +109,7 @@ defmodule PlugboardWeb.CoreComponents do
 
   def flash(assigns) do
     assigns = assign_new(assigns, :id, fn -> "flash-#{assigns.kind}" end)
+
     ~H"""
     <div
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
@@ -124,20 +125,33 @@ defmodule PlugboardWeb.CoreComponents do
     >
       <p :if={@title} class="flex items-center gap-1.5 text-sm font-semibold leading-6">
         <.icon :if={@kind == :info} name="hero-information-circle-mini" class="h-4 w-4 text-blue-400" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle-mini" class="h-4 w-4 text-rose-400" />
+        <.icon
+          :if={@kind == :error}
+          name="hero-exclamation-circle-mini"
+          class="h-4 w-4 text-rose-400"
+        />
         {@title}
       </p>
       <p class={[
         "mt-2 text-sm leading-5",
         @kind == :info && "text-blue-700",
         @kind == :error && "text-rose-700"
-      ]}>{msg}</p>
+      ]}>
+        {msg}
+      </p>
       <button type="button" class="group absolute top-1 right-1 p-2" aria-label={gettext("close")}>
-        <.icon name="hero-x-mark-solid" class={[
-          "h-5 w-5 opacity-40 group-hover:opacity-70",
-          @kind == :info && "text-blue-400",
-          @kind == :error && "text-rose-400"
-        ] |> Enum.filter(& &1) |> Enum.join(" ")} />
+        <.icon
+          name="hero-x-mark-solid"
+          class={
+            [
+              "h-5 w-5 opacity-40 group-hover:opacity-70",
+              @kind == :info && "text-blue-400",
+              @kind == :error && "text-rose-400"
+            ]
+            |> Enum.filter(& &1)
+            |> Enum.join(" ")
+          }
+        />
       </button>
     </div>
     """
@@ -174,12 +188,18 @@ defmodule PlugboardWeb.CoreComponents do
       <div class="flex">
         <div class="flex-shrink-0">
           <.icon
-            name={@kind == :info && "hero-information-circle-mini" || "hero-exclamation-circle-mini"}
-            class={[
-              "h-5 w-5",
-              @kind == :info && "text-blue-400",
-              @kind == :error && "text-rose-400"
-            ] |> Enum.filter(& &1) |> Enum.join(" ")}
+            name={
+              (@kind == :info && "hero-information-circle-mini") || "hero-exclamation-circle-mini"
+            }
+            class={
+              [
+                "h-5 w-5",
+                @kind == :info && "text-blue-400",
+                @kind == :error && "text-rose-400"
+              ]
+              |> Enum.filter(& &1)
+              |> Enum.join(" ")
+            }
           />
         </div>
         <div class="ml-3 flex-1 md:flex md:justify-between">
@@ -189,14 +209,14 @@ defmodule PlugboardWeb.CoreComponents do
               @kind == :info && "text-blue-800",
               @kind == :error && "text-rose-800"
             ]}>
-              <%= @title %>
+              {@title}
             </h3>
             <div class={[
               "mt-2 text-sm",
               @kind == :info && "text-blue-700",
               @kind == :error && "text-rose-700"
             ]}>
-              <p><%= @message %></p>
+              <p>{@message}</p>
             </div>
             <%= if @code do %>
               <div class={[
@@ -208,7 +228,9 @@ defmodule PlugboardWeb.CoreComponents do
                   "text-sm break-all",
                   @kind == :info && "text-blue-800",
                   @kind == :error && "text-rose-800"
-                ]}><%= @code %></code>
+                ]}>
+                  {@code}
+                </code>
               </div>
             <% end %>
           </div>
@@ -222,8 +244,7 @@ defmodule PlugboardWeb.CoreComponents do
                   @kind == :error && "text-rose-700 hover:text-rose-600"
                 ]}
               >
-                Dismiss
-                <span aria-hidden="true"> &rarr;</span>
+                Dismiss <span aria-hidden="true"> &rarr;</span>
               </button>
             </div>
           <% end %>
@@ -537,7 +558,7 @@ defmodule PlugboardWeb.CoreComponents do
       "shadow-zinc-700/10 ring-zinc-700/10 relative rounded-xl bg-white p-14 shadow-lg ring-1",
       @class
     ]}>
-      <%= render_slot(@inner_block) %>
+      {render_slot(@inner_block)}
     </div>
     """
   end
@@ -603,10 +624,16 @@ defmodule PlugboardWeb.CoreComponents do
       <table class="w-[40rem] mt-11 sm:w-full">
         <thead class="text-sm text-left leading-6 text-zinc-700">
           <tr>
-            <th :for={{col, i} <- Enum.with_index(@col)} class={[
-              "p-0 pb-4 pr-6 font-bold",
-              i == 0 && "w-20" # Make ID header match column width
-            ]}>
+            <th
+              :for={{col, i} <- Enum.with_index(@col)}
+              class={
+                [
+                  "p-0 pb-4 pr-6 font-bold",
+                  # Make ID header match column width
+                  i == 0 && "w-20"
+                ]
+              }
+            >
               {col[:label]}
             </th>
             <th :if={@action != []} class="relative p-0 pb-4">
@@ -623,11 +650,14 @@ defmodule PlugboardWeb.CoreComponents do
             <td
               :for={{col, i} <- Enum.with_index(@col)}
               phx-click={@row_click && @row_click.(row)}
-              class={[
-                "relative p-0",
-                @row_click && "hover:cursor-pointer",
-                i == 0 && "w-20" # Make ID column narrower
-              ]}
+              class={
+                [
+                  "relative p-0",
+                  @row_click && "hover:cursor-pointer",
+                  # Make ID column narrower
+                  i == 0 && "w-20"
+                ]
+              }
             >
               <div class="block py-4 pr-6">
                 <span class="absolute -inset-y-px right-0 -left-4 group-hover:bg-zinc-50 sm:rounded-l-xl" />
@@ -658,15 +688,22 @@ defmodule PlugboardWeb.CoreComponents do
     ~H"""
     <div class="overflow-x-auto">
       <div class="min-w-[40rem] pr-4">
-        <div :for={{action_name, action_data} <- @actions} class="py-4 border-b border-zinc-100 last:border-b-0">
+        <div
+          :for={{action_name, action_data} <- @actions}
+          class="py-4 border-b border-zinc-100 last:border-b-0"
+        >
           <div class="pb-2">
             <div class="font-medium font-semibold text-zinc-900">
-              <%= action_name %>
+              {action_name}
             </div>
-            <p class="text-sm text-zinc-600"><%= raw(String.replace(action_data["description"], ~r/\n|\s/, fn
-              "\n" -> "<br>"
-              " " -> "&nbsp;"
-            end)) %></p>
+            <p class="text-sm text-zinc-600">
+              {raw(
+                String.replace(action_data["description"], ~r/\n|\s/, fn
+                  "\n" -> "<br>"
+                  " " -> "&nbsp;"
+                end)
+              )}
+            </p>
           </div>
 
           <%= for {field_name, field_data} <- action_data["fields"] do %>
@@ -683,16 +720,22 @@ defmodule PlugboardWeb.CoreComponents do
     <div class="pt-2 border-l-2 border-zinc-200 pl-8">
       <div class="pb-2">
         <div class="font-medium text-zinc-900">
-          <%= @field_name %>
+          {@field_name}
           <span class="text-sm text-zinc-600 whitespace-nowrap">
-            ( <%= @field_data["type"] %><%= if Map.has_key?(@field_data, "default") do %> ∙ default → <%= if @field_data["default"] == nil, do: "null", else: @field_data["default"] %> <% end %> )
+            ( {@field_data["type"]}
+            <%= if Map.has_key?(@field_data, "default") do %>
+              ∙ default → {if @field_data["default"] == nil, do: "null", else: @field_data["default"]}
+            <% end %>
+            )
           </span>
         </div>
         <div class="text-sm text-zinc-600">
-          <%= raw(String.replace(@field_data["description"], ~r/\n|\s/, fn
-            "\n" -> "<br>"
-            " " -> "&nbsp;"
-          end)) %>
+          {raw(
+            String.replace(@field_data["description"], ~r/\n|\s/, fn
+              "\n" -> "<br>"
+              " " -> "&nbsp;"
+            end)
+          )}
         </div>
       </div>
 

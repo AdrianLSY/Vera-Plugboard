@@ -16,7 +16,8 @@ defmodule Plugboard.Services.ServiceRequestProducer do
   Creates a unique name for the GenServer based on the service_id
   """
   def via_tuple(service_id) do
-    {:via, Registry, {Plugboard.Services.ServiceConsumerRegistry, {__MODULE__, to_string(service_id)}}}
+    {:via, Registry,
+     {Plugboard.Services.ServiceConsumerRegistry, {__MODULE__, to_string(service_id)}}}
   end
 
   @doc false
@@ -97,6 +98,7 @@ defmodule Plugboard.Services.ServiceRequestProducer do
         if current_time - timestamp > @entity_max_age do
           :ets.delete(table_name, timestamp)
         end
+
         nil
       end,
       nil,

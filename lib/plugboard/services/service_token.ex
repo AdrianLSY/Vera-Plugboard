@@ -5,7 +5,8 @@ defmodule Plugboard.Services.ServiceToken do
 
   @hash_algorithm :sha256
   @rand_size 32
-  @service_token_validity_in_days System.get_env("PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
+  @service_token_validity_in_days System.get_env("PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS")
+                                  |> String.to_integer()
   @derive {Jason.Encoder, only: [:id, :context, :service_id, :inserted_at]}
 
   schema "services_tokens" do
@@ -103,9 +104,11 @@ defmodule Plugboard.Services.ServiceToken do
   """
   def list_valid_api_tokens(service) do
     from(t in ServiceToken,
-      where: t.service_id == ^service.id and
-             t.context == "api-token" and
-             t.inserted_at > ago(@service_token_validity_in_days, "day"))
+      where:
+        t.service_id == ^service.id and
+          t.context == "api-token" and
+          t.inserted_at > ago(@service_token_validity_in_days, "day")
+    )
   end
 
   @doc """
@@ -123,9 +126,12 @@ defmodule Plugboard.Services.ServiceToken do
   This can be used to revoke all API access for a service.
   """
   def delete_all_tokens_for_service(service, context) do
-    query = from(t in ServiceToken,
-      where: t.service_id == ^service.id and
-        t.context == ^context)
+    query =
+      from(t in ServiceToken,
+        where:
+          t.service_id == ^service.id and
+            t.context == ^context
+      )
 
     Plugboard.Repo.delete_all(query)
   end

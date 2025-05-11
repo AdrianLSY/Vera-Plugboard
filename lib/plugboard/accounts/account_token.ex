@@ -5,10 +5,13 @@ defmodule Plugboard.Accounts.AccountToken do
 
   @hash_algorithm :sha256
   @rand_size 32
-  @account_token_validity_in_days System.get_env("PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS") |> String.to_integer()
-  @reset_password_validity_in_days System.get_env("PHX_RESET_PASSWORD_VALIDITY_IN_DAYS") |> String.to_integer()
+  @account_token_validity_in_days System.get_env("PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS")
+                                  |> String.to_integer()
+  @reset_password_validity_in_days System.get_env("PHX_RESET_PASSWORD_VALIDITY_IN_DAYS")
+                                   |> String.to_integer()
   @confirm_validity_in_days System.get_env("PHX_CONFIRM_VALIDITY_IN_DAYS") |> String.to_integer()
-  @change_email_validity_in_days System.get_env("PHX_CHANGE_EMAIL_VALIDITY_IN_DAYS") |> String.to_integer()
+  @change_email_validity_in_days System.get_env("PHX_CHANGE_EMAIL_VALIDITY_IN_DAYS")
+                                 |> String.to_integer()
   @session_validity_in_days System.get_env("PHX_SESSION_VALIDITY_IN_DAYS") |> String.to_integer()
   @derive {Jason.Encoder, only: [:context, :sent_to, :account_id, :inserted_at]}
 

@@ -38,10 +38,10 @@ defmodule PlugboardWeb.AccountLive.Login do
   def mount(_params, _session, socket) do
     email = Phoenix.Flash.get(socket.assigns.flash, :email)
     form = to_form(%{"email" => email, "remember_me" => true}, as: "account")
+
     {:ok,
-      socket
-      |> assign(:form, form)
-      |> assign(:page_title, "Plugboard | Log in"),
-      temporary_assigns: [form: form]}
+     socket
+     |> assign(:form, form)
+     |> assign(:page_title, "Plugboard | Log in"), temporary_assigns: [form: form]}
   end
 end

@@ -21,22 +21,13 @@
         <div class="flex items-center gap-4">
           <%= if @current_account do %>
             <span class="text-white text-sm">{@current_account.email}</span>
-            <.link
-              href={~p"/services"}
-              class="text-white text-sm font-medium hover:text-gray-300"
-            >
+            <.link href={~p"/services"} class="text-white text-sm font-medium hover:text-gray-300">
               Services
             </.link>
-            <.link
-              href={~p"/tokens"}
-              class="text-white text-sm font-medium hover:text-gray-300"
-            >
+            <.link href={~p"/tokens"} class="text-white text-sm font-medium hover:text-gray-300">
               Tokens
             </.link>
-            <.link
-              href={~p"/settings"}
-              class="text-white text-sm font-medium hover:text-gray-300"
-            >
+            <.link href={~p"/settings"} class="text-white text-sm font-medium hover:text-gray-300">
               Settings
             </.link>
             <.link
@@ -47,16 +38,10 @@
               Log out
             </.link>
           <% else %>
-            <.link
-              href={~p"/register"}
-              class="text-white text-sm font-medium hover:text-gray-300"
-            >
+            <.link href={~p"/register"} class="text-white text-sm font-medium hover:text-gray-300">
               Register
             </.link>
-            <.link
-              href={~p"/login"}
-              class="text-white text-sm font-medium hover:text-gray-300"
-            >
+            <.link href={~p"/login"} class="text-white text-sm font-medium hover:text-gray-300">
               Log in
             </.link>
           <% end %>
