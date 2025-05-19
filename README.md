@@ -40,6 +40,8 @@ PHX_RESET_PASSWORD_VALIDITY_IN_DAYS=1
 PHX_CONFIRM_VALIDITY_IN_DAYS=1
 PHX_CHANGE_EMAIL_VALIDITY_IN_DAYS=1
 PHX_SESSION_VALIDITY_IN_DAYS=1
+PHX_ADMIN_EMAIL=admin@localhost
+PHX_ADMIN_PASSWORD=admin@localhost
 ```
 This will serve as a starting point for your own environment variables. Feel free to change the values to suit your needs.
 

@@ -16,8 +16,8 @@ defmodule PlugboardWeb.ServiceLiveTest do
     # Create admin user directly
     {:ok, admin} =
       Accounts.register_account(%{
-        email: "admin@example.com",
-        password: "admin@example.com",
+        email: "admin@localhost",
+        password: "admin@localhost",
         role: :admin
       })
 
