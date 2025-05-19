@@ -2,6 +2,7 @@ defmodule PlugboardWeb.ServiceLiveTest do
   use PlugboardWeb.ConnCase
 
   alias Plugboard.Services.Services
+  alias Plugboard.Accounts.Accounts
 
   import Phoenix.LiveViewTest
   import Plugboard.ServicesFixtures
@@ -11,15 +12,35 @@ defmodule PlugboardWeb.ServiceLiveTest do
   @invalid_attrs %{name: nil}
   @create_child_attrs %{name: "child service"}
 
-  defp create_service(_) do
-    service = service_fixture()
-    %{service: service}
+  setup %{conn: conn} do
+    # Create admin user directly
+    {:ok, admin} =
+      Accounts.register_account(%{
+        email: "admin@example.com",
+        password: "admin@example.com",
+        role: :admin
+      })
+
+    # Log in the admin user
+    token = Accounts.generate_account_session_token(admin)
+
+    conn =
+      conn
+      |> Phoenix.ConnTest.init_test_session(%{})
+      |> Plug.Conn.put_session(:account_token, token)
+
+    %{conn: conn, admin: admin}
   end
 
-  defp create_service_with_child(_) do
+  defp create_service(%{conn: conn}) do
+    service = service_fixture()
+    %{conn: conn, service: service}
+  end
+
+  defp create_service_with_child(%{conn: conn}) do
     parent = service_fixture()
     child = service_fixture(%{parent_id: parent.id})
-    %{parent: parent, child: child}
+    %{conn: conn, parent: parent, child: child}
   end
 
   describe "Index" do

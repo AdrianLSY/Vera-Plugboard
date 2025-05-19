@@ -50,6 +50,19 @@ defmodule PlugboardWeb.ConnCase do
   end
 
   @doc """
+  Setup helper that registers and logs in an admin account.
+
+      setup :register_and_login_admin
+
+  It stores an updated connection and a registered admin account in the
+  test context.
+  """
+  def register_and_login_admin(%{conn: conn}) do
+    admin = Plugboard.AccountsFixtures.account_fixture(%{role: :admin})
+    %{conn: login_account(conn, admin), admin: admin}
+  end
+
+  @doc """
   Logs the given `account` into the `conn`.
 
   It returns an updated `conn`.
