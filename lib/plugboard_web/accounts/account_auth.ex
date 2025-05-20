@@ -175,23 +175,31 @@ defmodule PlugboardWeb.Accounts.AccountAuth do
       {:halt, socket}
     end
   end
-  
+
   def on_mount(:ensure_admin, _params, session, socket) do
     socket = mount_current_account(socket, session)
 
     case socket.assigns.current_account do
-      %{role: :admin} -> {:cont, socket}
-      %{} -> 
+      %{role: :admin} ->
+        {:cont, socket}
+
+      %{} ->
         socket =
           socket
-          |> Phoenix.LiveView.put_flash(:error, "You must be an administrator to access this page.")
+          |> Phoenix.LiveView.put_flash(
+            :error,
+            "You must be an administrator to access this page."
+          )
           |> Phoenix.LiveView.redirect(to: ~p"/")
+
         {:halt, socket}
+
       nil ->
         socket =
           socket
           |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
           |> Phoenix.LiveView.redirect(to: ~p"/login")
+
         {:halt, socket}
     end
   end
@@ -251,13 +259,15 @@ defmodule PlugboardWeb.Accounts.AccountAuth do
   """
   def require_admin_account(conn, opts) do
     conn = require_authenticated_account(conn, opts)
-    
+
     if conn.halted do
       conn
     else
       case conn.assigns.current_account do
-        %{role: :admin} -> conn
-        _ -> 
+        %{role: :admin} ->
+          conn
+
+        _ ->
           conn
           |> put_flash(:error, "You must be an administrator to access this page.")
           |> redirect(to: ~p"/")
