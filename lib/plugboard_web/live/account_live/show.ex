@@ -1,19 +1,20 @@
-defmodule PlugboardWeb.AccountLive.ApiTokens do
+defmodule PlugboardWeb.AccountLive.Show do
   use PlugboardWeb, :live_view
   alias Phoenix.PubSub
   alias Plugboard.Accounts.Accounts
   alias Plugboard.Accounts.AccountToken
 
-  def mount(_params, _session, socket) do
-    account = socket.assigns.current_account
+  def mount(%{"id" => id}, _session, socket) do
+    account = Accounts.get_account!(id)
     tokens = list_account_tokens(account)
     if connected?(socket), do: PubSub.subscribe(Plugboard.PubSub, "accounts/#{account.id}/tokens")
 
     {:ok,
      socket
+     |> assign(:account, account)
      |> stream(:tokens, tokens)
      |> assign(:new_token, nil)
-     |> assign(:page_title, page_title(socket.assigns.live_action))}
+     |> assign(:page_title, "Account - #{account.email}")}
   end
 
   defp list_account_tokens(account) do
@@ -22,7 +23,7 @@ defmodule PlugboardWeb.AccountLive.ApiTokens do
   end
 
   def handle_info({:token_created, token}, socket) do
-    tokens = list_account_tokens(socket.assigns.current_account)
+    tokens = list_account_tokens(socket.assigns.account)
 
     {:noreply,
      socket
@@ -39,12 +40,12 @@ defmodule PlugboardWeb.AccountLive.ApiTokens do
   end
 
   def handle_event("create_token", _params, socket) do
-    account = socket.assigns.current_account
+    account = socket.assigns.account
     token = Accounts.create_account_api_token(account)
 
     PubSub.broadcast(
       Plugboard.PubSub,
-      "accounts/#{socket.assigns.current_account.id}/tokens",
+      "accounts/#{account.id}/tokens",
       {:token_created, token}
     )
 
@@ -58,7 +59,7 @@ defmodule PlugboardWeb.AccountLive.ApiTokens do
 
     PubSub.broadcast(
       Plugboard.PubSub,
-      "accounts/#{socket.assigns.current_account.id}/tokens",
+      "accounts/#{socket.assigns.account.id}/tokens",
       {:token_deleted, token}
     )
 
@@ -69,5 +70,19 @@ defmodule PlugboardWeb.AccountLive.ApiTokens do
     {:noreply, assign(socket, :new_token, nil)}
   end
 
-  defp page_title(:index), do: "Plugboard | Account API Tokens"
+  def handle_event("delete_account", _params, socket) do
+    case Accounts.delete_account(socket.assigns.account) do
+      {:ok, _account} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Account deleted successfully")
+         |> push_navigate(to: ~p"/accounts")}
+
+      {:error, _changeset} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to delete account")
+         |> push_navigate(to: ~p"/accounts")}
+    end
+  end
 end

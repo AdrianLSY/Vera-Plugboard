@@ -3,6 +3,10 @@ defmodule PlugboardWeb.Router do
 
   import PlugboardWeb.Accounts.AccountAuth
 
+  pipeline :admin_or_own_account do
+    plug :require_admin_or_own_account
+  end
+
   @doc """
   Pipelines:
   - :browser - basic browser functionality
@@ -69,7 +73,6 @@ defmodule PlugboardWeb.Router do
       on_mount: [{PlugboardWeb.Accounts.AccountAuth, :ensure_authenticated}] do
       live "/settings", AccountLive.Settings, :edit
       live "/settings/confirm_email/:token", AccountLive.Settings, :confirm_email
-      live "/tokens", AccountLive.ApiTokens, :index
     end
   end
 
@@ -98,6 +101,19 @@ defmodule PlugboardWeb.Router do
       live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
       live "/services/:id/delete", ServiceLive.Show, :delete
       live "/services/:id/tokens/new", ServiceLive.Show, :new_token
+
+      live "/accounts", AccountLive.Index, :index
+      live "/accounts/new", AccountLive.Index, :new
+      live "/accounts/:id/edit", AccountLive.Index, :edit
+    end
+  end
+
+  scope "/", PlugboardWeb do
+    pipe_through [:browser, :admin_or_own_account]
+
+    live_session :require_admin_or_own_account,
+      on_mount: [{PlugboardWeb.Accounts.AccountAuth, :ensure_admin_or_own_account}] do
+      live "/accounts/:id", AccountLive.Show, :show
     end
   end
 end

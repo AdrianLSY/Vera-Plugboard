@@ -10,6 +10,54 @@ defmodule Plugboard.Accounts.Accounts do
   @account_token_validity_in_days System.get_env("PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS")
                                   |> String.to_integer()
 
+  ## Admin Management
+
+  @doc """
+  Returns the list of all accounts.
+
+  ## Examples
+
+      iex> list_accounts()
+      [%Account{}, ...]
+
+  """
+  def list_accounts do
+    Repo.all(Account)
+  end
+
+  @doc """
+  Updates an account via admin.
+
+  This function is for admin use only and doesn't require 
+  the current password.
+  """
+  def update_account_admin(%Account{} = account, attrs) do
+    changeset =
+      account
+      |> Account.registration_changeset(attrs, hash_password: false)
+
+    Ecto.Multi.new()
+    |> Ecto.Multi.update(:account, changeset)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{account: account}} -> {:ok, account}
+      {:error, :account, changeset, _} -> {:error, changeset}
+    end
+  end
+
+  @doc """
+  Deletes an account.
+
+  ## Examples
+
+      iex> delete_account(account)
+      {:ok, %Account{}}
+
+  """
+  def delete_account(%Account{} = account) do
+    Repo.delete(account)
+  end
+
   ## Database getters
 
   @doc """
