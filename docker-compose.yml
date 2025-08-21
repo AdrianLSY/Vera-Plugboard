@@ -32,7 +32,7 @@ services:
     ports:
       - "${PHX_PORT}:${PHX_PORT}"
     environment:
-      PHX_SERVER: true
+      PHX_SERVER: "true"
       PHX_HOST: ${PHX_HOST}
       PHX_PORT: ${PHX_PORT}
       PHX_POOL_SIZE: ${PHX_POOL_SIZE}
