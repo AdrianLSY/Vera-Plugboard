@@ -5,6 +5,7 @@ defmodule Plugboard.Accounts.Account do
   schema "accounts" do
     field :email, :string
     field :role, Ecto.Enum, values: [:user, :admin], default: :user
+    field :service_regex, :string, default: "^$"
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :current_password, :string, virtual: true, redact: true
@@ -38,9 +39,10 @@ defmodule Plugboard.Accounts.Account do
   """
   def registration_changeset(account, attrs, opts \\ []) do
     account
-    |> cast(attrs, [:email, :password])
+    |> cast(attrs, [:email, :password, :role, :service_regex])
     |> validate_email(opts)
     |> validate_password(opts)
+    |> validate_service_regex()
   end
 
   defp validate_email(changeset, opts) do
@@ -60,6 +62,19 @@ defmodule Plugboard.Accounts.Account do
     # |> validate_format(:password, ~r/[A-Z]/, message: "at least one upper case character")
     # |> validate_format(:password, ~r/[!?@#$%^&*_0-9]/, message: "at least one digit or punctuation character")
     |> maybe_hash_password(opts)
+  end
+
+  defp validate_service_regex(changeset) do
+    case get_change(changeset, :service_regex) do
+      nil ->
+        changeset
+
+      regex ->
+        case Regex.compile(regex) do
+          {:ok, _} -> changeset
+          {:error, _} -> add_error(changeset, :service_regex, "is not a valid regular expression")
+        end
+    end
   end
 
   defp maybe_hash_password(changeset, opts) do

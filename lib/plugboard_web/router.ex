@@ -3,6 +3,19 @@ defmodule PlugboardWeb.Router do
 
   import PlugboardWeb.Accounts.AccountAuth
 
+  pipeline :admin_or_own_account do
+    plug :require_admin_or_own_account
+  end
+
+  @doc """
+  Pipelines:
+  - :browser - basic browser functionality
+  - :api - API functionality
+  - :redirect_if_account_is_authenticated - redirects if user is already logged in
+  - :require_authenticated_account - ensures user is logged in
+  - :require_admin_account - ensures user is logged in AND has admin role
+  """
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -60,7 +73,6 @@ defmodule PlugboardWeb.Router do
       on_mount: [{PlugboardWeb.Accounts.AccountAuth, :ensure_authenticated}] do
       live "/settings", AccountLive.Settings, :edit
       live "/settings/confirm_email/:token", AccountLive.Settings, :confirm_email
-      live "/tokens", AccountLive.ApiTokens, :index
     end
   end
 
@@ -77,14 +89,31 @@ defmodule PlugboardWeb.Router do
   end
 
   scope "/", PlugboardWeb do
-    pipe_through [:browser]
-    live "/services", ServiceLive.Index, :index
-    live "/services/new", ServiceLive.Index, :new
-    live "/services/:id/edit", ServiceLive.Index, :edit
-    live "/services/:id", ServiceLive.Show, :show
-    live "/services/:id/new", ServiceLive.Show, :new
-    live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
-    live "/services/:id/delete", ServiceLive.Show, :delete
-    live "/services/:id/tokens/new", ServiceLive.Show, :new_token
+    pipe_through [:browser, :require_admin_account]
+
+    live_session :require_admin_account,
+      on_mount: [{PlugboardWeb.Accounts.AccountAuth, :ensure_admin}] do
+      live "/services", ServiceLive.Index, :index
+      live "/services/new", ServiceLive.Index, :new
+      live "/services/:id/edit", ServiceLive.Index, :edit
+      live "/services/:id", ServiceLive.Show, :show
+      live "/services/:id/new", ServiceLive.Show, :new
+      live "/services/:id/edit/:child_id", ServiceLive.Show, :edit
+      live "/services/:id/delete", ServiceLive.Show, :delete
+      live "/services/:id/tokens/new", ServiceLive.Show, :new_token
+
+      live "/accounts", AccountLive.Index, :index
+      live "/accounts/new", AccountLive.Index, :new
+      live "/accounts/:id/edit", AccountLive.Index, :edit
+    end
+  end
+
+  scope "/", PlugboardWeb do
+    pipe_through [:browser, :admin_or_own_account]
+
+    live_session :require_admin_or_own_account,
+      on_mount: [{PlugboardWeb.Accounts.AccountAuth, :ensure_admin_or_own_account}] do
+      live "/accounts/:id", AccountLive.Show, :show
+    end
   end
 end

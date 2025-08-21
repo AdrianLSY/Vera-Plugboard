@@ -5,10 +5,59 @@ defmodule Plugboard.Accounts.Accounts do
   import Ecto.Query, warn: false
   alias Phoenix.PubSub
   alias Plugboard.Repo
+  alias Plugboard.Services.Service
   alias Plugboard.Accounts.{Account, AccountToken, AccountNotifier}
 
   @account_token_validity_in_days System.get_env("PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS")
                                   |> String.to_integer()
+
+  ## Admin Management
+
+  @doc """
+  Returns the list of all accounts.
+
+  ## Examples
+
+      iex> list_accounts()
+      [%Account{}, ...]
+
+  """
+  def list_accounts do
+    Repo.all(Account)
+  end
+
+  @doc """
+  Updates an account via admin.
+
+  This function is for admin use only and doesn't require
+  the current password.
+  """
+  def update_account_admin(%Account{} = account, attrs) do
+    changeset =
+      account
+      |> Account.registration_changeset(attrs, hash_password: false)
+
+    Ecto.Multi.new()
+    |> Ecto.Multi.update(:account, changeset)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{account: account}} -> {:ok, account}
+      {:error, :account, changeset, _} -> {:error, changeset}
+    end
+  end
+
+  @doc """
+  Deletes an account.
+
+  ## Examples
+
+      iex> delete_account(account)
+      {:ok, %Account{}}
+
+  """
+  def delete_account(%Account{} = account) do
+    Repo.delete(account)
+  end
 
   ## Database getters
 
@@ -413,4 +462,85 @@ defmodule Plugboard.Accounts.Accounts do
       _ -> :error
     end
   end
+
+  @doc """
+  Checks if an account is authorized to access a service based on the account's service_regex.
+
+  The service path is constructed by joining the service names from root to target service
+  with forward slashes, then matched against the account's service_regex pattern.
+
+  ## Examples
+
+      iex> is_authorized_for_service(account, service_id)
+      true
+
+      iex> is_authorized_for_service(account, unauthorized_service_id)
+      false
+
+  """
+
+  @doc """
+  Checks if an admin account is authorized to access any service.
+
+  Admin accounts have unrestricted access to all services and bypass
+  all authorization checks for performance and security simplicity.
+
+  ## Parameters
+
+    * `account` - An Account struct with role set to :admin
+    * `service_id` - The service ID (ignored for admin accounts)
+
+  ## Examples
+
+      iex> admin_account = %Account{role: :admin}
+      iex> is_authorized_for_service(admin_account, any_service_id)
+      true
+
+  """
+  def is_authorized_for_service(%Account{role: :admin}, _service_id) do
+    true
+  end
+
+  @doc """
+  Checks if a non-admin account is authorized to access a service based on the account's service_regex.
+
+  The service path is constructed by joining the service names from root to target service
+  with forward slashes, then matched against the account's service_regex pattern.
+
+  ## Parameters
+
+    * `account` - An Account struct (non-admin role)
+    * `service_id` - The ID of the service to check authorization for
+
+  ## Examples
+
+      iex> user_account = %Account{role: :user, service_regex: "^api/.*"}
+      iex> is_authorized_for_service(user_account, service_id)
+      true
+
+      iex> user_account = %Account{role: :user, service_regex: "^web/.*"}
+      iex> is_authorized_for_service(user_account, api_service_id)
+      false
+
+  """
+  def is_authorized_for_service(%Account{} = account, service_id) do
+    case Repo.get(Service, service_id) do
+      nil ->
+        false
+
+      service ->
+        service_path =
+          service
+          |> Service.full_path()
+          |> Enum.map(& &1.name)
+          |> Enum.join("/")
+
+        case Regex.compile(account.service_regex) do
+          {:ok, regex} -> Regex.match?(regex, service_path)
+          {:error, _} -> false
+        end
+    end
+  end
+
+  def is_authorized_for_service(_, _), do: false
 end

@@ -1,0 +1,91 @@
+<.content>
+  <.header>
+    <div class="flex flex-col gap-1">
+      <div class="text-lg font-semibold text-zinc-900">
+        <.link navigate={~p"/accounts"} class="hover:text-zinc-700">Accounts</.link>
+      </div>
+    </div>
+    <:actions>
+      <.link patch={~p"/accounts/new"}>
+        <.button>Create Account</.button>
+      </.link>
+    </:actions>
+  </.header>
+
+  <%= if length(@streams.accounts.inserts) == 0 do %>
+    <.flash_entry
+      kind={:info}
+      title="No accounts yet!"
+      message="Create a new account to get started."
+    />
+  <% end %>
+
+  <.table
+    id="accounts"
+    rows={@streams.accounts}
+    row_click={fn {_id, account} -> JS.navigate(~p"/accounts/#{account}") end}
+  >
+    <:col :let={{_id, account}} label="ID">
+      {account.id}
+    </:col>
+    <:col :let={{_id, account}} label="Email">
+      {account.email}
+    </:col>
+    <:col :let={{_id, account}} label="Role">
+      {account.role}
+    </:col>
+    <:col :let={{_id, account}} label="Service Regex">
+      <code>{account.service_regex}</code>
+    </:col>
+    <:col :let={{_id, account}} label="Confirmed">
+      <%= if account.confirmed_at do %>
+        <span class="text-green-600">Yes</span>
+      <% else %>
+        <span class="text-red-600">No</span>
+      <% end %>
+    </:col>
+    <:action :let={{_id, account}}>
+      <.link patch={~p"/accounts/#{account}/edit"}>Edit</.link>
+    </:action>
+    <:action :let={{id, account}}>
+      <.link
+        phx-click={JS.push("delete", value: %{id: account.id}) |> hide("##{id}")}
+        data-confirm="Are you sure?"
+      >
+        Delete
+      </.link>
+    </:action>
+  </.table>
+</.content>
+
+<.modal
+  :if={@live_action in [:new, :edit]}
+  id="account-modal"
+  show
+  on_cancel={JS.navigate(~p"/accounts")}
+>
+  <div class="mx-auto max-w-lg">
+    <.header>{@page_title}</.header>
+
+    <.simple_form for={@form} id="account-form" phx-change="validate" phx-submit="save">
+      <.input field={@form[:email]} type="email" label="Email" required />
+
+      <.input
+        field={@form[:role]}
+        type="select"
+        label="Role"
+        options={[{"User", :user}, {"Admin", :admin}]}
+      />
+
+      <.input field={@form[:service_regex]} type="text" label="Service Regex" />
+
+      <%= if @live_action == :new do %>
+        <.input field={@form[:password]} type="password" label="Password" required />
+      <% end %>
+
+      <:actions>
+        <.button phx-disable-with="Saving..." class="w-full">Save Account</.button>
+      </:actions>
+    </.simple_form>
+  </div>
+</.modal>

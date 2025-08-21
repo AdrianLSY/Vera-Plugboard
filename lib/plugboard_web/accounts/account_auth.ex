@@ -176,6 +176,66 @@ defmodule PlugboardWeb.Accounts.AccountAuth do
     end
   end
 
+  def on_mount(:ensure_admin, _params, session, socket) do
+    socket = mount_current_account(socket, session)
+
+    case socket.assigns.current_account do
+      %{role: :admin} ->
+        {:cont, socket}
+
+      %{} ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(
+            :error,
+            "You don't have permission to access this page."
+          )
+          |> Phoenix.LiveView.redirect(to: ~p"/")
+
+        {:halt, socket}
+
+      nil ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
+          |> Phoenix.LiveView.redirect(to: ~p"/login")
+
+        {:halt, socket}
+    end
+  end
+
+  def on_mount(:ensure_admin_or_own_account, %{"id" => account_id}, session, socket) do
+    socket = mount_current_account(socket, session)
+
+    case socket.assigns.current_account do
+      %{role: :admin} ->
+        {:cont, socket}
+
+      %{id: current_id} ->
+        if to_string(current_id) == account_id do
+          {:cont, socket}
+        else
+          socket =
+            socket
+            |> Phoenix.LiveView.put_flash(
+              :error,
+              "You don't have permission to access this page"
+            )
+            |> Phoenix.LiveView.redirect(to: ~p"/")
+
+          {:halt, socket}
+        end
+
+      nil ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
+          |> Phoenix.LiveView.redirect(to: ~p"/login")
+
+        {:halt, socket}
+    end
+  end
+
   def on_mount(:redirect_if_account_is_authenticated, _params, session, socket) do
     socket = mount_current_account(socket, session)
 
@@ -222,6 +282,64 @@ defmodule PlugboardWeb.Accounts.AccountAuth do
       |> maybe_store_return_to()
       |> redirect(to: ~p"/login")
       |> halt()
+    end
+  end
+
+  @doc """
+  Used for routes that require the account to have admin role.
+  First ensures the user is authenticated, then checks for admin role.
+  """
+  def require_admin_account(conn, opts) do
+    conn = require_authenticated_account(conn, opts)
+
+    if conn.halted do
+      conn
+    else
+      case conn.assigns.current_account do
+        %{role: :admin} ->
+          conn
+
+        _ ->
+          conn
+          |> put_flash(:error, "You don't have permission to access this page.")
+          |> redirect(to: ~p"/")
+          |> halt()
+      end
+    end
+  end
+
+  @doc """
+  Used for routes that require either admin role or the account to match the current user.
+  First ensures the user is authenticated, then checks for admin role or account ownership.
+  """
+  def require_admin_or_own_account(conn, opts) do
+    conn = require_authenticated_account(conn, opts)
+
+    if conn.halted do
+      conn
+    else
+      account_id = conn.path_params["id"]
+
+      case conn.assigns.current_account do
+        %{role: :admin} ->
+          conn
+
+        %{id: current_id} ->
+          if to_string(current_id) == account_id do
+            conn
+          else
+            conn
+            |> put_flash(:error, "You don't have permission to access this page")
+            |> redirect(to: ~p"/")
+            |> halt()
+          end
+
+        _ ->
+          conn
+          |> put_flash(:error, "You don't have permission to access this page")
+          |> redirect(to: ~p"/")
+          |> halt()
+      end
     end
   end
 

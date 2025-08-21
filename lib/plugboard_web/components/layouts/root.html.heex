@@ -20,13 +20,26 @@
         </div>
         <div class="flex items-center gap-4">
           <%= if @current_account do %>
-            <span class="text-white text-sm">{@current_account.email}</span>
-            <.link href={~p"/services"} class="text-white text-sm font-medium hover:text-gray-300">
-              Services
+            <.link
+              href={~p"/accounts/#{@current_account.id}"}
+              class="text-white text-sm hover:text-gray-300"
+            >
+              {@current_account.email}
             </.link>
-            <.link href={~p"/tokens"} class="text-white text-sm font-medium hover:text-gray-300">
-              Tokens
-            </.link>
+            <%= if @current_account.role == :admin do %>
+              <.link
+                href={~p"/accounts"}
+                class="text-white text-sm font-medium hover:text-gray-300"
+              >
+                Accounts
+              </.link>
+              <.link
+                href={~p"/services"}
+                class="text-white text-sm font-medium hover:text-gray-300"
+              >
+                Services
+              </.link>
+            <% end %>
             <.link href={~p"/settings"} class="text-white text-sm font-medium hover:text-gray-300">
               Settings
             </.link>
