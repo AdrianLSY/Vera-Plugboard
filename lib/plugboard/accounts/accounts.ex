@@ -5,6 +5,7 @@ defmodule Plugboard.Accounts.Accounts do
   import Ecto.Query, warn: false
   alias Phoenix.PubSub
   alias Plugboard.Repo
+  alias Plugboard.Services.Service
   alias Plugboard.Accounts.{Account, AccountToken, AccountNotifier}
 
   @account_token_validity_in_days System.get_env("PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS")
@@ -28,7 +29,7 @@ defmodule Plugboard.Accounts.Accounts do
   @doc """
   Updates an account via admin.
 
-  This function is for admin use only and doesn't require 
+  This function is for admin use only and doesn't require
   the current password.
   """
   def update_account_admin(%Account{} = account, attrs) do
@@ -461,4 +462,40 @@ defmodule Plugboard.Accounts.Accounts do
       _ -> :error
     end
   end
+
+  @doc """
+  Checks if an account is authorized to access a service based on the account's service_regex.
+
+  The service path is constructed by joining the service names from root to target service
+  with forward slashes, then matched against the account's service_regex pattern.
+
+  ## Examples
+
+      iex> is_authorized_for_service(account, service_id)
+      true
+
+      iex> is_authorized_for_service(account, unauthorized_service_id)
+      false
+
+  """
+  def is_authorized_for_service(%Account{} = account, service_id) do
+    case Repo.get(Service, service_id) do
+      nil ->
+        false
+
+      service ->
+        service_path =
+          service
+          |> Service.full_path()
+          |> Enum.map(& &1.name)
+          |> Enum.join("/")
+
+        case Regex.compile(account.service_regex) do
+          {:ok, regex} -> Regex.match?(regex, service_path)
+          {:error, _} -> false
+        end
+    end
+  end
+
+  def is_authorized_for_service(_, _), do: false
 end

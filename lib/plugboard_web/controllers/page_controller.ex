@@ -15,7 +15,8 @@ defmodule PlugboardWeb.PageController do
   end
 
   def request(conn, %{"service_id" => service_id, "action" => action, "fields" => fields}) do
-    with {:ok, _account} <- AccountAuth.fetch_api_account(conn, nil),
+    with {:ok, account} <- AccountAuth.fetch_api_account(conn, nil),
+         true <- Accounts.is_authorized_for_service(account, service_id),
          {:ok, _msg} <- enqueue_service_request(service_id, action, fields) do
       handle_service_response(conn, service_id)
     else
@@ -23,6 +24,11 @@ defmodule PlugboardWeb.PageController do
         conn
         |> put_status(:unauthorized)
         |> json(%{status: "error", message: reason})
+
+      false ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{status: "error", message: "Insufficient permissions for this service"})
 
       {:error, :unprocessable_entity, error_msg} ->
         conn
