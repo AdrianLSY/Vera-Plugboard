@@ -1,12 +1,12 @@
-defmodule VeraWeb do
+defmodule PlugboardWeb do
   @moduledoc """
   The entrypoint for defining your web interface, such
   as controllers, components, channels, and so on.
 
   This can be used in your application as:
 
-      use VeraWeb, :controller
-      use VeraWeb, :html
+      use PlugboardWeb, :controller
+      use PlugboardWeb, :html
 
   The definitions below will be executed for every controller,
   component, etc, so keep them short and clean, focused
@@ -40,9 +40,9 @@ defmodule VeraWeb do
     quote do
       use Phoenix.Controller,
         formats: [:html, :json],
-        layouts: [html: VeraWeb.Layouts]
+        layouts: [html: PlugboardWeb.Layouts]
 
-      use Gettext, backend: VeraWeb.Gettext
+      use Gettext, backend: PlugboardWeb.Gettext
 
       import Plug.Conn
 
@@ -53,7 +53,7 @@ defmodule VeraWeb do
   def live_view do
     quote do
       use Phoenix.LiveView,
-        layout: {VeraWeb.Layouts, :app}
+        layout: {PlugboardWeb.Layouts, :app}
 
       unquote(html_helpers())
     end
@@ -83,12 +83,12 @@ defmodule VeraWeb do
   defp html_helpers do
     quote do
       # Translation
-      use Gettext, backend: VeraWeb.Gettext
+      use Gettext, backend: PlugboardWeb.Gettext
 
       # HTML escaping functionality
       import Phoenix.HTML
       # Core UI components
-      import VeraWeb.CoreComponents
+      import PlugboardWeb.CoreComponents
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
@@ -101,9 +101,9 @@ defmodule VeraWeb do
   def verified_routes do
     quote do
       use Phoenix.VerifiedRoutes,
-        endpoint: VeraWeb.Endpoint,
-        router: VeraWeb.Router,
-        statics: VeraWeb.static_paths()
+        endpoint: PlugboardWeb.Endpoint,
+        router: PlugboardWeb.Router,
+        statics: PlugboardWeb.static_paths()
     end
   end
 

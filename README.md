@@ -32,12 +32,22 @@ PHX_POSTGRES_USERNAME=vera
 PHX_POSTGRES_PASSWORD=vera
 PHX_POSTGRES_DATABASE=vera
 PHX_POSTGRES_PORT=5432
+PHX_GENSTAGE_ENTITY_MAX_AGE=30000
+PHX_GENSTAGE_CLEANUP_INTERVAL=1000
+PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS=90
+PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS=90
+PHX_RESET_PASSWORD_VALIDITY_IN_DAYS=1
+PHX_CONFIRM_VALIDITY_IN_DAYS=1
+PHX_CHANGE_EMAIL_VALIDITY_IN_DAYS=1
+PHX_SESSION_VALIDITY_IN_DAYS=1
+PHX_ADMIN_EMAIL=admin@localhost
+PHX_ADMIN_PASSWORD=admin@localhost
 ```
 This will serve as a starting point for your own environment variables. Feel free to change the values to suit your needs.
 
 ## Running the server
 
-You will need to install elixir before you can run the server. Please follow the instructions on the official elixir 
+You will need to install elixir before you can run the server. Please follow the instructions on the official elixir
 website to install:
 
 * https://elixir-lang.org/install.html
@@ -54,13 +64,13 @@ mix setup
 Next, You will need to set up the postgres database. There is already a docker-compose file in the root of the project with the postgres database already configured. You can use this to run the postgres database. Alternatively, you can point to your own postgres database by setting the environment variables:
 
 ```bash
-docker compose up -d --build 'postgres' 
+docker compose up -d --build 'postgres'
 ```
 
 Once the postgres database container is running, you will need to create the necessary database. You can do this by running the following command:
 
 ```bash
-mix ecto.drop && mix ecto.create  
+mix ecto.drop && mix ecto.create
 ```
 
 Make sure to run any pending migrations:

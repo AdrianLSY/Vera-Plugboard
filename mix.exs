@@ -1,9 +1,9 @@
-defmodule Vera.MixProject do
+defmodule Plugboard.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :vera,
+      app: :plugboard,
       version: "0.1.0",
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -18,7 +18,7 @@ defmodule Vera.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Vera.Application, []},
+      mod: {Plugboard.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -58,7 +58,9 @@ defmodule Vera.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
-      {:gen_stage, "~> 1.2.1"}
+      {:gen_stage, "~> 1.2.1"},
+      {:uuid, "~> 1.1.8"},
+      {:argon2_elixir, "~> 4.1.2"}
     ]
   end
 
@@ -75,10 +77,10 @@ defmodule Vera.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["tailwind vera", "esbuild vera"],
+      "assets.build": ["tailwind plugboard", "esbuild plugboard"],
       "assets.deploy": [
-        "tailwind vera --minify",
-        "esbuild vera --minify",
+        "tailwind plugboard --minify",
+        "esbuild plugboard --minify",
         "phx.digest"
       ]
     ]

@@ -1,0 +1,79 @@
+defmodule PlugboardWeb.ServiceLive.FormComponent do
+  use PlugboardWeb, :live_component
+
+  alias Plugboard.Services.Services
+
+  def render(assigns) do
+    ~H"""
+    <div>
+      <.header>
+        {@title}
+      </.header>
+
+      <.simple_form
+        for={@form}
+        id="service-form"
+        phx-target={@myself}
+        phx-change="validate"
+        phx-submit="save"
+      >
+        <.input field={@form[:name]} type="text" label="Name" />
+        <input type="hidden" name="service[parent_id]" value={@form[:parent_id].value} />
+        <:actions>
+          <.button phx-disable-with="Saving...">Save Service</.button>
+        </:actions>
+      </.simple_form>
+    </div>
+    """
+  end
+
+  def update(%{service: service} = assigns, socket) do
+    {:ok,
+     socket
+     |> assign(assigns)
+     |> assign_new(:form, fn ->
+       to_form(Services.change_service(service))
+     end)}
+  end
+
+  defp save_service(socket, :edit, service_params) do
+    case Services.update_service(socket.assigns.service, service_params) do
+      {:ok, service} ->
+        notify_parent({:saved, service})
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Service updated successfully")
+         |> push_patch(to: socket.assigns.patch)}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, assign(socket, form: to_form(changeset))}
+    end
+  end
+
+  defp save_service(socket, :new, service_params) do
+    case Services.create_service(service_params) do
+      {:ok, service} ->
+        notify_parent({:saved, service})
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Service created successfully")
+         |> push_patch(to: socket.assigns.patch)}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, assign(socket, form: to_form(changeset))}
+    end
+  end
+
+  def handle_event("validate", %{"service" => service_params}, socket) do
+    changeset = Services.change_service(socket.assigns.service, service_params)
+    {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
+  end
+
+  def handle_event("save", %{"service" => service_params}, socket) do
+    save_service(socket, socket.assigns.action, service_params)
+  end
+
+  defp notify_parent(msg), do: send(self(), {__MODULE__, msg})
+end

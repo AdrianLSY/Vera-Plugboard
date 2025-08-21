@@ -1,4 +1,4 @@
-defmodule Vera.Repo.Migrations.CreateServices do
+defmodule Plugboard.Repo.Migrations.CreateServices do
   use Ecto.Migration
 
   def change do

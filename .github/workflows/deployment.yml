@@ -1,0 +1,75 @@
+name: Deployment
+
+on:
+  push:
+    branches: [ "main", "workflows" ]
+  pull_request:
+    branches: [ "main", "workflows" ]
+  workflow_dispatch:
+
+env:
+  SECRET_KEY_BASE: "0000000000000000000000000000000000000000000000000000000000000000"
+  PHX_SIGNING_SALT: "0000000000000000000000000000000000000000000000000000000000000000"
+  PHX_ENCRYPTION_SALT: "0000000000000000000000000000000000000000000000000000000000000000"
+  PHX_HOST: localhost
+  PHX_PORT: 4000
+  PHX_POOL_SIZE: 10
+  PHX_PRODUCTION_DATABASE_URL: ecto://vera:vera@postgres/vera_production
+  PHX_POSTGRES_USERNAME: vera
+  PHX_POSTGRES_PASSWORD: vera
+  PHX_POSTGRES_DATABASE: vera
+  PHX_POSTGRES_PORT: 5432
+  PHX_GENSTAGE_ENTITY_MAX_AGE: 30000
+  PHX_GENSTAGE_CLEANUP_INTERVAL: 1000
+  PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS: 90
+  PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS: 90
+  PHX_RESET_PASSWORD_VALIDITY_IN_DAYS: 1
+  PHX_CONFIRM_VALIDITY_IN_DAYS: 1
+  PHX_CHANGE_EMAIL_VALIDITY_IN_DAYS: 1
+  PHX_SESSION_VALIDITY_IN_DAYS: 1
+
+jobs:
+  build-and-deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create Docker volumes directory
+        run: |
+          mkdir -p ./volumes/postgres/data
+          mkdir -p ./volumes/postgres/init
+          chmod -R 777 ./volumes
+
+      - name: Build and start Docker Compose services
+        run: |
+          docker compose build
+          docker compose up -d
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for services to be ready..."
+          sleep 30
+
+      - name: Check if Postgres is running
+        run: |
+          docker compose exec -T postgres pg_isready -U vera
+
+      - name: Check if Phoenix application is running
+        run: |
+          timeout 60s bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' http://localhost:4000)" != "200" ]]; do sleep 5; done' || exit 1
+
+      - name: View application logs for debugging
+        if: always()
+        run: |
+          docker compose logs plugboard
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose down -v

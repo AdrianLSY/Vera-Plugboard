@@ -1,0 +1,143 @@
+<.content>
+  <.header>
+    <div class="flex flex-col gap-1">
+      <div class="text-lg font-semibold text-zinc-900">
+        <.link navigate={~p"/services"} class="hover:text-zinc-700">Services</.link>
+        <%= for service <- @full_path do %>
+          <span class="mx-1 text-zinc-500">→</span>
+          <.link navigate={~p"/services/#{service.id}"} class="hover:text-zinc-700">
+            {service.id}∙{service.name}
+          </.link>
+        <% end %>
+      </div>
+      <div class="text-sm text-zinc-500">
+        {@num_consumers} consumer{if @num_consumers > 1, do: "s"} online
+      </div>
+    </div>
+    <:actions>
+      <.link patch={~p"/services/#{@service}/new"}>
+        <.button>Create Service</.button>
+      </.link>
+    </:actions>
+  </.header>
+
+  <%= if length(@streams.services.inserts) == 0 do %>
+    <.flash_entry
+      kind={:info}
+      title="No child services yet!"
+      message="Create a new child service to get started."
+    />
+  <% end %>
+  <.table
+    id="services"
+    rows={@streams.services}
+    row_click={fn {_id, service} -> JS.navigate(~p"/services/#{service.id}") end}
+  >
+    <:col :let={{_id, service}} label="ID">
+      {service.id}
+    </:col>
+    <:col :let={{_id, service}} label="Service">
+      {service.name}
+    </:col>
+    <:action :let={{_id, service}}>
+      <div class="sr-only">
+        <.link navigate={~p"/services/#{service}"}>Show</.link>
+      </div>
+      <.link patch={~p"/services/#{@service}/edit/#{service.id}"}>Edit</.link>
+    </:action>
+    <:action :let={{id, service}}>
+      <.link
+        phx-click={JS.push("delete", value: %{id: service.id}) |> hide("##{id}")}
+        data-confirm="Are you sure?"
+      >
+        Delete
+      </.link>
+    </:action>
+  </.table>
+</.content>
+
+<br />
+
+<.content>
+  <.header>
+    <div class="flex flex-col gap-1">
+      <div class="text-lg font-semibold text-zinc-900">
+        <.link navigate={~p"/services/#{@service.id}"} class="hover:text-zinc-700">
+          API Tokens
+        </.link>
+      </div>
+    </div>
+    <:actions>
+      <.button phx-click="create_token">
+        Generate Token
+      </.button>
+    </:actions>
+  </.header>
+
+  <%= if @new_token do %>
+    <.flash_entry
+      kind={:info}
+      title="New API token generated!"
+      message="Please copy your API token now. You will not see it again."
+      code={@new_token}
+      dismiss_event="dismiss_token"
+    />
+  <% end %>
+
+  <%= if length(@streams.tokens.inserts) == 0 do %>
+    <.flash_entry
+      kind={:info}
+      title="No API tokens yet!"
+      message="Generate a new API token to get started."
+    />
+  <% end %>
+  <.table id="tokens" rows={@streams.tokens}>
+    <:col :let={{_id, token}} label="ID">
+      {token.id}
+    </:col>
+    <:col :let={{_id, token}} label="Generated at">
+      {Calendar.strftime(token.inserted_at, "%Y-%m-%d %H:%M:%S")}
+    </:col>
+    <:action :let={{_id, token}}>
+      <.link
+        phx-click="delete_token"
+        phx-value-id={token.id}
+        data-confirm="Are you sure you want to delete this API token? This action cannot be undone."
+        class="text-zinc-900 hover:text-zinc-700"
+      >
+        Delete
+      </.link>
+    </:action>
+  </.table>
+</.content>
+
+<%= if @actions != %{} do %>
+  <br />
+  <.content>
+    <div class="mb-4 font-semibold">
+      <div class="text-lg text-zinc-900">
+        Available Actions
+      </div>
+      <div class="text-sm text-zinc-500">
+        The action names and respective fields that can be processed by the service consumer
+      </div>
+    </div>
+    <.actions_info actions={@actions} />
+  </.content>
+<% end %>
+
+<.modal
+  :if={@live_action in [:new, :edit]}
+  id="service-modal"
+  show
+  on_cancel={JS.patch(~p"/services/#{@service}")}
+>
+  <.live_component
+    module={PlugboardWeb.ServiceLive.FormComponent}
+    id={@form_service.id || :new}
+    title={@page_title}
+    action={@live_action}
+    service={@form_service}
+    patch={~p"/services/#{@service}"}
+  />
+</.modal>

@@ -1,6 +1,6 @@
-defmodule Vera do
+defmodule Plugboard do
   @moduledoc """
-  Vera keeps the contexts that define your domain
+  Plugboard keeps the contexts that define your domain
   and business logic.
 
   Contexts are also responsible for managing your data, regardless
