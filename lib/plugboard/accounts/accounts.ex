@@ -464,55 +464,25 @@ defmodule Plugboard.Accounts.Accounts do
   end
 
   @doc """
-  Checks if an account is authorized to access a service based on the account's service_regex.
+  Checks if an account is authorized to access a service.
 
-  The service path is constructed by joining the service names from root to target service
-  with forward slashes, then matched against the account's service_regex pattern.
+  For admin accounts: Admin accounts have unrestricted access to all services
+  and bypass all authorization checks for performance and security simplicity.
 
-  ## Examples
-
-      iex> is_authorized_for_service(account, service_id)
-      true
-
-      iex> is_authorized_for_service(account, unauthorized_service_id)
-      false
-
-  """
-
-  @doc """
-  Checks if an admin account is authorized to access any service.
-
-  Admin accounts have unrestricted access to all services and bypass
-  all authorization checks for performance and security simplicity.
+  For non-admin accounts: Authorization is based on the account's service_regex.
+  The service path is constructed by joining the service names from root to target
+  service with forward slashes, then matched against the account's service_regex pattern.
 
   ## Parameters
 
-    * `account` - An Account struct with role set to :admin
-    * `service_id` - The service ID (ignored for admin accounts)
+    * `account` - An Account struct
+    * `service_id` - The ID of the service to check authorization for
 
   ## Examples
 
       iex> admin_account = %Account{role: :admin}
       iex> is_authorized_for_service(admin_account, any_service_id)
       true
-
-  """
-  def is_authorized_for_service(%Account{role: :admin}, _service_id) do
-    true
-  end
-
-  @doc """
-  Checks if a non-admin account is authorized to access a service based on the account's service_regex.
-
-  The service path is constructed by joining the service names from root to target service
-  with forward slashes, then matched against the account's service_regex pattern.
-
-  ## Parameters
-
-    * `account` - An Account struct (non-admin role)
-    * `service_id` - The ID of the service to check authorization for
-
-  ## Examples
 
       iex> user_account = %Account{role: :user, service_regex: "^api/.*"}
       iex> is_authorized_for_service(user_account, service_id)
@@ -523,6 +493,10 @@ defmodule Plugboard.Accounts.Accounts do
       false
 
   """
+  def is_authorized_for_service(%Account{role: :admin}, _service_id) do
+    true
+  end
+
   def is_authorized_for_service(%Account{} = account, service_id) do
     case Repo.get(Service, service_id) do
       nil ->
