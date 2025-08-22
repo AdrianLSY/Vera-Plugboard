@@ -45,6 +45,19 @@ defmodule Plugboard.Accounts.Account do
     |> validate_service_regex()
   end
 
+  @doc """
+  A changeset for admin updates of an account.
+  This allows updating account fields without requiring a password.
+  """
+  def admin_changeset(account, attrs, opts \\ []) do
+    opts = Keyword.put_new(opts, :require_password, false)
+
+    account
+    |> cast(attrs, [:email, :role, :service_regex])
+    |> validate_email(opts)
+    |> validate_service_regex()
+  end
+
   defp validate_email(changeset, opts) do
     changeset
     |> validate_required([:email])
@@ -54,13 +67,23 @@ defmodule Plugboard.Accounts.Account do
   end
 
   defp validate_password(changeset, opts) do
+    require_password = Keyword.get(opts, :require_password, true)
+
+    changeset =
+      if require_password do
+        validate_required(changeset, [:password])
+      else
+        changeset
+      end
+
     changeset
-    |> validate_required([:password])
-    |> validate_length(:password, min: 12, max: 72)
+    |> validate_length(:password, min: 20, max: 100)
     # Examples of additional password validation:
-    # |> validate_format(:password, ~r/[a-z]/, message: "at least one lower case character")
-    # |> validate_format(:password, ~r/[A-Z]/, message: "at least one upper case character")
-    # |> validate_format(:password, ~r/[!?@#$%^&*_0-9]/, message: "at least one digit or punctuation character")
+    |> validate_format(:password, ~r/[a-z]/, message: "at least one lower case character")
+    |> validate_format(:password, ~r/[A-Z]/, message: "at least one upper case character")
+    |> validate_format(:password, ~r/[!?@#$%^&*_0-9]/,
+      message: "at least one digit or punctuation character"
+    )
     |> maybe_hash_password(opts)
   end
 

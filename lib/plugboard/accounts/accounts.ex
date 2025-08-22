@@ -35,7 +35,7 @@ defmodule Plugboard.Accounts.Accounts do
   def update_account_admin(%Account{} = account, attrs) do
     changeset =
       account
-      |> Account.registration_changeset(attrs, hash_password: false)
+      |> Account.admin_changeset(attrs)
 
     Ecto.Multi.new()
     |> Ecto.Multi.update(:account, changeset)
