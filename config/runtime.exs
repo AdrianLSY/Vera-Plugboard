@@ -76,7 +76,8 @@ if config_env() == :prod do
       # for details about using IPv6 vs IPv4 and loopback vs public addresses.
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port,
-      max_request_line_length: 16_384
+      # Increase URI length limit from default 8192 bytes to 16384 bytes
+      http_1_options: [max_request_line_length: 16_384]
     ],
     secret_key_base: secret_key_base,
     live_view: [signing_salt: signing_salt, encryption_salt: encryption_salt]

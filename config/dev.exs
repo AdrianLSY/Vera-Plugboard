@@ -19,7 +19,8 @@ config :plugboard, PlugboardWeb.Endpoint,
   http: [
     ip: {127, 0, 0, 1},
     port: String.to_integer(System.get_env("PHX_PORT") || "4000"),
-    max_request_line_length: 16_384
+    # Increase URI length limit from default 8192 bytes to 16384 bytes
+    http_1_options: [max_request_line_length: 16_384]
   ],
   check_origin: false,
   code_reloader: true,
