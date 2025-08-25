@@ -698,7 +698,7 @@ defmodule PlugboardWeb.CoreComponents do
             </div>
             <p class="text-sm text-zinc-600">
               {raw(
-                String.replace(action_data["description"], ~r/\n|\s/, fn
+                String.replace(action_data["description"] || "", ~r/\n|\s/, fn
                   "\n" -> "<br>"
                   " " -> "&nbsp;"
                 end)
@@ -706,7 +706,7 @@ defmodule PlugboardWeb.CoreComponents do
             </p>
           </div>
 
-          <%= for {field_name, field_data} <- action_data["fields"] do %>
+          <%= for {field_name, field_data} <- (action_data["fields"] || []) do %>
             <.field_info field_name={field_name} field_data={field_data} />
           <% end %>
         </div>
@@ -731,7 +731,7 @@ defmodule PlugboardWeb.CoreComponents do
         </div>
         <div class="text-sm text-zinc-600">
           {raw(
-            String.replace(@field_data["description"], ~r/\n|\s/, fn
+            String.replace(@field_data["description"] || "", ~r/\n|\s/, fn
               "\n" -> "<br>"
               " " -> "&nbsp;"
             end)
@@ -740,7 +740,7 @@ defmodule PlugboardWeb.CoreComponents do
       </div>
 
       <%= if Map.has_key?(@field_data, "fields") do %>
-        <%= for {nested_field_name, nested_field_data} <- @field_data["fields"] do %>
+        <%= for {nested_field_name, nested_field_data} <- (@field_data["fields"] || []) do %>
           <div>
             <.field_info field_name={nested_field_name} field_data={nested_field_data} />
           </div>
