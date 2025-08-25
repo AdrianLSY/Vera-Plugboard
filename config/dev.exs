@@ -16,7 +16,11 @@ config :plugboard, Plugboard.Repo,
 # Binding to loopback ipv4 address prevents access from other machines.
 config :plugboard, PlugboardWeb.Endpoint,
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PHX_PORT") || "4000")],
+  http: [
+    ip: {127, 0, 0, 1},
+    port: String.to_integer(System.get_env("PHX_PORT") || "4000"),
+    max_request_line_length: 16_384
+  ],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
