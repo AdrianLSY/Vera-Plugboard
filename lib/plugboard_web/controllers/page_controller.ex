@@ -64,15 +64,13 @@ defmodule PlugboardWeb.PageController do
 
   defp handle_service_response(conn, _service_id) do
     receive do
-      {:response, %{"status" => "success", "message" => message}} ->
+      {:response, %{"status_code" => status_code, "message" => message, "fields" => fields}} ->
         conn
-        |> put_status(:ok)
-        |> json(%{status: "success", message: message})
-
-      {:response, %{"status" => _status, "message" => message}} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{status: "error", message: message})
+        |> put_status(status_code)
+        |> json(%{
+          message: message,
+          fields: fields
+        })
 
       {:response, _invalid_response} ->
         conn
