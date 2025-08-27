@@ -20,7 +20,7 @@ defmodule PlugboardWeb.PageController do
          {:ok, _msg} <- enqueue_service_request(service_id, action, fields) do
       handle_service_response(conn, service_id)
     else
-      {:error, :unauthorized, reason} ->
+      {:error, reason} when is_binary(reason) ->
         conn
         |> put_status(:unauthorized)
         |> json(%{status: "error", message: reason})
