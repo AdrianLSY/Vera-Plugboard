@@ -11,4 +11,12 @@ defmodule PlugboardWeb.ErrorHTMLTest do
   test "renders 500.html" do
     assert render_to_string(PlugboardWeb.ErrorHTML, "500", "html", []) == "Internal Server Error"
   end
+
+  test "renders 403.html" do
+    assert render_to_string(PlugboardWeb.ErrorHTML, "403", "html", []) == "Forbidden"
+  end
+
+  test "renders any other error template" do
+    assert render_to_string(PlugboardWeb.ErrorHTML, "503", "html", []) == "Service Unavailable"
+  end
 end
