@@ -1,15 +1,19 @@
 import Config
 
+# Only in tests, remove the complexity from the password hashing algorithm
+config :argon2_elixir, t_cost: 1, m_cost: 8
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
 config :plugboard, Plugboard.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "plugboard_test#{System.get_env("MIX_TEST_PARTITION")}",
+  username: System.get_env("POSTGRES_USER"),
+  password: System.get_env("POSTGRES_PASSWORD"),
+  hostname: System.get_env("POSTGRES_HOST"),
+  port: String.to_integer(System.get_env("POSTGRES_PORT")),
+  database: "#{System.get_env("POSTGRES_DB")}_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
@@ -17,7 +21,7 @@ config :plugboard, Plugboard.Repo,
 # you can enable the server option below.
 config :plugboard, PlugboardWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "+cbacjtqeVDY4Eqmev26WJ8nI2BzZroymaoI8zfg+LotBsEJLSilFmsPVnjpKr+R",
+  secret_key_base: System.get_env("SECRET_KEY_BASE"),
   server: false
 
 # In test we don't send emails
