@@ -16,3 +16,20 @@ Ready to run in production? Please [check our deployment guides](https://hexdocs
 * Docs: https://hexdocs.pm/phoenix
 * Forum: https://elixirforum.com/c/phoenix-forum
 * Source: https://github.com/phoenixframework/phoenix
+
+## Required Environment Variables
+
+These are the required environment variables for running Plugboard:
+```
+SECRET_KEY_BASE= {generate one via `mix phx.gen.secret` after running `mix setup`}
+PHX_SERVER=true
+PHX_PORT=4000
+PHX_HOST=localhost
+
+POSTGRES_USER=plugboard
+POSTGRES_PASSWORD=plugboard
+POSTGRES_DB=plugboard
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+DB_POOL_SIZE=10
+```
