@@ -86,6 +86,7 @@ defmodule PlugboardWeb do
       import Phoenix.HTML
       # Core UI components
       import PlugboardWeb.CoreComponents
+      import PlugboardWeb.Sidebar
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
