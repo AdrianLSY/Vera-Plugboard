@@ -87,6 +87,8 @@ defmodule PlugboardWeb do
       # Core UI components
       import PlugboardWeb.CoreComponents
       import PlugboardWeb.Sidebar
+      import PlugboardWeb.IconButton
+      import PlugboardWeb.Tooltip
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

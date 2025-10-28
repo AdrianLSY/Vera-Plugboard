@@ -25,32 +25,61 @@
           setTheme(localStorage.getItem("phx:theme") || "system");
         }
         window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
-        
         window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
       })();
     </script>
   </head>
   <body>
-    <ul class="menu menu-horizontal w-full relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">
-      <%= if @current_scope do %>
-        <li>
-          {@current_scope.user.email}
-        </li>
-        <li>
-          <.link href={~p"/users/settings"}>Settings</.link>
-        </li>
-        <li>
-          <.link href={~p"/users/log-out"} method="delete">Log out</.link>
-        </li>
-      <% else %>
-        <li>
-          <.link href={~p"/users/register"}>Register</.link>
-        </li>
-        <li>
-          <.link href={~p"/users/log-in"}>Log in</.link>
-        </li>
-      <% end %>
-    </ul>
+    <.sidebar class="justify-between">
+      <div class="space-y-4">
+        <%= if @current_scope do %>
+          <.icon_button
+            href={~p"/users/settings"}
+            icon="hero-cog-6-tooth"
+            tooltip="Settings"
+          />
+          <.icon_button
+            href={~p"/users/log-out"}
+            icon="hero-arrow-right-on-rectangle"
+            tooltip="Log out"
+            method="delete"
+          />
+        <% else %>
+          <.icon_button
+            href={~p"/users/register"}
+            icon="hero-user-plus"
+            tooltip="Register"
+          />
+          <.icon_button
+            href={~p"/users/log-in"}
+            icon="hero-arrow-right-end-on-rectangle"
+            tooltip="Log in"
+          />
+        <% end %>
+      </div>
+      <div>
+        <.tooltip text="Toggle Theme" position="right">
+          <button
+            class="flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group"
+            onclick="
+              const current = document.documentElement.getAttribute('data-theme');
+              const newTheme = current === 'dark' ? 'light' : 'dark';
+              localStorage.setItem('phx:theme', newTheme);
+              document.documentElement.setAttribute('data-theme', newTheme);
+            "
+          >
+            <.icon
+              name="hero-sun"
+              class="w-4 h-4 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white [[data-theme=dark]_&]:hidden"
+            />
+            <.icon
+              name="hero-moon"
+              class="w-4 h-4 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white [[data-theme=light]_&]:hidden"
+            />
+          </button>
+        </.tooltip>
+      </div>
+    </.sidebar>
     {@inner_content}
   </body>
 </html>

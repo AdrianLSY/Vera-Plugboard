@@ -8,6 +8,7 @@ defmodule PlugboardWeb.IconButton do
   """
   use Phoenix.Component
   import PlugboardWeb.CoreComponents, only: [icon: 1]
+  import PlugboardWeb.Tooltip
 
   @doc """
   Renders an icon button with consistent styling.
@@ -16,52 +17,90 @@ defmodule PlugboardWeb.IconButton do
 
   ## Examples
 
-      <.icon_button href={~p"/users/settings"} icon="hero-cog-6-tooth" title="Settings" />
+      <.icon_button href={~p"/users/settings"} icon="hero-cog-6-tooth" tooltip="Settings" />
 
-      <.icon_button href={~p"/users/log-out"} icon="hero-arrow-right-on-rectangle" title="Log out" method="delete" />
+      <.icon_button href={~p"/users/log-out"} icon="hero-arrow-right-on-rectangle" tooltip="Log out" method="delete" />
 
-      <.icon_button href={~p"/dashboard"} icon="hero-home" title="Dashboard" class="mt-4" />
+      <.icon_button href={~p"/dashboard"} icon="hero-home" tooltip="Dashboard" tooltip_position="right" class="mt-4" />
   """
   attr :href, :string, required: true, doc: "the path to link to"
   attr :icon, :string, required: true, doc: "the hero icon name to display"
-  attr :title, :string, required: true, doc: "the tooltip text for the button"
+  attr :tooltip, :string, default: nil, doc: "optional tooltip text to display on hover"
+
+  attr :tooltip_position, :string,
+    default: "right",
+    doc: "position of the tooltip (top, bottom, left, right)"
+
   attr :method, :string, default: nil, doc: "the HTTP method for the link (e.g., 'delete')"
   attr :class, :string, default: nil, doc: "additional CSS classes"
   attr :rest, :global, doc: "arbitrary HTML attributes to add to the button"
 
   def icon_button(assigns) do
     ~H"""
-    <%= if @method do %>
-      <.link
-        href={@href}
-        method={@method}
-        class={[
-          "flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group",
-          @class
-        ]}
-        title={@title}
-        {@rest}
-      >
-        <.icon
-          name={@icon}
-          class="w-5 h-5 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white"
-        />
-      </.link>
+    <%= if @tooltip do %>
+      <.tooltip text={@tooltip} position={@tooltip_position}>
+        <%= if @method do %>
+          <.link
+            href={@href}
+            method={@method}
+            class={[
+              "flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group",
+              @class
+            ]}
+            {@rest}
+          >
+            <.icon
+              name={@icon}
+              class="w-5 h-5 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white"
+            />
+          </.link>
+        <% else %>
+          <a
+            href={@href}
+            class={[
+              "flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group",
+              @class
+            ]}
+            {@rest}
+          >
+            <.icon
+              name={@icon}
+              class="w-5 h-5 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white"
+            />
+          </a>
+        <% end %>
+      </.tooltip>
     <% else %>
-      <a
-        href={@href}
-        class={[
-          "flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group",
-          @class
-        ]}
-        title={@title}
-        {@rest}
-      >
-        <.icon
-          name={@icon}
-          class="w-5 h-5 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white"
-        />
-      </a>
+      <%= if @method do %>
+        <.link
+          href={@href}
+          method={@method}
+          class={[
+            "flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group",
+            @class
+          ]}
+          {@rest}
+        >
+          <.icon
+            name={@icon}
+            class="w-5 h-5 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white"
+          />
+        </.link>
+      <% else %>
+        <a
+          href={@href}
+          class={[
+            "flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group",
+            @class
+          ]}
+          {@rest}
+        >
+          <.icon
+            name={@icon}
+            class="w-5 h-5 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white"
+          />
+        </a>
+      <% end %>
     <% end %>
     """
   end
