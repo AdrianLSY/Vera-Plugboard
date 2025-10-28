@@ -46,14 +46,14 @@
           />
         <% else %>
           <.icon_button
-            href={~p"/users/register"}
-            icon="hero-user-plus"
-            tooltip="Register"
-          />
-          <.icon_button
             href={~p"/users/log-in"}
             icon="hero-arrow-right-end-on-rectangle"
             tooltip="Log in"
+          />
+          <.icon_button
+            href={~p"/users/register"}
+            icon="hero-user-plus"
+            tooltip="Register"
           />
         <% end %>
       </div>
