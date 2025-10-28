@@ -30,56 +30,60 @@
     </script>
   </head>
   <body>
-    <.sidebar class="justify-between">
-      <div class="space-y-4">
-        <%= if @current_scope do %>
-          <.icon_button
-            href={~p"/users/settings"}
-            icon="hero-cog-6-tooth"
-            tooltip="Settings"
-          />
-          <.icon_button
-            href={~p"/users/log-out"}
-            icon="hero-arrow-right-on-rectangle"
-            tooltip="Log out"
-            method="delete"
-          />
-        <% else %>
-          <.icon_button
-            href={~p"/users/log-in"}
-            icon="hero-arrow-right-end-on-rectangle"
-            tooltip="Log in"
-          />
-          <.icon_button
-            href={~p"/users/register"}
-            icon="hero-user-plus"
-            tooltip="Register"
-          />
-        <% end %>
-      </div>
-      <div>
-        <.tooltip text="Theme" position="right">
-          <button
-            class="flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group"
-            onclick="
+    <div class="flex min-h-screen">
+      <.sidebar class="justify-between">
+        <div class="space-y-4">
+          <%= if @current_scope do %>
+            <.icon_button
+              href={~p"/users/settings"}
+              icon="hero-cog-6-tooth"
+              tooltip="Settings"
+            />
+            <.icon_button
+              href={~p"/users/log-out"}
+              icon="hero-arrow-right-on-rectangle"
+              tooltip="Log out"
+              method="delete"
+            />
+          <% else %>
+            <.icon_button
+              href={~p"/users/log-in"}
+              icon="hero-arrow-right-end-on-rectangle"
+              tooltip="Log in"
+            />
+            <.icon_button
+              href={~p"/users/register"}
+              icon="hero-user-plus"
+              tooltip="Register"
+            />
+          <% end %>
+        </div>
+        <div>
+          <.tooltip text="Theme" position="right">
+            <button
+              class="flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group"
+              onclick="
               const current = document.documentElement.getAttribute('data-theme');
               const newTheme = current === 'dark' ? 'light' : 'dark';
               localStorage.setItem('phx:theme', newTheme);
               document.documentElement.setAttribute('data-theme', newTheme);
             "
-          >
-            <.icon
-              name="hero-sun"
-              class="w-4 h-4 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white [[data-theme=dark]_&]:hidden"
-            />
-            <.icon
-              name="hero-moon"
-              class="w-4 h-4 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white [[data-theme=light]_&]:hidden"
-            />
-          </button>
-        </.tooltip>
+            >
+              <.icon
+                name="hero-sun"
+                class="w-4 h-4 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white [[data-theme=dark]_&]:hidden"
+              />
+              <.icon
+                name="hero-moon"
+                class="w-4 h-4 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white [[data-theme=light]_&]:hidden"
+              />
+            </button>
+          </.tooltip>
+        </div>
+      </.sidebar>
+      <div class="flex-1 ml-12">
+        {@inner_content}
       </div>
-    </.sidebar>
-    {@inner_content}
+    </div>
   </body>
 </html>
