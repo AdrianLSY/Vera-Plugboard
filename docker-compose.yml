@@ -28,7 +28,7 @@ services:
       POSTGRES_POOL_SIZE: "POSTGRES_POOL_SIZE"
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
     ports:
-      - "${PLUGBOARD_PORT}:${PLUGBOARD_PORT}"
+      - "${PHX_PORT}:${PHX_PORT}"
     depends_on:
       postgres:
         condition: service_healthy

@@ -22,16 +22,14 @@ end
 
 if config_env() == :prod do
   database_url =
-    System.get_env("DATABASE_URL") ||
-      (fn ->
-         user = System.get_env("POSTGRES_USER") || raise "POSTGRES_USER is missing"
-         password = System.get_env("POSTGRES_PASSWORD") || raise "POSTGRES_PASSWORD is missing"
-         host = System.get_env("POSTGRES_HOST") || raise "POSTGRES_HOST is missing"
-         port = System.get_env("POSTGRES_PORT") || "5432"
-         database = System.get_env("POSTGRES_DB") || raise "POSTGRES_DB is missing"
-
-         "postgresql://#{user}:#{password}@#{host}:#{port}/#{database}"
-       end).()
+    (fn ->
+       user = System.get_env("POSTGRES_USER") || raise "POSTGRES_USER is missing"
+       password = System.get_env("POSTGRES_PASSWORD") || raise "POSTGRES_PASSWORD is missing"
+       host = System.get_env("POSTGRES_HOST") || raise "POSTGRES_HOST is missing"
+       port = System.get_env("POSTGRES_PORT") || "5432"
+       database = System.get_env("POSTGRES_DB") || raise "POSTGRES_DB is missing"
+       "postgresql://#{user}:#{password}@#{host}:#{port}/#{database}"
+     end).()
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
@@ -55,8 +53,8 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PLUGBOARD_HOST")
-  port = String.to_integer(System.get_env("PLUGBOARD_PORT"))
+  host = System.get_env("PHX_HOST")
+  port = String.to_integer(System.get_env("PHX_PORT"))
 
   config :plugboard, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
