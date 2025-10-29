@@ -1,0 +1,86 @@
+/* Theme variables (light defaults) */
+:root {
+    /* Light theme color values */
+    --ui-background-light: #fdf7e4;
+    --ui-foreground-light: #faeed1;
+    --ui-highlight-light: #ded0b6;
+
+    /* Dark theme color values */
+    --ui-background-dark: #1b3c53;
+    --ui-foreground-dark: #234c6a;
+    --ui-highlight-dark: #456882;
+
+    /* Background / surfaces - light theme defaults */
+    --ui-background: var(--ui-background-light);
+    --ui-foreground: var(--ui-foreground-light);
+    --ui-highlight: var(--ui-highlight-light);
+
+    /* Semantic / status (shared for both themes) */
+    --ui-success: #10b981;
+    --ui-warning: #f59e0b;
+    --ui-error: #ef4444;
+
+    /* Info uses highlight (light theme default) */
+    --ui-info: var(--ui-highlight);
+
+    /* Text tokens - in light mode, use dark colors */
+    --ui-text-primary: var(--ui-background-dark);
+    --ui-text-secondary: var(--ui-foreground-dark);
+}
+
+/* Dark theme overrides (use data-theme attr) */
+[data-theme="dark"] {
+    --ui-background: #1b3c53;
+    --ui-foreground: #234c6a;
+    --ui-highlight: #456882;
+
+    /* Text tokens - in dark mode, use light colors */
+    --ui-text-primary: var(--ui-background-light);
+    --ui-text-secondary: var(--ui-foreground-light);
+
+    /* Swap info to use light highlight */
+    --ui-info: var(--ui-highlight-light);
+}
+
+/* Optional helper classes */
+.ui-background {
+    background-color: var(--ui-background);
+}
+.ui-foreground {
+    background-color: var(--ui-foreground);
+}
+.ui-highlight {
+    background-color: var(--ui-highlight);
+}
+
+.ui-success {
+    background-color: var(--ui-success);
+}
+.ui-info {
+    color: var(--ui-info);
+}
+.ui-warning {
+    background-color: var(--ui-warning);
+}
+.ui-error {
+    background-color: var(--ui-error);
+}
+
+.ui-text-primary {
+    color: var(--ui-text-primary);
+}
+.ui-text-secondary {
+    color: var(--ui-text-secondary);
+}
+.ui-text-success {
+    color: var(--ui-success);
+}
+.ui-text-info {
+    color: var(--ui-info);
+}
+.ui-text-warning {
+    color: var(--ui-warning);
+}
+.ui-text-error {
+    color: var(--ui-error);
+}
