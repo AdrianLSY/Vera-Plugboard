@@ -26,6 +26,11 @@
     /* Text tokens - in light mode, use dark colors */
     --ui-text-primary: var(--ui-background-dark);
     --ui-text-secondary: var(--ui-foreground-dark);
+
+    /* Inverted theme tokens for tooltips, hover states, etc. */
+    --ui-inverted-background: var(--ui-background-dark);
+    --ui-inverted-foreground: var(--ui-foreground-dark);
+    --ui-inverted-text: var(--ui-background-light);
 }
 
 /* Dark theme overrides (use data-theme attr) */
@@ -40,6 +45,11 @@
 
     /* Swap info to use light highlight */
     --ui-info: var(--ui-highlight-light);
+
+    /* Inverted theme tokens for tooltips, hover states, etc. */
+    --ui-inverted-background: var(--ui-background-light);
+    --ui-inverted-foreground: var(--ui-foreground-light);
+    --ui-inverted-text: var(--ui-background-dark);
 }
 
 /* Background utility classes */
@@ -92,34 +102,20 @@
     color: var(--ui-error);
 }
 
-/* Icon button hover states */
+/* Icon button and tooltip inverted theme styles */
 .icon-button-icon {
     color: var(--ui-text-primary);
 }
 
-[data-theme="light"] .group:hover .icon-button-icon {
-    color: var(--ui-background-light);
+.group:hover .icon-button-icon {
+    color: var(--ui-inverted-text);
 }
 
-[data-theme="dark"] .group:hover .icon-button-icon {
-    color: var(--ui-background-dark);
+.tooltip-container {
+    background-color: var(--ui-inverted-foreground);
+    color: var(--ui-inverted-text);
 }
 
-/* Tooltip theming - inverted colors from current theme */
-[data-theme="light"] .tooltip-container {
-    background-color: var(--ui-foreground-dark);
-    color: var(--ui-background-light);
-}
-
-[data-theme="dark"] .tooltip-container {
-    background-color: var(--ui-foreground-light);
-    color: var(--ui-background-dark);
-}
-
-[data-theme="light"] .tooltip-arrow {
-    background-color: var(--ui-foreground-dark);
-}
-
-[data-theme="dark"] .tooltip-arrow {
-    background-color: var(--ui-foreground-light);
+.tooltip-arrow {
+    background-color: var(--ui-inverted-foreground);
 }
