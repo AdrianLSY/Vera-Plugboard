@@ -61,7 +61,11 @@
         <div>
           <.tooltip text="Theme" position="right">
             <button
-              class="flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group"
+              class={[
+                "flex items-center justify-center w-8 h-8 rounded-full transition-colors group",
+                "[[data-theme=light]_&]:hover:bg-[var(--ui-foreground-dark)]",
+                "[[data-theme=dark]_&]:hover:bg-[var(--ui-foreground-light)]"
+              ]}
               onclick="
               const current = document.documentElement.getAttribute('data-theme');
               const newTheme = current === 'dark' ? 'light' : 'dark';
@@ -71,11 +75,11 @@
             >
               <.icon
                 name="hero-sun"
-                class="w-4 h-4 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white [[data-theme=dark]_&]:hidden"
+                class="w-4 h-4 pointer-events-none icon-button-icon [[data-theme=dark]_&]:hidden"
               />
               <.icon
                 name="hero-moon"
-                class="w-4 h-4 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white [[data-theme=light]_&]:hidden"
+                class="w-4 h-4 pointer-events-none icon-button-icon [[data-theme=light]_&]:hidden"
               />
             </button>
           </.tooltip>
