@@ -1,14 +1,14 @@
 /* Theme variables (light defaults) */
 :root {
     /* Light theme color values */
-    --ui-background-light: #fdf7e4;
-    --ui-foreground-light: #faeed1;
-    --ui-highlight-light: #ded0b6;
+    --ui-background-light: #f8f4ea;
+    --ui-foreground-light: #ece8dd;
+    --ui-highlight-light: #e1d7c6;
 
     /* Dark theme color values */
-    --ui-background-dark: #1b3c53;
-    --ui-foreground-dark: #234c6a;
-    --ui-highlight-dark: #456882;
+    --ui-background-dark: #313131;
+    --ui-foreground-dark: #414141;
+    --ui-highlight-dark: #525252;
 
     /* Background / surfaces - light theme defaults */
     --ui-background: var(--ui-background-light);
@@ -30,9 +30,9 @@
 
 /* Dark theme overrides (use data-theme attr) */
 [data-theme="dark"] {
-    --ui-background: #1b3c53;
-    --ui-foreground: #234c6a;
-    --ui-highlight: #456882;
+    --ui-background: var(--ui-background-dark);
+    --ui-foreground: var(--ui-foreground-dark);
+    --ui-highlight: var(--ui-highlight-dark);
 
     /* Text tokens - in dark mode, use light colors */
     --ui-text-primary: var(--ui-background-light);
@@ -42,13 +42,15 @@
     --ui-info: var(--ui-highlight-light);
 }
 
-/* Optional helper classes */
+/* Background utility classes */
 .ui-background {
     background-color: var(--ui-background);
 }
+
 .ui-foreground {
     background-color: var(--ui-foreground);
 }
+
 .ui-highlight {
     background-color: var(--ui-highlight);
 }
@@ -56,31 +58,68 @@
 .ui-success {
     background-color: var(--ui-success);
 }
-.ui-info {
-    color: var(--ui-info);
-}
+
 .ui-warning {
     background-color: var(--ui-warning);
 }
+
 .ui-error {
     background-color: var(--ui-error);
 }
 
+/* Text color utility classes */
 .ui-text-primary {
     color: var(--ui-text-primary);
 }
+
 .ui-text-secondary {
     color: var(--ui-text-secondary);
 }
+
 .ui-text-success {
     color: var(--ui-success);
 }
+
 .ui-text-info {
     color: var(--ui-info);
 }
+
 .ui-text-warning {
     color: var(--ui-warning);
 }
+
 .ui-text-error {
     color: var(--ui-error);
+}
+
+/* Icon button hover states */
+.icon-button-icon {
+    color: var(--ui-text-primary);
+}
+
+[data-theme="light"] .group:hover .icon-button-icon {
+    color: var(--ui-background-light);
+}
+
+[data-theme="dark"] .group:hover .icon-button-icon {
+    color: var(--ui-background-dark);
+}
+
+/* Tooltip theming - inverted colors from current theme */
+[data-theme="light"] .tooltip-container {
+    background-color: var(--ui-foreground-dark);
+    color: var(--ui-background-light);
+}
+
+[data-theme="dark"] .tooltip-container {
+    background-color: var(--ui-foreground-light);
+    color: var(--ui-background-dark);
+}
+
+[data-theme="light"] .tooltip-arrow {
+    background-color: var(--ui-foreground-dark);
+}
+
+[data-theme="dark"] .tooltip-arrow {
+    background-color: var(--ui-foreground-light);
 }

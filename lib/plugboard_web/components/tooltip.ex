@@ -45,14 +45,14 @@ defmodule PlugboardWeb.Tooltip do
       {render_slot(@inner_block)}
       <div
         class={[
-          "absolute z-50 px-2 py-1 text-xs font-medium rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap pointer-events-none [[data-theme=dark]_&]:bg-white [[data-theme=dark]_&]:text-gray-800 [[data-theme=light]_&]:bg-gray-800 [[data-theme=light]_&]:text-white",
+          "absolute z-50 px-2 py-1 text-xs font-medium rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap pointer-events-none tooltip-container",
           position_classes(@position)
         ]}
         role="tooltip"
       >
         {@text}
         <div class={[
-          "absolute w-2 h-2 rotate-45 [[data-theme=dark]_&]:bg-white [[data-theme=light]_&]:bg-gray-800",
+          "absolute w-2 h-2 rotate-45 tooltip-arrow",
           arrow_classes(@position)
         ]}>
         </div>

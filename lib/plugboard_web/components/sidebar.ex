@@ -29,7 +29,7 @@ defmodule PlugboardWeb.Sidebar do
     ~H"""
     <div
       class={[
-        "fixed left-0 top-0 h-full bg-base-200 shadow-lg w-12 flex flex-col items-center py-4",
+        "fixed left-0 top-0 h-full ui-foreground shadow-lg drop-shadow-lg w-12 flex flex-col items-center py-4",
         @class
       ]}
       {@rest}

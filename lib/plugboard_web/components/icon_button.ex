@@ -44,28 +44,32 @@ defmodule PlugboardWeb.IconButton do
             href={@href}
             method={@method}
             class={[
-              "flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group",
+              "flex items-center justify-center w-8 h-8 rounded-full transition-colors group",
+              "[[data-theme=light]_&]:hover:bg-[var(--ui-foreground-dark)]",
+              "[[data-theme=dark]_&]:hover:bg-[var(--ui-foreground-light)]",
               @class
             ]}
             {@rest}
           >
             <.icon
               name={@icon}
-              class="w-5 h-5 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white"
+              class="w-5 h-5 pointer-events-none icon-button-icon"
             />
           </.link>
         <% else %>
           <a
             href={@href}
             class={[
-              "flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group",
+              "flex items-center justify-center w-8 h-8 rounded-full transition-colors group",
+              "[[data-theme=light]_&]:hover:bg-[var(--ui-foreground-dark)]",
+              "[[data-theme=dark]_&]:hover:bg-[var(--ui-foreground-light)]",
               @class
             ]}
             {@rest}
           >
             <.icon
               name={@icon}
-              class="w-5 h-5 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white"
+              class="w-5 h-5 pointer-events-none icon-button-icon"
             />
           </a>
         <% end %>
@@ -76,28 +80,32 @@ defmodule PlugboardWeb.IconButton do
           href={@href}
           method={@method}
           class={[
-            "flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group",
+            "flex items-center justify-center w-8 h-8 rounded-full transition-colors group",
+            "[[data-theme=light]_&]:hover:bg-[var(--ui-foreground-dark)]",
+            "[[data-theme=dark]_&]:hover:bg-[var(--ui-foreground-light)]",
             @class
           ]}
           {@rest}
         >
           <.icon
             name={@icon}
-            class="w-5 h-5 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white"
+            class="w-5 h-5 pointer-events-none icon-button-icon"
           />
         </.link>
       <% else %>
         <a
           href={@href}
           class={[
-            "flex items-center justify-center w-8 h-8 rounded-full [[data-theme=dark]_&]:hover:bg-white [[data-theme=light]_&]:hover:bg-gray-800 transition-colors group",
+            "flex items-center justify-center w-8 h-8 rounded-full transition-colors group",
+            "[[data-theme=light]_&]:hover:bg-[var(--ui-foreground-dark)]",
+            "[[data-theme=dark]_&]:hover:bg-[var(--ui-foreground-light)]",
             @class
           ]}
           {@rest}
         >
           <.icon
             name={@icon}
-            class="w-5 h-5 pointer-events-none [[data-theme=dark]_&]:group-hover:text-gray-800 [[data-theme=light]_&]:group-hover:text-white"
+            class="w-5 h-5 pointer-events-none icon-button-icon"
           />
         </a>
       <% end %>
