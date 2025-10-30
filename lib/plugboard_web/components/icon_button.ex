@@ -36,6 +36,7 @@ defmodule PlugboardWeb.IconButton do
 
   attr :method, :string, default: nil, doc: "the HTTP method for the link (e.g., 'delete')"
   attr :onclick, :string, default: nil, doc: "JavaScript to execute on click (button mode)"
+  attr :disabled, :boolean, default: false, doc: "whether the button is disabled"
   attr :class, :string, default: nil, doc: "additional CSS classes"
   attr :rest, :global, doc: "arbitrary HTML attributes to add to the button"
 
@@ -48,6 +49,7 @@ defmodule PlugboardWeb.IconButton do
           icon={@icon}
           method={@method}
           onclick={@onclick}
+          disabled={@disabled}
           class={@class}
           {@rest}
         />
@@ -58,6 +60,7 @@ defmodule PlugboardWeb.IconButton do
         icon={@icon}
         method={@method}
         onclick={@onclick}
+        disabled={@disabled}
         class={@class}
         {@rest}
       />
@@ -70,6 +73,7 @@ defmodule PlugboardWeb.IconButton do
   attr :icon, :string, required: true
   attr :method, :string, default: nil
   attr :onclick, :string, default: nil
+  attr :disabled, :boolean, default: false
   attr :class, :string, default: nil
   attr :rest, :global
 
@@ -93,6 +97,7 @@ defmodule PlugboardWeb.IconButton do
         <button
           type="button"
           onclick={@onclick}
+          disabled={@disabled}
           class={["interactive-button-base icon-button", @class]}
           {@rest}
         >

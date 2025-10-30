@@ -29,6 +29,7 @@ defmodule PlugboardWeb.TextButton do
   attr :type, :string, default: "submit", doc: "the button type"
   attr :name, :string, default: nil, doc: "the button name for form submission"
   attr :value, :string, default: nil, doc: "the button value for form submission"
+  attr :disabled, :boolean, default: false, doc: "whether the button is disabled"
   attr :class, :string, default: nil, doc: "additional CSS classes"
   attr :rest, :global, doc: "arbitrary HTML attributes to add to the button"
   slot :inner_block, required: true, doc: "the button text content"
@@ -39,6 +40,7 @@ defmodule PlugboardWeb.TextButton do
       type={@type}
       name={@name}
       value={@value}
+      disabled={@disabled}
       class={["interactive-button-base text-button", @class]}
       {@rest}
     >

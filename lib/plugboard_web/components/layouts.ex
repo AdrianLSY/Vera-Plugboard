@@ -38,7 +38,7 @@ defmodule PlugboardWeb.Layouts do
     <.flash_group flash={@flash} />
     <div class="flex">
       <.sidebar class="justify-between">
-        <div class="space-y-3">
+        <div class="flex flex-col items-center space-y-3 w-full">
           <.icon_button
             href={~p"/"}
             icon="hero-home"
@@ -69,7 +69,7 @@ defmodule PlugboardWeb.Layouts do
             />
           <% end %>
         </div>
-        <div class="relative">
+        <div class="flex flex-col items-center w-full">
           <.icon_button
             icon="hero-sun"
             tooltip="Theme"

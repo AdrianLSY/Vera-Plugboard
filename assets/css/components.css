@@ -1,0 +1,137 @@
+/* ============================================================================
+   COMPONENT STYLES
+   ============================================================================
+
+   Component-specific styles for buttons, tooltips, and other UI elements.
+   All components use the color tokens defined in colours.css.
+   ============================================================================ */
+
+/* ============================================================================
+   Interactive Button Base
+   ============================================================================
+
+   Shared base styles for all interactive button elements (icon buttons,
+   text buttons, etc.). Provides consistent hover, focus, active, and
+   disabled states across all button types.
+   ============================================================================ */
+
+.interactive-button-base {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    transition-property: background-color, color, transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+    cursor: pointer;
+}
+
+/* Focus state - High contrast blue ring for accessibility */
+.interactive-button-base:focus-visible {
+    outline: 2px solid var(--ui-focus-ring);
+    outline-offset: 2px;
+}
+
+/* Hover state - Inverted theme background */
+.interactive-button-base:hover:not(:disabled) {
+    background-color: var(--ui-inverted-foreground);
+}
+
+/* Active state - Slight scale down for tactile feedback */
+.interactive-button-base:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+/* Disabled state - Reduced opacity and no pointer events */
+.interactive-button-base:disabled {
+    opacity: var(--ui-disabled-opacity);
+    cursor: not-allowed;
+    background-color: var(--ui-disabled-background);
+}
+
+
+/* ============================================================================
+   Icon Button Styles
+   ============================================================================
+
+   Icon-only buttons for navigation and quick actions.
+   Size is controlled by --ui-icon-button-size CSS variable.
+   Icon size is proportional (62.5% of button size).
+   ============================================================================ */
+
+.icon-button {
+    width: var(--ui-icon-button-size);
+    height: var(--ui-icon-button-size);
+}
+
+.icon-button-icon {
+    /* Icon is 62.5% of button size (e.g., 20px icon in 32px button) */
+    width: calc(var(--ui-icon-button-size) * 0.625);
+    height: calc(var(--ui-icon-button-size) * 0.625);
+    color: var(--ui-text-primary);
+    pointer-events: none;
+}
+
+/* Hover state - Invert icon color */
+.interactive-button-base:hover:not(:disabled) .icon-button-icon {
+    color: var(--ui-inverted-text-primary);
+}
+
+/* Disabled state - Muted icon color */
+.interactive-button-base:disabled .icon-button-icon {
+    color: var(--ui-disabled-text);
+}
+
+
+/* ============================================================================
+   Text Button Styles
+   ============================================================================
+
+   Full-width text buttons for forms and primary actions.
+   Height matches form input fields for visual consistency.
+
+   NOTE: Height is set to match daisyUI form inputs (--ui-input-height).
+   If you change your form input styling, update the CSS variable in colours.css
+   ============================================================================ */
+
+.text-button {
+    width: 100%;
+    height: var(--ui-input-height);
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.text-button-text {
+    color: var(--ui-text-primary);
+}
+
+/* Hover state - Invert text color */
+.interactive-button-base:hover:not(:disabled) .text-button-text {
+    color: var(--ui-inverted-text-primary);
+}
+
+/* Disabled state - Muted text color */
+.interactive-button-base:disabled .text-button-text {
+    color: var(--ui-disabled-text);
+}
+
+
+/* ============================================================================
+   Tooltip Styles
+   ============================================================================
+
+   Tooltips that appear on hover with smooth transitions.
+   Uses inverted theme colors for contrast.
+   Includes arrow pointing to the target element.
+   ============================================================================ */
+
+.tooltip-container {
+    background-color: var(--ui-inverted-foreground);
+    color: var(--ui-inverted-text-primary);
+}
+
+.tooltip-arrow {
+    background-color: var(--ui-inverted-foreground);
+}

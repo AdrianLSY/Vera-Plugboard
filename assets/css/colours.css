@@ -1,197 +1,86 @@
-/* Theme variables (light defaults) */
+/* ============================================================================
+   COLOR TOKENS & THEME SYSTEM
+   ============================================================================
+
+   This file defines the color palette and theme variables for the application.
+   All color-related tokens should be defined here.
+
+   Component-specific styles should go in components.css
+   Utility classes should go in utilities.css
+   ============================================================================ */
+
+/* Light theme color values */
 :root {
-    /* Light theme color values */
+    /* Base color palette - Light theme */
     --ui-background-light: #f8f4ea;
     --ui-foreground-light: #ece8dd;
     --ui-highlight-light: #e1d7c6;
 
-    /* Dark theme color values */
+    /* Base color palette - Dark theme */
     --ui-background-dark: #313131;
     --ui-foreground-dark: #414141;
     --ui-highlight-dark: #525252;
 
-    /* Background / surfaces - light theme defaults */
+    /* Semantic colors (shared across themes) */
+    --ui-success: #10b981;
+    --ui-warning: #f59e0b;
+    --ui-error: #ef4444;
+    --ui-info: #3b82f6;
+
+    /* Active theme tokens - Light theme defaults */
     --ui-background: var(--ui-background-light);
     --ui-foreground: var(--ui-foreground-light);
     --ui-highlight: var(--ui-highlight-light);
 
-    /* Semantic / status (shared for both themes) */
-    --ui-success: #10b981;
-    --ui-warning: #f59e0b;
-    --ui-error: #ef4444;
-
-    /* Info uses highlight (light theme default) */
-    --ui-info: var(--ui-highlight);
-
-    /* Text tokens - in light mode, use dark colors */
+    /* Text colors - In light mode, use dark colors for readability */
     --ui-text-primary: var(--ui-background-dark);
     --ui-text-secondary: var(--ui-foreground-dark);
+    --ui-text-tertiary: #6b7280;
 
-    /* Inverted theme tokens for tooltips, hover states, etc. */
+    /* Inverted theme tokens for hover states, tooltips, etc. */
     --ui-inverted-background: var(--ui-background-dark);
     --ui-inverted-foreground: var(--ui-foreground-dark);
     --ui-inverted-text-primary: var(--ui-background-light);
     --ui-inverted-text-secondary: var(--ui-foreground-light);
 
-    /* Focus states */
-    --ui-focus-ring: var(--ui-highlight-dark);
+    /* Interactive states */
+    --ui-focus-ring: var(--ui-inverted-foreground);
     --ui-focus-ring-offset: var(--ui-background);
 
-    /* Component sizing */
-    --ui-icon-button-size: 2rem;
+    /* Disabled states */
+    --ui-disabled-background: var(--ui-highlight-light);
+    --ui-disabled-text: #9ca3af;
+    --ui-disabled-opacity: 0.6;
+
+    /* Component sizing tokens */
+    /* NOTE: --ui-input-height matches daisyUI's default input height
+       If you change form input styling, update this value accordingly */
+    --ui-input-height: 2.1875rem; /* 35px - matches daisyUI input */
+    --ui-icon-button-size: 2rem; /* 32px */
 }
 
-/* Dark theme overrides (use data-theme attr) */
+/* Dark theme overrides */
 [data-theme="dark"] {
+    /* Active theme tokens - Dark theme */
     --ui-background: var(--ui-background-dark);
     --ui-foreground: var(--ui-foreground-dark);
     --ui-highlight: var(--ui-highlight-dark);
 
-    /* Text tokens - in dark mode, use light colors */
+    /* Text colors - In dark mode, use light colors for readability */
     --ui-text-primary: var(--ui-background-light);
     --ui-text-secondary: var(--ui-foreground-light);
+    --ui-text-tertiary: #d1d5db;
 
-    /* Swap info to use light highlight */
-    --ui-info: var(--ui-highlight-light);
-
-    /* Inverted theme tokens for tooltips, hover states, etc. */
+    /* Inverted theme tokens */
     --ui-inverted-background: var(--ui-background-light);
     --ui-inverted-foreground: var(--ui-foreground-light);
     --ui-inverted-text-primary: var(--ui-background-dark);
     --ui-inverted-text-secondary: var(--ui-foreground-dark);
 
-    /* Focus states */
-    --ui-focus-ring: var(--ui-highlight-light);
-}
+    /* Interactive states */
+    --ui-focus-ring: var(--ui-inverted-foreground);
 
-/* Background utility classes */
-.ui-background {
-    background-color: var(--ui-background);
-}
-
-.ui-foreground {
-    background-color: var(--ui-foreground);
-}
-
-.ui-highlight {
-    background-color: var(--ui-highlight);
-}
-
-.ui-success {
-    background-color: var(--ui-success);
-}
-
-.ui-warning {
-    background-color: var(--ui-warning);
-}
-
-.ui-error {
-    background-color: var(--ui-error);
-}
-
-/* Text color utility classes */
-.ui-text-primary {
-    color: var(--ui-text-primary);
-}
-
-.ui-text-secondary {
-    color: var(--ui-text-secondary);
-}
-
-.ui-text-success {
-    color: var(--ui-success);
-}
-
-.ui-text-info {
-    color: var(--ui-info);
-}
-
-.ui-text-warning {
-    color: var(--ui-warning);
-}
-
-.ui-text-error {
-    color: var(--ui-error);
-}
-
-.ui-inverted-text-primary {
-    color: var(--ui-inverted-text-primary);
-}
-
-.ui-inverted-text-secondary {
-    color: var(--ui-inverted-text-secondary);
-}
-
-.ui-inverted-background {
-    background-color: var(--ui-inverted-background);
-}
-
-.ui-inverted-foreground {
-    background-color: var(--ui-inverted-foreground);
-}
-
-/* Interactive button base styles */
-.interactive-button-base {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    transition-property: background-color, color;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 200ms;
-}
-
-.interactive-button-base:focus-visible {
-    outline: 2px solid var(--ui-focus-ring);
-    outline-offset: 2px;
-}
-
-/* Icon button specific styles */
-.icon-button {
-    width: var(--ui-icon-button-size);
-    height: var(--ui-icon-button-size);
-}
-
-.icon-button-icon {
-    width: 1.25rem;
-    height: 1.25rem;
-    color: var(--ui-text-primary);
-    pointer-events: none;
-}
-
-.interactive-button-base:hover {
-    background-color: var(--ui-inverted-foreground);
-}
-
-.interactive-button-base:hover .icon-button-icon {
-    color: var(--ui-inverted-text-primary);
-}
-
-.interactive-button-base:hover .text-button-text {
-    color: var(--ui-inverted-text-primary);
-}
-
-/* Text button specific styles */
-.text-button {
-    width: 100%;
-    height: calc(var(--size-field, 0.21875rem) * 10);
-    padding-left: 1rem;
-    padding-right: 1rem;
-    padding-top: 0;
-    padding-bottom: 0;
-}
-
-.text-button-text {
-    font-weight: 500;
-    color: var(--ui-text-primary);
-}
-
-/* Tooltip styles */
-.tooltip-container {
-    background-color: var(--ui-inverted-foreground);
-    color: var(--ui-inverted-text-primary);
-}
-
-.tooltip-arrow {
-    background-color: var(--ui-inverted-foreground);
+    /* Disabled states */
+    --ui-disabled-background: var(--ui-highlight-dark);
+    --ui-disabled-text: #6b7280;
 }

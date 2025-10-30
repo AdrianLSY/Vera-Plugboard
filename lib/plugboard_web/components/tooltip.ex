@@ -41,7 +41,7 @@ defmodule PlugboardWeb.Tooltip do
 
   def tooltip(assigns) do
     ~H"""
-    <div class={["relative flex group", @class]} {@rest}>
+    <div class={["relative inline-block group", @class]} {@rest}>
       {render_slot(@inner_block)}
       <div
         class={[

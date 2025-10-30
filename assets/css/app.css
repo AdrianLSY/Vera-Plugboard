@@ -105,6 +105,9 @@
     display: contents;
 }
 
+/* Import order matters: colours → utilities → components */
 @import "./colours.css";
+@import "./utilities.css";
+@import "./components.css";
 
 /* This file is for your main application CSS */
