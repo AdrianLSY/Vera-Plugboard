@@ -2,7 +2,6 @@ defmodule PlugboardWeb.UserLive.Login do
   use PlugboardWeb, :live_view
 
   alias Plugboard.Accounts
-  import PlugboardWeb.TextButton
 
   @impl true
   def render(assigns) do
@@ -70,12 +69,12 @@ defmodule PlugboardWeb.UserLive.Login do
             label_class="ui-text-primary text-sm"
             autocomplete="current-password"
           />
-          <.text_button type="submit" name={@form[:remember_me].name} value="true">
+          <.button type="submit" name={@form[:remember_me].name} value="true">
             ● Log in with password
-          </.text_button>
-          <%!-- <.text_button type="submit" class="mt-2">
+          </.button>
+          <%!-- <.button type="submit" class="mt-2">
             ● Log in only this time
-          </.text_button> --%>
+          </.button> --%>
         </.form>
         <div class="divider">or</div>
         <.form
@@ -95,9 +94,9 @@ defmodule PlugboardWeb.UserLive.Login do
             required
             phx-mounted={JS.focus()}
           />
-          <.text_button type="submit">
+          <.button type="submit">
             ● Log in with email OTP
-          </.text_button>
+          </.button>
         </.form>
       </div>
     </Layouts.app>

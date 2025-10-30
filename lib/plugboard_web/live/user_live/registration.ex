@@ -3,7 +3,6 @@ defmodule PlugboardWeb.UserLive.Registration do
 
   alias Plugboard.Accounts
   alias Plugboard.Accounts.User
-  import PlugboardWeb.TextButton
 
   @impl true
   def render(assigns) do
@@ -36,9 +35,9 @@ defmodule PlugboardWeb.UserLive.Registration do
             phx-mounted={JS.focus()}
           />
 
-          <.text_button type="submit" phx-disable-with="Creating account...">
+          <.button type="submit" phx-disable-with="Creating account...">
             ● Create an account
-          </.text_button>
+          </.button>
         </.form>
       </div>
     </Layouts.app>

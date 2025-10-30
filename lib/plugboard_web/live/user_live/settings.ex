@@ -4,7 +4,6 @@ defmodule PlugboardWeb.UserLive.Settings do
   on_mount {PlugboardWeb.UserAuth, :require_sudo_mode}
 
   alias Plugboard.Accounts
-  import PlugboardWeb.TextButton
 
   @impl true
   def render(assigns) do
@@ -31,9 +30,9 @@ defmodule PlugboardWeb.UserLive.Settings do
             autocomplete="username"
             required
           />
-          <.text_button type="submit" phx-disable-with="Changing...">
+          <.button type="submit" phx-disable-with="Changing...">
             Change Email <span aria-hidden="true">→</span>
-          </.text_button>
+          </.button>
         </.form>
 
         <div class="divider">or</div>
@@ -69,9 +68,9 @@ defmodule PlugboardWeb.UserLive.Settings do
             label_class="ui-text-primary text-sm"
             autocomplete="new-password"
           />
-          <.text_button type="submit" phx-disable-with="Saving...">
+          <.button type="submit" phx-disable-with="Saving...">
             Save Password <span aria-hidden="true">→</span>
-          </.text_button>
+          </.button>
         </.form>
       </div>
     </Layouts.app>

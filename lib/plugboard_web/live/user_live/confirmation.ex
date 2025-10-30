@@ -2,7 +2,6 @@ defmodule PlugboardWeb.UserLive.Confirmation do
   use PlugboardWeb, :live_view
 
   alias Plugboard.Accounts
-  import PlugboardWeb.TextButton
 
   @impl true
   def render(assigns) do
@@ -25,17 +24,17 @@ defmodule PlugboardWeb.UserLive.Confirmation do
           phx-trigger-action={@trigger_submit}
         >
           <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
-          <.text_button
+          <.button
             name={@form[:remember_me].name}
             value="true"
             type="submit"
             phx-disable-with="Confirming..."
           >
             Confirm and stay logged in <span aria-hidden="true">→</span>
-          </.text_button>
-          <.text_button type="submit" phx-disable-with="Confirming..." class="mt-2">
+          </.button>
+          <.button type="submit" phx-disable-with="Confirming..." class="mt-2">
             Confirm and log in only this time
-          </.text_button>
+          </.button>
         </.form>
 
         <.form
@@ -49,21 +48,21 @@ defmodule PlugboardWeb.UserLive.Confirmation do
         >
           <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
           <%= if @current_scope do %>
-            <.text_button type="submit" phx-disable-with="Logging in...">
+            <.button type="submit" phx-disable-with="Logging in...">
               Log in <span aria-hidden="true">→</span>
-            </.text_button>
+            </.button>
           <% else %>
-            <.text_button
+            <.button
               name={@form[:remember_me].name}
               value="true"
               type="submit"
               phx-disable-with="Logging in..."
             >
               Keep me logged in on this device <span aria-hidden="true">→</span>
-            </.text_button>
-            <.text_button type="submit" phx-disable-with="Logging in..." class="mt-2">
+            </.button>
+            <.button type="submit" phx-disable-with="Logging in..." class="mt-2">
               Log me in only this time
-            </.text_button>
+            </.button>
           <% end %>
         </.form>
 

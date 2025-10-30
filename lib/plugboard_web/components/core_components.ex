@@ -86,40 +86,263 @@ defmodule PlugboardWeb.CoreComponents do
   end
 
   @doc """
-  Renders a button with navigation support.
+  Renders a text button with consistent styling.
+
+  Supports button types for form submissions and custom classes.
 
   ## Examples
 
-      <.button>Send!</.button>
-      <.button phx-click="go" variant="primary">Send!</.button>
-      <.button navigate={~p"/"}>Home</.button>
+      <.button type="submit">
+        Log in with email
+      </.button>
+
+      <.button type="button" phx-click="cancel">
+        Cancel
+      </.button>
+
+      <.button type="submit" class="mt-4" name="remember_me" value="true">
+        Log in and stay logged in
+      </.button>
   """
-  attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
-  attr :class, :string
-  attr :variant, :string, values: ~w(primary)
-  slot :inner_block, required: true
+  attr :type, :string, default: "submit", doc: "the button type"
+  attr :name, :string, default: nil, doc: "the button name for form submission"
+  attr :value, :string, default: nil, doc: "the button value for form submission"
+  attr :disabled, :boolean, default: false, doc: "whether the button is disabled"
+  attr :class, :string, default: nil, doc: "additional CSS classes"
+  attr :rest, :global, doc: "arbitrary HTML attributes to add to the button"
+  slot :inner_block, required: true, doc: "the button text content"
 
-  def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
-
-    assigns =
-      assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
-      end)
-
-    if rest[:href] || rest[:navigate] || rest[:patch] do
-      ~H"""
-      <.link class={@class} {@rest}>
+  def button(assigns) do
+    ~H"""
+    <button
+      type={@type}
+      name={@name}
+      value={@value}
+      disabled={@disabled}
+      class={["interactive-button-base text-button", @class]}
+      {@rest}
+    >
+      <span class="text-button-text">
         {render_slot(@inner_block)}
-      </.link>
-      """
-    else
-      ~H"""
-      <button class={@class} {@rest}>
-        {render_slot(@inner_block)}
-      </button>
-      """
-    end
+      </span>
+    </button>
+    """
+  end
+
+  @doc """
+  Renders a tooltip that appears on hover.
+
+  The tooltip wraps the inner content and displays the tooltip text
+  in a styled container on hover. Supports multiple positions.
+
+  ## Examples
+
+      <.tooltip text="Click to edit">
+        <button>Edit</button>
+      </.tooltip>
+
+      <.tooltip text="Navigate to settings" position="bottom">
+        <a href="/settings">Settings</a>
+      </.tooltip>
+
+      <.tooltip text="Delete this item" position="left" class="ml-2">
+        <button>Delete</button>
+      </.tooltip>
+  """
+  attr :text, :string, required: true, doc: "the tooltip text to display"
+
+  attr :position, :string,
+    default: "top",
+    values: ["top", "bottom", "left", "right"],
+    doc: "the position of the tooltip relative to the content"
+
+  attr :class, :string, default: nil, doc: "additional CSS classes for the wrapper"
+  attr :rest, :global, doc: "arbitrary HTML attributes to add to the wrapper"
+
+  slot :inner_block, required: true, doc: "the content to wrap with the tooltip"
+
+  def tooltip(assigns) do
+    ~H"""
+    <div class={["relative inline-block group", @class]} {@rest}>
+      {render_slot(@inner_block)}
+      <div
+        class={[
+          "absolute z-50 px-2 py-1 text-xs font-medium rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap pointer-events-none tooltip-container",
+          tooltip_position_classes(@position)
+        ]}
+        role="tooltip"
+      >
+        {@text}
+        <div class={[
+          "absolute w-2 h-2 rotate-45 tooltip-arrow",
+          tooltip_arrow_classes(@position)
+        ]}>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  # Position classes for the tooltip container
+  defp tooltip_position_classes("top") do
+    "bottom-full left-1/2 -translate-x-1/2 mb-2"
+  end
+
+  defp tooltip_position_classes("bottom") do
+    "top-full left-1/2 -translate-x-1/2 mt-2"
+  end
+
+  defp tooltip_position_classes("left") do
+    "right-full top-1/2 -translate-y-1/2 mr-2"
+  end
+
+  defp tooltip_position_classes("right") do
+    "left-full top-1/2 -translate-y-1/2 ml-2"
+  end
+
+  # Arrow positioning classes
+  defp tooltip_arrow_classes("top") do
+    "top-full left-1/2 -translate-x-1/2 -mt-1"
+  end
+
+  defp tooltip_arrow_classes("bottom") do
+    "bottom-full left-1/2 -translate-x-1/2 -mb-1"
+  end
+
+  defp tooltip_arrow_classes("left") do
+    "left-full top-1/2 -translate-y-1/2 -ml-1"
+  end
+
+  defp tooltip_arrow_classes("right") do
+    "right-full top-1/2 -translate-y-1/2 -mr-1"
+  end
+
+  @doc """
+  Renders a sidebar container.
+
+  ## Examples
+
+      <.sidebar>
+        <div>Your custom content here</div>
+      </.sidebar>
+
+      <.sidebar class="w-20">
+        <.icon name="hero-home" />
+      </.sidebar>
+  """
+  attr :class, :string, default: nil
+  attr :rest, :global, doc: "arbitrary HTML attributes to add to the sidebar"
+
+  slot :inner_block, required: true, doc: "the content to render inside the sidebar"
+
+  def sidebar(assigns) do
+    ~H"""
+    <div
+      class={[
+        "h-screen ui-foreground shadow-lg drop-shadow-lg w-12 flex flex-col items-center py-4 flex-shrink-0",
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
+  @doc """
+  Renders an icon button with consistent styling.
+
+  Supports both links (with optional HTTP methods) and buttons (with onclick handlers).
+
+  ## Examples
+
+      <.icon_button href={~p"/users/settings"} icon="hero-cog-6-tooth" tooltip="Settings" />
+
+      <.icon_button href={~p"/users/log-out"} icon="hero-arrow-right-on-rectangle" tooltip="Log out" method="delete" />
+
+      <.icon_button href={~p"/dashboard"} icon="hero-home" tooltip="Dashboard" tooltip_position="right" class="mt-4" />
+
+      <.icon_button icon="hero-sun" tooltip="Toggle theme" onclick="toggleTheme()" />
+  """
+  attr :href, :string, default: nil, doc: "the path to link to (omit for button mode)"
+  attr :icon, :string, required: true, doc: "the hero icon name to display"
+  attr :tooltip, :string, default: nil, doc: "optional tooltip text to display on hover"
+
+  attr :tooltip_position, :string,
+    default: "right",
+    doc: "position of the tooltip (top, bottom, left, right)"
+
+  attr :method, :string, default: nil, doc: "the HTTP method for the link (e.g., 'delete')"
+  attr :onclick, :string, default: nil, doc: "JavaScript to execute on click (button mode)"
+  attr :disabled, :boolean, default: false, doc: "whether the button is disabled"
+  attr :class, :string, default: nil, doc: "additional CSS classes"
+  attr :rest, :global, doc: "arbitrary HTML attributes to add to the button"
+
+  def icon_button(assigns) do
+    ~H"""
+    <%= if @tooltip do %>
+      <.tooltip text={@tooltip} position={@tooltip_position}>
+        <.icon_button_element
+          href={@href}
+          icon={@icon}
+          method={@method}
+          onclick={@onclick}
+          disabled={@disabled}
+          class={@class}
+          {@rest}
+        />
+      </.tooltip>
+    <% else %>
+      <.icon_button_element
+        href={@href}
+        icon={@icon}
+        method={@method}
+        onclick={@onclick}
+        disabled={@disabled}
+        class={@class}
+        {@rest}
+      />
+    <% end %>
+    """
+  end
+
+  # Private component that renders the actual button/link element
+  attr :href, :string, default: nil
+  attr :icon, :string, required: true
+  attr :method, :string, default: nil
+  attr :onclick, :string, default: nil
+  attr :disabled, :boolean, default: false
+  attr :class, :string, default: nil
+  attr :rest, :global
+
+  defp icon_button_element(assigns) do
+    ~H"""
+    <%= cond do %>
+      <% @href && @method -> %>
+        <.link
+          href={@href}
+          method={@method}
+          class={["interactive-button-base icon-button", @class]}
+          {@rest}
+        >
+          <.icon name={@icon} class="icon-button-icon" />
+        </.link>
+      <% @href -> %>
+        <a href={@href} class={["interactive-button-base icon-button", @class]} {@rest}>
+          <.icon name={@icon} class="icon-button-icon" />
+        </a>
+      <% true -> %>
+        <button
+          type="button"
+          onclick={@onclick}
+          disabled={@disabled}
+          class={["interactive-button-base icon-button", @class]}
+          {@rest}
+        >
+          <.icon name={@icon} class="icon-button-icon" />
+        </button>
+    <% end %>
+    """
   end
 
   @doc """
