@@ -119,12 +119,10 @@ defmodule PlugboardWeb.CoreComponents do
       name={@name}
       value={@value}
       disabled={@disabled}
-      class={["interactive-button-base text-button", @class]}
+      class={["interactive-button-base text-button text-button-text", @class]}
       {@rest}
     >
-      <span class="text-button-text">
-        {render_slot(@inner_block)}
-      </span>
+      {render_slot(@inner_block)}
     </button>
     """
   end

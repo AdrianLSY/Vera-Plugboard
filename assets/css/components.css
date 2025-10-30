@@ -106,12 +106,12 @@
 }
 
 /* Hover state - Invert text color */
-.interactive-button-base:hover:not(:disabled) .text-button-text {
+.interactive-button-base.text-button-text:hover:not(:disabled) {
     color: var(--ui-inverted-text-primary);
 }
 
 /* Disabled state - Muted text color */
-.interactive-button-base:disabled .text-button-text {
+.interactive-button-base.text-button-text:disabled {
     color: var(--ui-disabled-text);
 }
 
