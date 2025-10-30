@@ -39,6 +39,11 @@ defmodule PlugboardWeb.Layouts do
     <div class="flex">
       <.sidebar class="justify-between">
         <div class="space-y-3">
+          <.icon_button
+            href={~p"/"}
+            icon="hero-home"
+            tooltip="Home"
+          />
           <%= if @current_scope do %>
             <.icon_button
               href={~p"/users/settings"}
