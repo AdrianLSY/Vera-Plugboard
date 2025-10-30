@@ -49,7 +49,6 @@
     background-color: var(--ui-disabled-background);
 }
 
-
 /* ============================================================================
    Icon Button Styles
    ============================================================================
@@ -81,7 +80,6 @@
 .interactive-button-base:disabled .icon-button-icon {
     color: var(--ui-disabled-text);
 }
-
 
 /* ============================================================================
    Text Button Styles
@@ -117,7 +115,6 @@
     color: var(--ui-disabled-text);
 }
 
-
 /* ============================================================================
    Tooltip Styles
    ============================================================================
@@ -134,4 +131,27 @@
 
 .tooltip-arrow {
     background-color: var(--ui-inverted-foreground);
+}
+
+/* ============================================================================
+   Form Input Error Styles
+   ============================================================================
+
+   Error states for form inputs using the --ui-error color.
+   Applied when validation fails.
+   ============================================================================ */
+
+.input-error,
+.select-error,
+.textarea-error {
+    border-color: var(--ui-error) !important;
+    outline-color: var(--ui-error) !important;
+}
+
+.input-error:focus,
+.select-error:focus,
+.textarea-error:focus {
+    border-color: var(--ui-error) !important;
+    outline-color: var(--ui-error) !important;
+    box-shadow: 0 0 0 2px rgba(231, 111, 81, 0.2);
 }
