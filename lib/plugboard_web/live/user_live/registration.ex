@@ -37,7 +37,7 @@ defmodule PlugboardWeb.UserLive.Registration do
           />
 
           <.text_button type="submit" phx-disable-with="Creating account...">
-            Create an account <span aria-hidden="true">→</span>
+            ● Create an account
           </.text_button>
         </.form>
       </div>

@@ -22,10 +22,10 @@
     --ui-highlight-dark: #525252;
 
     /* Semantic colors (shared across themes) */
-    --ui-success: #10b981;
-    --ui-warning: #f59e0b;
-    --ui-error: #ef4444;
-    --ui-info: #3b82f6;
+    --ui-success: #2a9d8f;
+    --ui-warning: #e9c46a;
+    --ui-error: #e76f51;
+    --ui-info: #457b9d;
 
     /* Active theme tokens - Light theme defaults */
     --ui-background: var(--ui-background-light);

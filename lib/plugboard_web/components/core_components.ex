@@ -60,9 +60,11 @@ defmodule PlugboardWeb.CoreComponents do
       {@rest}
     >
       <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
+        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap text-[var(--ui-background-light)]",
+        @kind == :info && "border-l-4 border-[var(--ui-info)] bg-[var(--ui-info)]",
+        @kind == :success && "border-l-4 border-[var(--ui-success)] bg-[var(--ui-success)]",
+        @kind == :warning && "border-l-4 border-[var(--ui-warning)] bg-[var(--ui-warning)]",
+        @kind == :error && "border-l-4 border-[var(--ui-error)] bg-[var(--ui-error)]"
       ]}>
         <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
         <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
@@ -71,8 +73,12 @@ defmodule PlugboardWeb.CoreComponents do
           <p>{msg}</p>
         </div>
         <div class="flex-1" />
-        <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>
-          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
+        <button
+          type="button"
+          class="group self-start cursor-pointer rounded-full p-1 hover:bg-[var(--ui-background-light)] hover:text-[var(--ui-background-dark)] transition-colors"
+          aria-label={gettext("close")}
+        >
+          <.icon name="hero-x-mark" class="size-5" />
         </button>
       </div>
     </div>

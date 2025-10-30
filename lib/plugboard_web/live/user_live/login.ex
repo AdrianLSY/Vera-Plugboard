@@ -46,31 +46,6 @@ defmodule PlugboardWeb.UserLive.Login do
             </p>
           </div>
         </div>
-
-        <.form
-          :let={f}
-          for={@form}
-          id="login_form_magic"
-          action={~p"/users/log-in"}
-          phx-submit="submit_magic"
-        >
-          <.input
-            readonly={!!@current_scope}
-            field={f[:email]}
-            type="email"
-            label="Email"
-            label_class="ui-text-primary text-sm"
-            autocomplete="username"
-            required
-            phx-mounted={JS.focus()}
-          />
-          <.text_button type="submit">
-            Log in with email <span aria-hidden="true">→</span>
-          </.text_button>
-        </.form>
-
-        <div class="divider">or</div>
-
         <.form
           :let={f}
           for={@form}
@@ -96,10 +71,32 @@ defmodule PlugboardWeb.UserLive.Login do
             autocomplete="current-password"
           />
           <.text_button type="submit" name={@form[:remember_me].name} value="true">
-            Log in and stay logged in <span aria-hidden="true">→</span>
+            ● Log in with password
           </.text_button>
-          <.text_button type="submit" class="mt-2">
-            Log in only this time
+          <%!-- <.text_button type="submit" class="mt-2">
+            ● Log in only this time
+          </.text_button> --%>
+        </.form>
+        <div class="divider">or</div>
+        <.form
+          :let={f}
+          for={@form}
+          id="login_form_magic"
+          action={~p"/users/log-in"}
+          phx-submit="submit_magic"
+        >
+          <.input
+            readonly={!!@current_scope}
+            field={f[:email]}
+            type="email"
+            label="Email"
+            label_class="ui-text-primary text-sm"
+            autocomplete="username"
+            required
+            phx-mounted={JS.focus()}
+          />
+          <.text_button type="submit">
+            ● Log in with email OTP
           </.text_button>
         </.form>
       </div>
