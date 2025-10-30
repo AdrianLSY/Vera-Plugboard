@@ -2,6 +2,7 @@ defmodule PlugboardWeb.UserLive.Login do
   use PlugboardWeb, :live_view
 
   alias Plugboard.Accounts
+  import PlugboardWeb.TextButton
 
   @impl true
   def render(assigns) do
@@ -10,27 +11,39 @@ defmodule PlugboardWeb.UserLive.Login do
       <div class="mx-auto max-w-sm space-y-4">
         <div class="text-center">
           <.header>
-            <p>Log in</p>
+            <p class="ui-text-primary">Log in</p>
             <:subtitle>
               <%= if @current_scope do %>
-                You need to reauthenticate to perform sensitive actions on your account.
+                <span class="ui-text-secondary">
+                  You need to reauthenticate to perform sensitive actions on your account.
+                </span>
               <% else %>
-                Don't have an account? <.link
-                  navigate={~p"/users/register"}
-                  class="font-semibold text-brand hover:underline"
-                  phx-no-format
-                >Sign up</.link> for an account now.
+                <span class="ui-text-secondary">
+                  Don't have an account? <.link
+                    navigate={~p"/users/register"}
+                    class="font-semibold ui-text-primary hover:underline"
+                    phx-no-format
+                  >Sign up</.link> for an account now.
+                </span>
               <% end %>
             </:subtitle>
           </.header>
         </div>
 
-        <div :if={local_mail_adapter?()} class="alert alert-info">
-          <.icon name="hero-information-circle" class="size-6 shrink-0" />
+        <div
+          :if={local_mail_adapter?()}
+          style="background-color: var(--ui-inverted-background);"
+          class="rounded-lg p-3 flex gap-3"
+        >
+          <.icon name="hero-information-circle" class="size-6 shrink-0 ui-inverted-text-primary" />
           <div>
-            <p>You are running the local mail adapter.</p>
-            <p>
-              To see sent emails, visit <.link href="/dev/mailbox" class="underline">the mailbox page</.link>.
+            <p class="ui-inverted-text-primary">You are running the local mail adapter.</p>
+
+            <p class="ui-inverted-text-secondary">
+              To see sent emails, visit <.link
+                href="/dev/mailbox"
+                class="underline ui-inverted-text-primary hover:ui-inverted-text-secondary"
+              >the mailbox page</.link>.
             </p>
           </div>
         </div>
@@ -47,13 +60,14 @@ defmodule PlugboardWeb.UserLive.Login do
             field={f[:email]}
             type="email"
             label="Email"
+            label_class="ui-text-primary text-sm"
             autocomplete="username"
             required
             phx-mounted={JS.focus()}
           />
-          <.button class="btn btn-primary w-full">
+          <.text_button type="submit">
             Log in with email <span aria-hidden="true">→</span>
-          </.button>
+          </.text_button>
         </.form>
 
         <div class="divider">or</div>
@@ -71,6 +85,7 @@ defmodule PlugboardWeb.UserLive.Login do
             field={f[:email]}
             type="email"
             label="Email"
+            label_class="ui-text-primary text-sm"
             autocomplete="username"
             required
           />
@@ -78,14 +93,15 @@ defmodule PlugboardWeb.UserLive.Login do
             field={@form[:password]}
             type="password"
             label="Password"
+            label_class="ui-text-primary text-sm"
             autocomplete="current-password"
           />
-          <.button class="btn btn-primary w-full" name={@form[:remember_me].name} value="true">
+          <.text_button type="submit" name={@form[:remember_me].name} value="true">
             Log in and stay logged in <span aria-hidden="true">→</span>
-          </.button>
-          <.button class="btn btn-primary btn-soft w-full mt-2">
+          </.text_button>
+          <.text_button type="submit" class="mt-2">
             Log in only this time
-          </.button>
+          </.text_button>
         </.form>
       </div>
     </Layouts.app>

@@ -162,6 +162,7 @@ defmodule PlugboardWeb.CoreComponents do
   attr :multiple, :boolean, default: false, doc: "the multiple flag for select inputs"
   attr :class, :string, default: nil, doc: "the input class to use over defaults"
   attr :error_class, :string, default: nil, doc: "the input error class to use over defaults"
+  attr :label_class, :string, default: nil, doc: "the label class to use over defaults"
 
   attr :rest, :global,
     include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
@@ -209,11 +210,15 @@ defmodule PlugboardWeb.CoreComponents do
     ~H"""
     <div class="fieldset mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class={[@label_class || "label", "mb-3 block text-center"]}>{@label}</span>
         <select
           id={@id}
           name={@name}
-          class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
+          class={[
+            @class ||
+              "w-full select ui-foreground focus:outline-none focus:border-ui-inverted-foreground rounded-full",
+            @errors != [] && (@error_class || "select-error")
+          ]}
           multiple={@multiple}
           {@rest}
         >
@@ -230,12 +235,13 @@ defmodule PlugboardWeb.CoreComponents do
     ~H"""
     <div class="fieldset mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class={[@label_class || "label", "mb-3 block text-center"]}>{@label}</span>
         <textarea
           id={@id}
           name={@name}
           class={[
-            @class || "w-full textarea",
+            @class ||
+              "w-full textarea ui-foreground focus:outline-none focus:border-ui-inverted-foreground rounded-full",
             @errors != [] && (@error_class || "textarea-error")
           ]}
           {@rest}
@@ -251,14 +257,15 @@ defmodule PlugboardWeb.CoreComponents do
     ~H"""
     <div class="fieldset mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class={[@label_class || "label", "mb-3 block text-center"]}>{@label}</span>
         <input
           type={@type}
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={[
-            @class || "w-full input",
+            @class ||
+              "w-full input ui-foreground focus:outline-none focus:border-ui-inverted-foreground rounded-full",
             @errors != [] && (@error_class || "input-error")
           ]}
           {@rest}

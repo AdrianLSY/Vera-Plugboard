@@ -121,6 +121,22 @@
     color: var(--ui-inverted-text-primary);
 }
 
+/* Text button inverted theme styles */
+.text-button-text {
+    color: var(--ui-text-primary);
+}
+
+.group:hover .text-button-text {
+    color: var(--ui-inverted-text-primary);
+}
+
+/* Match text button height to daisyUI input height */
+.text-button {
+    height: calc(var(--size-field, 0.21875rem) * 10);
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
 .tooltip-container {
     background-color: var(--ui-inverted-foreground);
     color: var(--ui-inverted-text-primary);
