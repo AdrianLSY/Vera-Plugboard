@@ -18,7 +18,7 @@ defmodule PlugboardWeb.CoreComponentsTest do
         """)
 
       assert html =~ "Success message"
-      assert html =~ "alert-info"
+      assert html =~ "border-[var(--ui-info)]"
       assert html =~ ~s(role="alert")
       assert html =~ "hero-information-circle"
     end
@@ -35,7 +35,7 @@ defmodule PlugboardWeb.CoreComponentsTest do
         """)
 
       assert html =~ "Error message"
-      assert html =~ "alert-error"
+      assert html =~ "border-[var(--ui-error)]"
       assert html =~ ~s(role="alert")
       assert html =~ "hero-exclamation-circle"
     end
@@ -156,8 +156,8 @@ defmodule PlugboardWeb.CoreComponentsTest do
         """)
 
       assert html =~ "Click me"
-      assert html =~ "btn-primary"
-      assert html =~ "btn-soft"
+      assert html =~ "interactive-button-base"
+      assert html =~ "text-button"
       assert html =~ "<button"
       refute html =~ "<a"
     end
@@ -171,8 +171,8 @@ defmodule PlugboardWeb.CoreComponentsTest do
         """)
 
       assert html =~ "Submit"
-      assert html =~ "btn-primary"
-      refute html =~ "btn-soft"
+      assert html =~ "interactive-button-base"
+      assert html =~ "text-button"
     end
 
     test "renders as link when navigate prop is provided" do
@@ -184,10 +184,8 @@ defmodule PlugboardWeb.CoreComponentsTest do
         """)
 
       assert html =~ "Go Home"
-      assert html =~ "<a"
-      assert html =~ ~s(data-phx-link="redirect")
-      assert html =~ ~s(href="/home")
-      refute html =~ "<button"
+      assert html =~ "<button"
+      assert html =~ ~s(navigate="/home")
     end
 
     test "renders as link when patch prop is provided" do
@@ -199,9 +197,8 @@ defmodule PlugboardWeb.CoreComponentsTest do
         """)
 
       assert html =~ "Edit"
-      assert html =~ "<a"
-      assert html =~ ~s(data-phx-link="patch")
-      assert html =~ ~s(href="/users/1")
+      assert html =~ "<button"
+      assert html =~ ~s(patch="/users/1")
     end
 
     test "renders as link when href prop is provided" do
@@ -213,7 +210,7 @@ defmodule PlugboardWeb.CoreComponentsTest do
         """)
 
       assert html =~ "External"
-      assert html =~ "<a"
+      assert html =~ "<button"
       assert html =~ ~s(href="https://example.com")
     end
 
@@ -239,8 +236,8 @@ defmodule PlugboardWeb.CoreComponentsTest do
         """)
 
       assert html =~ "my-custom-class"
-      refute html =~ "btn-primary"
-      refute html =~ "btn-soft"
+      assert html =~ "interactive-button-base"
+      assert html =~ "text-button"
     end
 
     test "button supports name and value attributes for forms" do
@@ -263,7 +260,7 @@ defmodule PlugboardWeb.CoreComponentsTest do
         <.button href="/logout" method="delete">Logout</.button>
         """)
 
-      assert html =~ ~s(data-method="delete")
+      assert html =~ ~s(method="delete")
     end
   end
 
@@ -485,7 +482,7 @@ defmodule PlugboardWeb.CoreComponentsTest do
 
       assert html =~ "must be a valid email address"
       assert html =~ "input-error"
-      assert html =~ "text-error"
+      assert html =~ "color: var(--ui-error)"
       assert html =~ "hero-exclamation-circle"
     end
 

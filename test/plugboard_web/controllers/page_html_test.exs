@@ -10,42 +10,40 @@ defmodule PlugboardWeb.PageHTMLTest do
       assert %Phoenix.LiveView.Rendered{} = html
     end
 
-    test "home page contains Phoenix branding and version" do
+    test "home page renders the layout with sidebar and main content area" do
       assigns = %{flash: %{}}
       html = rendered_to_string(PlugboardWeb.PageHTML.home(assigns))
 
-      assert html =~ "Phoenix Framework"
-      assert html =~ "Peace of mind from prototype to production"
+      # The home page renders the layout with sidebar and main content
+      assert html =~ ~s(id="flash-group")
+      assert html =~ ~s(class="flex")
+      assert html =~ ~s(<main)
     end
 
-    test "home page contains documentation links" do
+    test "home page does not contain specific documentation links" do
       assigns = %{flash: %{}}
       html = rendered_to_string(PlugboardWeb.PageHTML.home(assigns))
 
-      assert html =~ "Guides &amp; Docs"
-      assert html =~ "https://hexdocs.pm/phoenix/overview.html"
-      assert html =~ "Source Code"
-      assert html =~ "https://github.com/phoenixframework/phoenix"
+      # Content was removed from home page
+      refute html =~ "Guides &amp; Docs"
+      refute html =~ "https://hexdocs.pm/phoenix/overview.html"
     end
 
-    test "home page contains community links" do
+    test "home page does not contain community links" do
       assigns = %{flash: %{}}
       html = rendered_to_string(PlugboardWeb.PageHTML.home(assigns))
 
-      assert html =~ "Discuss on the Elixir Forum"
-      assert html =~ "https://elixirforum.com"
-      assert html =~ "Join our Discord server"
-      assert html =~ "https://discord.gg/elixir"
-      assert html =~ "Join us on Slack"
-      assert html =~ "https://elixir-slack.community"
+      # Content was removed from home page
+      refute html =~ "Discuss on the Elixir Forum"
+      refute html =~ "https://elixirforum.com"
     end
 
-    test "home page contains deployment information" do
+    test "home page does not contain deployment information" do
       assigns = %{flash: %{}}
       html = rendered_to_string(PlugboardWeb.PageHTML.home(assigns))
 
-      assert html =~ "Deploy your application"
-      assert html =~ "https://fly.io/docs/elixir/getting-started"
+      # Content was removed from home page
+      refute html =~ "Deploy your application"
     end
 
     test "home page renders flash group component" do
