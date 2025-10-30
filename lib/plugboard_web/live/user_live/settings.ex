@@ -9,69 +9,76 @@ defmodule PlugboardWeb.UserLive.Settings do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm space-y-4">
-        <div class="text-center">
-          <.header>
-            <p class="ui-text-primary">Account Settings</p>
-            <:subtitle>
-              <span class="ui-text-secondary">
-                Manage your account email address and password settings
-              </span>
-            </:subtitle>
-          </.header>
+      <div class="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+        <div class="mx-auto max-w-sm space-y-4 w-full">
+          <div class="text-center">
+            <.header>
+              <p class="ui-text-primary">Account Settings</p>
+              <:subtitle>
+                <span class="ui-text-secondary">
+                  Manage your account email address and password settings
+                </span>
+              </:subtitle>
+            </.header>
+          </div>
+
+          <.form
+            for={@email_form}
+            id="email_form"
+            phx-submit="update_email"
+            phx-change="validate_email"
+          >
+            <.input
+              field={@email_form[:email]}
+              type="email"
+              label="Email"
+              label_class="ui-text-primary text-sm"
+              autocomplete="username"
+              required
+            />
+            <.button type="submit" phx-disable-with="Changing...">
+              Change Email <span aria-hidden="true">→</span>
+            </.button>
+          </.form>
+
+          <div class="divider">or</div>
+
+          <.form
+            for={@password_form}
+            id="password_form"
+            action={~p"/users/update-password"}
+            method="post"
+            phx-change="validate_password"
+            phx-submit="update_password"
+            phx-trigger-action={@trigger_submit}
+          >
+            <input
+              name={@password_form[:email].name}
+              type="hidden"
+              id="hidden_user_email"
+              autocomplete="username"
+              value={@current_email}
+            />
+            <.input
+              field={@password_form[:password]}
+              type="password"
+              label="New password"
+              label_class="ui-text-primary text-sm"
+              autocomplete="new-password"
+              required
+            />
+            <.input
+              field={@password_form[:password_confirmation]}
+              type="password"
+              label="Confirm new password"
+              label_class="ui-text-primary text-sm"
+              autocomplete="new-password"
+            />
+            <.button type="submit" phx-disable-with="Saving...">
+              Save Password <span aria-hidden="true">→</span>
+            </.button>
+          </.form>
         </div>
-
-        <.form for={@email_form} id="email_form" phx-submit="update_email" phx-change="validate_email">
-          <.input
-            field={@email_form[:email]}
-            type="email"
-            label="Email"
-            label_class="ui-text-primary text-sm"
-            autocomplete="username"
-            required
-          />
-          <.button type="submit" phx-disable-with="Changing...">
-            Change Email <span aria-hidden="true">→</span>
-          </.button>
-        </.form>
-
-        <div class="divider">or</div>
-
-        <.form
-          for={@password_form}
-          id="password_form"
-          action={~p"/users/update-password"}
-          method="post"
-          phx-change="validate_password"
-          phx-submit="update_password"
-          phx-trigger-action={@trigger_submit}
-        >
-          <input
-            name={@password_form[:email].name}
-            type="hidden"
-            id="hidden_user_email"
-            autocomplete="username"
-            value={@current_email}
-          />
-          <.input
-            field={@password_form[:password]}
-            type="password"
-            label="New password"
-            label_class="ui-text-primary text-sm"
-            autocomplete="new-password"
-            required
-          />
-          <.input
-            field={@password_form[:password_confirmation]}
-            type="password"
-            label="Confirm new password"
-            label_class="ui-text-primary text-sm"
-            autocomplete="new-password"
-          />
-          <.button type="submit" phx-disable-with="Saving...">
-            Save Password <span aria-hidden="true">→</span>
-          </.button>
-        </.form>
       </div>
     </Layouts.app>
     """

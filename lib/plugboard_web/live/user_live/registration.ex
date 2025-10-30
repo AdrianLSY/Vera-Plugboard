@@ -8,37 +8,39 @@ defmodule PlugboardWeb.UserLive.Registration do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm space-y-4">
-        <div class="text-center">
-          <.header>
-            <p class="ui-text-primary">Register for an account</p>
-            <:subtitle>
-              <span class="ui-text-secondary">
-                Already registered? <.link
-                  navigate={~p"/users/log-in"}
-                  class="font-semibold ui-text-primary hover:underline"
-                  phx-no-format
-                >Log in</.link> to your account now.
-              </span>
-            </:subtitle>
-          </.header>
+      <div class="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+        <div class="mx-auto max-w-sm space-y-4 w-full">
+          <div class="text-center">
+            <.header>
+              <p class="ui-text-primary">Register with us</p>
+              <:subtitle>
+                <span class="ui-text-secondary">
+                  Already registered? <.link
+                    navigate={~p"/users/log-in"}
+                    class="font-semibold ui-text-primary hover:underline"
+                    phx-no-format
+                  >Log in</.link> to your account now.
+                </span>
+              </:subtitle>
+            </.header>
+          </div>
+
+          <.form for={@form} id="registration_form" phx-submit="save" phx-change="validate">
+            <.input
+              field={@form[:email]}
+              type="email"
+              label="Email"
+              label_class="ui-text-primary text-sm"
+              autocomplete="username"
+              required
+              phx-mounted={JS.focus()}
+            />
+
+            <.button type="submit" phx-disable-with="Creating account...">
+              ● Register your account
+            </.button>
+          </.form>
         </div>
-
-        <.form for={@form} id="registration_form" phx-submit="save" phx-change="validate">
-          <.input
-            field={@form[:email]}
-            type="email"
-            label="Email"
-            label_class="ui-text-primary text-sm"
-            autocomplete="username"
-            required
-            phx-mounted={JS.focus()}
-          />
-
-          <.button type="submit" phx-disable-with="Creating account...">
-            ● Create an account
-          </.button>
-        </.form>
       </div>
     </Layouts.app>
     """
