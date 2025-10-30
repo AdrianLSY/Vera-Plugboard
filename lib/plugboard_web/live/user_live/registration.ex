@@ -3,21 +3,24 @@ defmodule PlugboardWeb.UserLive.Registration do
 
   alias Plugboard.Accounts
   alias Plugboard.Accounts.User
+  import PlugboardWeb.TextButton
 
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm">
+      <div class="mx-auto max-w-sm space-y-4">
         <div class="text-center">
           <.header>
-            Register for an account
+            <p class="ui-text-primary">Register for an account</p>
             <:subtitle>
-              Already registered?
-              <.link navigate={~p"/users/log-in"} class="font-semibold text-brand hover:underline">
-                Log in
-              </.link>
-              to your account now.
+              <span class="ui-text-secondary">
+                Already registered? <.link
+                  navigate={~p"/users/log-in"}
+                  class="font-semibold ui-text-primary hover:underline"
+                  phx-no-format
+                >Log in</.link> to your account now.
+              </span>
             </:subtitle>
           </.header>
         </div>
@@ -27,14 +30,15 @@ defmodule PlugboardWeb.UserLive.Registration do
             field={@form[:email]}
             type="email"
             label="Email"
+            label_class="ui-text-primary text-sm"
             autocomplete="username"
             required
             phx-mounted={JS.focus()}
           />
 
-          <.button phx-disable-with="Creating account..." class="btn btn-primary w-full">
-            Create an account
-          </.button>
+          <.text_button type="submit" phx-disable-with="Creating account...">
+            Create an account <span aria-hidden="true">→</span>
+          </.text_button>
         </.form>
       </div>
     </Layouts.app>

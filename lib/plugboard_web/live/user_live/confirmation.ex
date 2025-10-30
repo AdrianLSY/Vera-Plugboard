@@ -2,14 +2,17 @@ defmodule PlugboardWeb.UserLive.Confirmation do
   use PlugboardWeb, :live_view
 
   alias Plugboard.Accounts
+  import PlugboardWeb.TextButton
 
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm">
+      <div class="mx-auto max-w-sm space-y-4">
         <div class="text-center">
-          <.header>Welcome {@user.email}</.header>
+          <.header>
+            <p class="ui-text-primary">Welcome {@user.email}</p>
+          </.header>
         </div>
 
         <.form
@@ -22,17 +25,17 @@ defmodule PlugboardWeb.UserLive.Confirmation do
           phx-trigger-action={@trigger_submit}
         >
           <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
-          <.button
+          <.text_button
             name={@form[:remember_me].name}
             value="true"
+            type="submit"
             phx-disable-with="Confirming..."
-            class="btn btn-primary w-full"
           >
-            Confirm and stay logged in
-          </.button>
-          <.button phx-disable-with="Confirming..." class="btn btn-primary btn-soft w-full mt-2">
+            Confirm and stay logged in <span aria-hidden="true">→</span>
+          </.text_button>
+          <.text_button type="submit" phx-disable-with="Confirming..." class="mt-2">
             Confirm and log in only this time
-          </.button>
+          </.text_button>
         </.form>
 
         <.form
@@ -46,27 +49,30 @@ defmodule PlugboardWeb.UserLive.Confirmation do
         >
           <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
           <%= if @current_scope do %>
-            <.button phx-disable-with="Logging in..." class="btn btn-primary w-full">
-              Log in
-            </.button>
+            <.text_button type="submit" phx-disable-with="Logging in...">
+              Log in <span aria-hidden="true">→</span>
+            </.text_button>
           <% else %>
-            <.button
+            <.text_button
               name={@form[:remember_me].name}
               value="true"
+              type="submit"
               phx-disable-with="Logging in..."
-              class="btn btn-primary w-full"
             >
-              Keep me logged in on this device
-            </.button>
-            <.button phx-disable-with="Logging in..." class="btn btn-primary btn-soft w-full mt-2">
+              Keep me logged in on this device <span aria-hidden="true">→</span>
+            </.text_button>
+            <.text_button type="submit" phx-disable-with="Logging in..." class="mt-2">
               Log me in only this time
-            </.button>
+            </.text_button>
           <% end %>
         </.form>
 
-        <p :if={!@user.confirmed_at} class="alert alert-outline mt-8">
-          Tip: If you prefer passwords, you can enable them in the user settings.
-        </p>
+        <div :if={!@user.confirmed_at} class="ui-inverted-background rounded-lg p-3 flex gap-3 mt-8">
+          <.icon name="hero-information-circle" class="size-6 shrink-0 ui-inverted-text-primary" />
+          <p class="ui-inverted-text-primary">
+            Tip: If you prefer passwords, you can enable them in the user settings.
+          </p>
+        </div>
       </div>
     </Layouts.app>
     """

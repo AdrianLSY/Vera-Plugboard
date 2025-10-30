@@ -70,30 +70,27 @@ defmodule PlugboardWeb.Layouts do
           <% end %>
         </div>
         <div class="flex flex-col items-center w-full">
-          <.icon_button
-            icon="hero-sun"
-            tooltip="Theme"
-            tooltip_position="right"
-            onclick="
-              const current = document.documentElement.getAttribute('data-theme');
-              const newTheme = current === 'dark' ? 'light' : 'dark';
-              localStorage.setItem('phx:theme', newTheme);
-              document.documentElement.setAttribute('data-theme', newTheme);
-            "
-            class="[[data-theme=dark]_&]:hidden"
-          />
-          <.icon_button
-            icon="hero-moon"
-            tooltip="Theme"
-            tooltip_position="right"
-            onclick="
-              const current = document.documentElement.getAttribute('data-theme');
-              const newTheme = current === 'dark' ? 'light' : 'dark';
-              localStorage.setItem('phx:theme', newTheme);
-              document.documentElement.setAttribute('data-theme', newTheme);
-            "
-            class="[[data-theme=light]_&]:hidden"
-          />
+          <.tooltip text="Toggle theme" position="right">
+            <button
+              type="button"
+              class="interactive-button-base icon-button"
+              onclick="
+                const current = document.documentElement.getAttribute('data-theme');
+                const newTheme = current === 'dark' ? 'light' : 'dark';
+                localStorage.setItem('phx:theme', newTheme);
+                document.documentElement.setAttribute('data-theme', newTheme);
+              "
+            >
+              <.icon
+                name="hero-sun"
+                class="icon-button-icon [[data-theme=dark]_&]:hidden"
+              />
+              <.icon
+                name="hero-moon"
+                class="icon-button-icon [[data-theme=light]_&]:hidden"
+              />
+            </button>
+          </.tooltip>
         </div>
       </.sidebar>
       <main class="flex-1 p-5">
