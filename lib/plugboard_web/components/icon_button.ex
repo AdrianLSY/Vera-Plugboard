@@ -4,7 +4,8 @@ defmodule PlugboardWeb.IconButton do
 
   The icon_button component provides consistent styling for icon-based
   navigation buttons throughout the application, with support for both
-  regular links and Phoenix.Component links with HTTP methods.
+  regular links and Phoenix.Component links with HTTP methods, as well
+  as button elements for custom interactions.
   """
   use Phoenix.Component
   import PlugboardWeb.CoreComponents, only: [icon: 1]
@@ -13,7 +14,7 @@ defmodule PlugboardWeb.IconButton do
   @doc """
   Renders an icon button with consistent styling.
 
-  Supports both regular links and Phoenix.Component links with methods (for delete operations).
+  Supports both links (with optional HTTP methods) and buttons (with onclick handlers).
 
   ## Examples
 
@@ -22,8 +23,10 @@ defmodule PlugboardWeb.IconButton do
       <.icon_button href={~p"/users/log-out"} icon="hero-arrow-right-on-rectangle" tooltip="Log out" method="delete" />
 
       <.icon_button href={~p"/dashboard"} icon="hero-home" tooltip="Dashboard" tooltip_position="right" class="mt-4" />
+
+      <.icon_button icon="hero-sun" tooltip="Toggle theme" onclick="toggleTheme()" />
   """
-  attr :href, :string, required: true, doc: "the path to link to"
+  attr :href, :string, default: nil, doc: "the path to link to (omit for button mode)"
   attr :icon, :string, required: true, doc: "the hero icon name to display"
   attr :tooltip, :string, default: nil, doc: "optional tooltip text to display on hover"
 
@@ -32,6 +35,7 @@ defmodule PlugboardWeb.IconButton do
     doc: "position of the tooltip (top, bottom, left, right)"
 
   attr :method, :string, default: nil, doc: "the HTTP method for the link (e.g., 'delete')"
+  attr :onclick, :string, default: nil, doc: "JavaScript to execute on click (button mode)"
   attr :class, :string, default: nil, doc: "additional CSS classes"
   attr :rest, :global, doc: "arbitrary HTML attributes to add to the button"
 
@@ -39,76 +43,61 @@ defmodule PlugboardWeb.IconButton do
     ~H"""
     <%= if @tooltip do %>
       <.tooltip text={@tooltip} position={@tooltip_position}>
-        <%= if @method do %>
-          <.link
-            href={@href}
-            method={@method}
-            class={[
-              "flex items-center justify-center w-8 h-8 rounded-full transition-colors group",
-              "[[data-theme=light]_&]:hover:bg-[var(--ui-foreground-dark)]",
-              "[[data-theme=dark]_&]:hover:bg-[var(--ui-foreground-light)]",
-              @class
-            ]}
-            {@rest}
-          >
-            <.icon
-              name={@icon}
-              class="w-5 h-5 pointer-events-none icon-button-icon"
-            />
-          </.link>
-        <% else %>
-          <a
-            href={@href}
-            class={[
-              "flex items-center justify-center w-8 h-8 rounded-full transition-colors group",
-              "[[data-theme=light]_&]:hover:bg-[var(--ui-foreground-dark)]",
-              "[[data-theme=dark]_&]:hover:bg-[var(--ui-foreground-light)]",
-              @class
-            ]}
-            {@rest}
-          >
-            <.icon
-              name={@icon}
-              class="w-5 h-5 pointer-events-none icon-button-icon"
-            />
-          </a>
-        <% end %>
+        <.icon_button_element
+          href={@href}
+          icon={@icon}
+          method={@method}
+          onclick={@onclick}
+          class={@class}
+          {@rest}
+        />
       </.tooltip>
     <% else %>
-      <%= if @method do %>
+      <.icon_button_element
+        href={@href}
+        icon={@icon}
+        method={@method}
+        onclick={@onclick}
+        class={@class}
+        {@rest}
+      />
+    <% end %>
+    """
+  end
+
+  # Private component that renders the actual button/link element
+  attr :href, :string, default: nil
+  attr :icon, :string, required: true
+  attr :method, :string, default: nil
+  attr :onclick, :string, default: nil
+  attr :class, :string, default: nil
+  attr :rest, :global
+
+  defp icon_button_element(assigns) do
+    ~H"""
+    <%= cond do %>
+      <% @href && @method -> %>
         <.link
           href={@href}
           method={@method}
-          class={[
-            "flex items-center justify-center w-8 h-8 rounded-full transition-colors group",
-            "[[data-theme=light]_&]:hover:bg-[var(--ui-foreground-dark)]",
-            "[[data-theme=dark]_&]:hover:bg-[var(--ui-foreground-light)]",
-            @class
-          ]}
+          class={["interactive-button-base icon-button", @class]}
           {@rest}
         >
-          <.icon
-            name={@icon}
-            class="w-5 h-5 pointer-events-none icon-button-icon"
-          />
+          <.icon name={@icon} class="icon-button-icon" />
         </.link>
-      <% else %>
-        <a
-          href={@href}
-          class={[
-            "flex items-center justify-center w-8 h-8 rounded-full transition-colors group",
-            "[[data-theme=light]_&]:hover:bg-[var(--ui-foreground-dark)]",
-            "[[data-theme=dark]_&]:hover:bg-[var(--ui-foreground-light)]",
-            @class
-          ]}
+      <% @href -> %>
+        <a href={@href} class={["interactive-button-base icon-button", @class]} {@rest}>
+          <.icon name={@icon} class="icon-button-icon" />
+        </a>
+      <% true -> %>
+        <button
+          type="button"
+          onclick={@onclick}
+          class={["interactive-button-base icon-button", @class]}
           {@rest}
         >
-          <.icon
-            name={@icon}
-            class="w-5 h-5 pointer-events-none icon-button-icon"
-          />
-        </a>
-      <% end %>
+          <.icon name={@icon} class="icon-button-icon" />
+        </button>
     <% end %>
     """
   end

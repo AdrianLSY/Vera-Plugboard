@@ -27,6 +27,8 @@ defmodule PlugboardWeb.TextButton do
       </.text_button>
   """
   attr :type, :string, default: "submit", doc: "the button type"
+  attr :name, :string, default: nil, doc: "the button name for form submission"
+  attr :value, :string, default: nil, doc: "the button value for form submission"
   attr :class, :string, default: nil, doc: "additional CSS classes"
   attr :rest, :global, doc: "arbitrary HTML attributes to add to the button"
   slot :inner_block, required: true, doc: "the button text content"
@@ -35,16 +37,12 @@ defmodule PlugboardWeb.TextButton do
     ~H"""
     <button
       type={@type}
-      class={[
-        "text-button w-full px-4 rounded-full transition-colors group",
-        "[[data-theme=light]_&]:hover:bg-[var(--ui-foreground-dark)]",
-        "[[data-theme=dark]_&]:hover:bg-[var(--ui-foreground-light)]",
-        "focus:outline-none",
-        @class
-      ]}
+      name={@name}
+      value={@value}
+      class={["interactive-button-base text-button", @class]}
       {@rest}
     >
-      <span class="text-button-text font-medium">
+      <span class="text-button-text">
         {render_slot(@inner_block)}
       </span>
     </button>

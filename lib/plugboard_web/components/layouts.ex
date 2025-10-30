@@ -69,31 +69,31 @@ defmodule PlugboardWeb.Layouts do
             />
           <% end %>
         </div>
-        <div>
-          <.tooltip text="Theme" position="right">
-            <button
-              class={[
-                "flex items-center justify-center w-8 h-8 rounded-full transition-colors group",
-                "[[data-theme=light]_&]:hover:bg-[var(--ui-foreground-dark)]",
-                "[[data-theme=dark]_&]:hover:bg-[var(--ui-foreground-light)]"
-              ]}
-              onclick="
-                const current = document.documentElement.getAttribute('data-theme');
-                const newTheme = current === 'dark' ? 'light' : 'dark';
-                localStorage.setItem('phx:theme', newTheme);
-                document.documentElement.setAttribute('data-theme', newTheme);
-              "
-            >
-              <.icon
-                name="hero-sun"
-                class="w-5 h-5 pointer-events-none icon-button-icon [[data-theme=dark]_&]:hidden"
-              />
-              <.icon
-                name="hero-moon"
-                class="w-5 h-5 pointer-events-none icon-button-icon [[data-theme=light]_&]:hidden"
-              />
-            </button>
-          </.tooltip>
+        <div class="relative">
+          <.icon_button
+            icon="hero-sun"
+            tooltip="Theme"
+            tooltip_position="right"
+            onclick="
+              const current = document.documentElement.getAttribute('data-theme');
+              const newTheme = current === 'dark' ? 'light' : 'dark';
+              localStorage.setItem('phx:theme', newTheme);
+              document.documentElement.setAttribute('data-theme', newTheme);
+            "
+            class="[[data-theme=dark]_&]:hidden"
+          />
+          <.icon_button
+            icon="hero-moon"
+            tooltip="Theme"
+            tooltip_position="right"
+            onclick="
+              const current = document.documentElement.getAttribute('data-theme');
+              const newTheme = current === 'dark' ? 'light' : 'dark';
+              localStorage.setItem('phx:theme', newTheme);
+              document.documentElement.setAttribute('data-theme', newTheme);
+            "
+            class="[[data-theme=light]_&]:hidden"
+          />
         </div>
       </.sidebar>
       <main class="flex-1 p-5">

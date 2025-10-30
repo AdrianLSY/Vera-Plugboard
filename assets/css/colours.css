@@ -32,6 +32,13 @@
     --ui-inverted-foreground: var(--ui-foreground-dark);
     --ui-inverted-text-primary: var(--ui-background-light);
     --ui-inverted-text-secondary: var(--ui-foreground-light);
+
+    /* Focus states */
+    --ui-focus-ring: var(--ui-highlight-dark);
+    --ui-focus-ring-offset: var(--ui-background);
+
+    /* Component sizing */
+    --ui-icon-button-size: 2rem;
 }
 
 /* Dark theme overrides (use data-theme attr) */
@@ -52,6 +59,9 @@
     --ui-inverted-foreground: var(--ui-foreground-light);
     --ui-inverted-text-primary: var(--ui-background-dark);
     --ui-inverted-text-secondary: var(--ui-foreground-dark);
+
+    /* Focus states */
+    --ui-focus-ring: var(--ui-highlight-light);
 }
 
 /* Background utility classes */
@@ -112,31 +122,71 @@
     color: var(--ui-inverted-text-secondary);
 }
 
-/* Icon button and tooltip inverted theme styles */
+.ui-inverted-background {
+    background-color: var(--ui-inverted-background);
+}
+
+.ui-inverted-foreground {
+    background-color: var(--ui-inverted-foreground);
+}
+
+/* Interactive button base styles */
+.interactive-button-base {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    transition-property: background-color, color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+}
+
+.interactive-button-base:focus-visible {
+    outline: 2px solid var(--ui-focus-ring);
+    outline-offset: 2px;
+}
+
+/* Icon button specific styles */
+.icon-button {
+    width: var(--ui-icon-button-size);
+    height: var(--ui-icon-button-size);
+}
+
 .icon-button-icon {
+    width: 1.25rem;
+    height: 1.25rem;
     color: var(--ui-text-primary);
+    pointer-events: none;
 }
 
-.group:hover .icon-button-icon {
+.interactive-button-base:hover {
+    background-color: var(--ui-inverted-foreground);
+}
+
+.interactive-button-base:hover .icon-button-icon {
     color: var(--ui-inverted-text-primary);
 }
 
-/* Text button inverted theme styles */
-.text-button-text {
-    color: var(--ui-text-primary);
-}
-
-.group:hover .text-button-text {
+.interactive-button-base:hover .text-button-text {
     color: var(--ui-inverted-text-primary);
 }
 
-/* Match text button height to daisyUI input height */
+/* Text button specific styles */
 .text-button {
+    width: 100%;
     height: calc(var(--size-field, 0.21875rem) * 10);
+    padding-left: 1rem;
+    padding-right: 1rem;
     padding-top: 0;
     padding-bottom: 0;
 }
 
+.text-button-text {
+    font-weight: 500;
+    color: var(--ui-text-primary);
+}
+
+/* Tooltip styles */
 .tooltip-container {
     background-color: var(--ui-inverted-foreground);
     color: var(--ui-inverted-text-primary);
