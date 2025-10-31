@@ -10,7 +10,8 @@ defmodule Plugboard.Repo.Migrations.CreatePathsTable do
       add :created_by_user_id, references(:users, type: :binary_id, on_delete: :restrict),
         null: false
 
-      add :parent_id, references(:paths, type: :binary_id, on_delete: :delete_all), null: true
+      # Use RESTRICT instead of CASCADE - soft-delete cascade handled by application code
+      add :parent_id, references(:paths, type: :binary_id, on_delete: :restrict), null: true
       add :path, :text, null: false
       add :full_path, :text, null: false
       add :mount_point, :boolean, default: false, null: false
@@ -31,6 +32,23 @@ defmodule Plugboard.Repo.Migrations.CreatePathsTable do
     create index(:paths, [:full_path], name: :idx_paths_full_path)
     create index(:paths, [:mount_point, :full_path], name: :idx_paths_mount_point_full_path)
     create index(:paths, [:user_id], name: :idx_paths_user_id)
+    create index(:paths, [:parent_id], name: :idx_paths_parent_id)
+
+    # Add CHECK constraints for path validation (defense-in-depth)
+    execute """
+    ALTER TABLE paths
+    ADD CONSTRAINT path_no_slashes CHECK (path !~ '/');
+    """
+
+    execute """
+    ALTER TABLE paths
+    ADD CONSTRAINT path_valid_chars CHECK (path ~ '^[a-zA-Z0-9_\\-\\.]+$');
+    """
+
+    execute """
+    ALTER TABLE paths
+    ADD CONSTRAINT path_length CHECK (char_length(path) BETWEEN 1 AND 255);
+    """
 
     # Trigger function to compute full_path from parent hierarchy
     execute """
@@ -70,6 +88,7 @@ defmodule Plugboard.Repo.Migrations.CreatePathsTable do
     """
 
     # Trigger function to prevent creating a child under a mount point
+    # Uses FOR UPDATE lock to prevent race conditions
     execute """
     CREATE OR REPLACE FUNCTION prevent_child_under_mount()
     RETURNS TRIGGER AS $$
@@ -77,10 +96,12 @@ defmodule Plugboard.Repo.Migrations.CreatePathsTable do
       parent_is_mount BOOLEAN;
     BEGIN
       IF NEW.parent_id IS NOT NULL THEN
+        -- Lock parent row to prevent concurrent mount_point updates
         SELECT mount_point INTO parent_is_mount
         FROM paths
         WHERE id = NEW.parent_id
-        AND deleted_at IS NULL;
+        AND deleted_at IS NULL
+        FOR UPDATE;
 
         IF parent_is_mount = TRUE THEN
           RAISE EXCEPTION 'Cannot create child path under a mount point'
