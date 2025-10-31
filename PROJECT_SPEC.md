@@ -54,9 +54,9 @@ https://plugboard.example.com/proxies/<mount_path>...
 
 ```sql
 CREATE TABLE paths (
-  id SERIAL PRIMARY KEY,
-  account_id INTEGER NOT NULL REFERENCES accounts(id),
-  created_by_user_id INTEGER NOT NULL REFERENCES users(id),
+  - `id` BINARY_ID PRIMARY KEY
+  user_id BINARY_ID NOT NULL REFERENCES users(id),
+  created_by_user_id BINARY_ID NOT NULL REFERENCES users(id),
   parent_id INTEGER REFERENCES paths(id) ON DELETE CASCADE, -- NULL = root
   path TEXT NOT NULL,                -- single path segment (no '/')
   full_path TEXT NOT NULL,           -- canonical absolute path (e.g. '/xyz/todo')
@@ -66,9 +66,10 @@ CREATE TABLE paths (
   deleted_at TIMESTAMPTZ NULL
 );
 CREATE UNIQUE INDEX paths_unique_sibling_path
-  ON paths (account_id, parent_id, path)
+  ON paths (user_id, parent_id, path)
   WHERE deleted_at IS NULL;
 CREATE INDEX idx_paths_full_path ON paths (full_path);
+CREATE INDEX idx_paths_mount_point_full_path on paths (mount_point, full_path);
 ```
 
 ### 3.2 Rules
@@ -91,7 +92,7 @@ CREATE INDEX idx_paths_full_path ON paths (full_path);
 
 ### 3.5 Ownership & Permissions
 
-* `account_id` and `created_by_user_id` define ownership.
+* `user_id` and `created_by_user_id` define ownership.
 * Ownership cascades down.
 * Optional `path_permissions` table can grant limited rights (e.g., can create children).
 
@@ -104,14 +105,14 @@ CREATE INDEX idx_paths_full_path ON paths (full_path);
 * Agents establish an outbound **TLS WebSocket** connection to Plugboard.
 * Authenticated via **JWT** (MVP) or **mTLS** (future).
 * Upon connection, agent sends a `REGISTER` message with mount points.
-* Each mount must exist in DB (`mount_point = TRUE`) and belong to the same account.
+* Each mount must exist in DB (`mount_point = TRUE`) and belong to the same user.
 
 ### 4.2 Control Protocol
 
 JSON messages over WebSocket:
 
 ```json
-REGISTER { "agent_id": 1, "account_id": 1, "mounts": ["/xyz/todo"] }
+REGISTER { "agent_id": 1, "user_id": 1, "mounts": ["/xyz/todo"] }
 HEARTBEAT { "ts": 1730000000 }
 PROXY_REQ { "id": 1, "method": "GET", "forwarded_path": "/items", "headers": {...} }
 PROXY_RES { "id": 1, "status": 200, "headers": {...} }
@@ -123,7 +124,7 @@ PROXY_ERR { "id": 1, "code": 502, "message": "Agent disconnected" }
 
 ### 4.3 Security
 
-* Agents authenticate using signed JWT containing `agent_id`, `account_id`, and allowed `mount_paths`.
+* Agents authenticate using signed JWT containing `agent_id`, `user_id`, and allowed `mount_paths`.
 * Plugboard validates against DB before accepting registration.
 
 ### 4.4 Agent State
@@ -149,7 +150,7 @@ PROXY_ERR { "id": 1, "code": 502, "message": "Agent disconnected" }
 
 * On startup, Plugboard loads all mounts into an ETS table `:mounts`.
 * Key = `full_path`
-* Value = metadata `{id, account_id, updated_at}`
+* Value = metadata `{id, user_id, updated_at}`
 
 ### 6.2 Synchronization
 
@@ -249,7 +250,7 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 * Implement Cowboy WS handler and supervision for agent connections.
 * Design and implement JSON control frame formats.
 * Track agents per mount in in-memory registry (Horde/Registry/DynamicSupervisor pattern).
-* Implement `REGISTER` validation against DB (must reference existing mount and account).
+* Implement `REGISTER` validation against DB (must reference existing mount and user).
 * Implement `PROXY_REQ` sending and `PROXY_RES` receiving.
 
 **Tests / Acceptance**
@@ -257,7 +258,7 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 * Simulated agent connects and registers mount.
 * Client request to `/proxies/...` proxied to agent; agent returns response; client receives it.
 * Multiple agents register same mount → round-robin distribution.
-* Invalid registration (wrong account or non-existent mount) rejected.
+* Invalid registration (wrong user or non-existent mount) rejected.
 
 ### **Phase 4: Timeouts & Error Handling (Deliverable: Robust proxy semantics)**
 
