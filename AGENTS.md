@@ -1,5 +1,16 @@
 This is a web application written using the Phoenix web framework.
 
+## Project Specification Reference
+
+Before starting any implementation, **read and fully understand** the `PROJECT_SPEC.md` file. It contains the complete system design, routing rules, database schema, and milestone breakdown that your implementation must follow.
+
+You must:
+
+1. Review `PROJECT_SPEC.md` to understand the overall Plugboard architecture.
+2. Follow the phase milestones strictly — do **not** skip ahead or mix development stages.
+3. Keep your implementation consistent with the database and routing requirements defined in `PROJECT_SPEC.md`.
+4. Ask for clarification if any specification detail conflicts with implementation constraints.
+
 ## Project guidelines
 
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues
