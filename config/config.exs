@@ -43,6 +43,13 @@ config :plugboard,
   ecto_repos: [Plugboard.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Configure database timeouts for recursive operations
+config :plugboard, Plugboard.Repo,
+  timeout: 15_000,
+  pool_timeout: 5_000,
+  queue_target: 50,
+  queue_interval: 1_000
+
 # Configures the endpoint
 config :plugboard, PlugboardWeb.Endpoint,
   url: [host: "localhost"],

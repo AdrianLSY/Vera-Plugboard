@@ -532,6 +532,54 @@ defmodule Plugboard.PathsTest do
       # Child should also be deleted (cascade)
       assert is_nil(Paths.get_path(child.id))
     end
+
+    test "cascade soft-deletes logs descendant count", %{user: user} do
+      {:ok, parent} =
+        Paths.create_path(%{
+          path: "parent",
+          user_id: user.id,
+          created_by_user_id: user.id
+        })
+
+      {:ok, child1} =
+        Paths.create_path(%{
+          path: "child1",
+          parent_id: parent.id,
+          user_id: user.id,
+          created_by_user_id: user.id
+        })
+
+      {:ok, _child2} =
+        Paths.create_path(%{
+          path: "child2",
+          parent_id: parent.id,
+          user_id: user.id,
+          created_by_user_id: user.id
+        })
+
+      {:ok, _grandchild} =
+        Paths.create_path(%{
+          path: "grandchild",
+          parent_id: child1.id,
+          user_id: user.id,
+          created_by_user_id: user.id
+        })
+
+      # Capture logs - temporarily set log level to info
+      import ExUnit.CaptureLog
+      old_level = Logger.level()
+      Logger.configure(level: :info)
+
+      log =
+        capture_log(fn ->
+          {:ok, _deleted} = Paths.delete_path(parent)
+        end)
+
+      Logger.configure(level: old_level)
+
+      # Should log cascade operation
+      assert log =~ "Cascade soft-deleted 3 descendant paths"
+    end
   end
 
   describe "get_path/1" do
@@ -794,6 +842,95 @@ defmodule Plugboard.PathsTest do
         })
 
       assert Paths.get_descendants(path) == []
+    end
+  end
+
+  describe "database CHECK constraints" do
+    setup do
+      user = user_fixture()
+      %{user: user}
+    end
+
+    test "prevents paths with slashes at database level", %{user: user} do
+      # Bypass application validation by using raw SQL
+      {:ok, uuid_binary} = Ecto.UUID.dump(Ecto.UUID.generate())
+      {:ok, user_id_binary} = Ecto.UUID.dump(user.id)
+
+      assert_raise Postgrex.Error, ~r/path_no_slashes/, fn ->
+        Repo.query!(
+          "INSERT INTO paths (id, user_id, created_by_user_id, path, full_path, mount_point, inserted_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())",
+          [
+            uuid_binary,
+            user_id_binary,
+            user_id_binary,
+            "invalid/path",
+            "/invalid/path",
+            false
+          ]
+        )
+      end
+    end
+
+    test "prevents paths with invalid characters at database level", %{user: user} do
+      {:ok, uuid_binary} = Ecto.UUID.dump(Ecto.UUID.generate())
+      {:ok, user_id_binary} = Ecto.UUID.dump(user.id)
+
+      assert_raise Postgrex.Error, ~r/path_valid_chars/, fn ->
+        Repo.query!(
+          "INSERT INTO paths (id, user_id, created_by_user_id, path, full_path, mount_point, inserted_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())",
+          [
+            uuid_binary,
+            user_id_binary,
+            user_id_binary,
+            "invalid@path!",
+            "/invalid@path!",
+            false
+          ]
+        )
+      end
+    end
+
+    test "prevents empty paths at database level", %{user: user} do
+      {:ok, uuid_binary} = Ecto.UUID.dump(Ecto.UUID.generate())
+      {:ok, user_id_binary} = Ecto.UUID.dump(user.id)
+
+      assert_raise Postgrex.Error, ~r/path_length/, fn ->
+        Repo.query!(
+          "INSERT INTO paths (id, user_id, created_by_user_id, path, full_path, mount_point, inserted_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())",
+          [
+            uuid_binary,
+            user_id_binary,
+            user_id_binary,
+            "",
+            "/",
+            false
+          ]
+        )
+      end
+    end
+
+    test "prevents paths longer than 255 characters at database level", %{user: user} do
+      long_path = String.duplicate("a", 256)
+      {:ok, uuid_binary} = Ecto.UUID.dump(Ecto.UUID.generate())
+      {:ok, user_id_binary} = Ecto.UUID.dump(user.id)
+
+      assert_raise Postgrex.Error, ~r/path_length/, fn ->
+        Repo.query!(
+          "INSERT INTO paths (id, user_id, created_by_user_id, path, full_path, mount_point, inserted_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())",
+          [
+            uuid_binary,
+            user_id_binary,
+            user_id_binary,
+            long_path,
+            "/#{long_path}",
+            false
+          ]
+        )
+      end
     end
   end
 

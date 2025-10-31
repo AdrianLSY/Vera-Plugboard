@@ -47,13 +47,21 @@ defmodule Plugboard.Paths.Path do
 
   @doc """
   Changeset for restoring a soft-deleted path.
+
+  This function is idempotent - calling it multiple times on an already
+  restored path will return a no-op changeset.
   """
   def restore_changeset(path, attrs) do
-    path
-    |> cast(attrs, [:deleted_at, :mount_point])
-    |> put_change(:deleted_at, nil)
-    |> put_change(:mount_point, false)
-    |> put_change(:updated_at, DateTime.utc_now() |> DateTime.truncate(:second))
+    # If already restored, return no-op changeset (idempotent)
+    if is_nil(path.deleted_at) do
+      Ecto.Changeset.change(path, %{})
+    else
+      path
+      |> cast(attrs, [:deleted_at, :mount_point])
+      |> put_change(:deleted_at, nil)
+      |> put_change(:mount_point, false)
+      |> put_change(:updated_at, DateTime.utc_now() |> DateTime.truncate(:second))
+    end
   end
 
   @doc """

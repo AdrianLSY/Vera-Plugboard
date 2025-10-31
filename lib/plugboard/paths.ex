@@ -136,61 +136,51 @@ defmodule Plugboard.Paths do
     changeset = Path.create_changeset(%Path{}, attrs)
 
     if changeset.valid? do
-      # Check if there's a soft-deleted path to restore
-      case check_for_soft_deleted(changeset) do
-        {:ok, nil} ->
-          # No soft-deleted path found, create new
-          case Repo.insert(changeset) do
-            {:ok, path} ->
-              # Reload to get trigger-computed full_path
-              {:ok, Repo.get!(Path, path.id)}
+      # Wrap in transaction with row-level locking to prevent race conditions
+      Repo.transaction(fn ->
+        user_id = Ecto.Changeset.get_field(changeset, :user_id)
+        path_segment = Ecto.Changeset.get_field(changeset, :path)
+        parent_id = Ecto.Changeset.get_field(changeset, :parent_id)
 
-            error ->
-              error
+        # Lock any matching soft-deleted row to prevent concurrent restoration
+        query =
+          from p in Path,
+            where: p.user_id == ^user_id,
+            where: p.path == ^path_segment,
+            where: not is_nil(p.deleted_at),
+            lock: "FOR UPDATE"
+
+        query =
+          if is_nil(parent_id) do
+            where(query, [p], is_nil(p.parent_id))
+          else
+            where(query, [p], p.parent_id == ^parent_id)
           end
 
-        {:ok, path} ->
-          # Restore the soft-deleted path
-          case Path.restore_changeset(path, attrs) |> Repo.update() do
-            {:ok, path} ->
-              # Reload to get trigger-computed full_path
-              {:ok, Repo.get!(Path, path.id)}
+        case Repo.one(query) do
+          nil ->
+            # No soft-deleted path exists, create new
+            case Repo.insert(changeset) do
+              {:ok, path} ->
+                Repo.get!(Path, path.id)
 
-            error ->
-              error
-          end
-      end
+              {:error, changeset} ->
+                Repo.rollback(changeset)
+            end
+
+          path ->
+            # Restore the soft-deleted path
+            case Path.restore_changeset(path, attrs) |> Repo.update() do
+              {:ok, path} ->
+                Repo.get!(Path, path.id)
+
+              {:error, changeset} ->
+                Repo.rollback(changeset)
+            end
+        end
+      end)
     else
       {:error, changeset}
-    end
-  end
-
-  defp check_for_soft_deleted(changeset) do
-    user_id = Ecto.Changeset.get_field(changeset, :user_id)
-    path_segment = Ecto.Changeset.get_field(changeset, :path)
-    parent_id = Ecto.Changeset.get_field(changeset, :parent_id)
-
-    # Check for soft-deleted path with same user_id, parent_id, and path
-    query =
-      Path
-      |> where([p], p.user_id == ^user_id)
-      |> where([p], p.path == ^path_segment)
-      |> where([p], not is_nil(p.deleted_at))
-
-    # Handle parent_id - could be nil for root paths
-    query =
-      if is_nil(parent_id) do
-        where(query, [p], is_nil(p.parent_id))
-      else
-        where(query, [p], p.parent_id == ^parent_id)
-      end
-
-    case Repo.one(query) do
-      nil ->
-        {:ok, nil}
-
-      path ->
-        {:ok, path}
     end
   end
 
@@ -257,7 +247,14 @@ defmodule Plugboard.Paths do
     """
 
     {:ok, uuid_binary} = Ecto.UUID.dump(path.id)
-    Repo.query!(query, [uuid_binary, deleted_at])
+
+    # Execute with explicit timeout and log cascade operations
+    result = Repo.query!(query, [uuid_binary, deleted_at], timeout: 30_000)
+
+    if result.num_rows > 0 do
+      require Logger
+      Logger.info("Cascade soft-deleted #{result.num_rows} descendant paths for path #{path.id}")
+    end
 
     # Then soft-delete the path itself
     path
@@ -377,7 +374,7 @@ defmodule Plugboard.Paths do
 
     # Convert binary_id to binary for Postgrex
     {:ok, uuid_binary} = Ecto.UUID.dump(path.id)
-    result = Repo.query!(query, [uuid_binary])
+    result = Repo.query!(query, [uuid_binary], timeout: 30_000)
 
     Enum.map(result.rows, fn row ->
       Repo.load(Path, {result.columns, row})
