@@ -237,7 +237,7 @@ defmodule PlugboardWeb.CoreComponents do
     ~H"""
     <div
       class={[
-        "h-screen ui-foreground shadow-lg drop-shadow-lg w-12 flex flex-col items-center py-4 flex-shrink-0",
+        "h-screen ui-foreground shadow-lg drop-shadow-lg w-12 flex flex-col items-center py-4 flex-shrink-0 relative z-2",
         @class
       ]}
       {@rest}
