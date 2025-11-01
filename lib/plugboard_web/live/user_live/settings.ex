@@ -37,7 +37,7 @@ defmodule PlugboardWeb.UserLive.Settings do
               required
             />
             <.button type="submit" phx-disable-with="Changing...">
-              Change Email <span aria-hidden="true">→</span>
+              ● Change Email
             </.button>
           </.form>
 
@@ -75,7 +75,7 @@ defmodule PlugboardWeb.UserLive.Settings do
               autocomplete="new-password"
             />
             <.button type="submit" phx-disable-with="Saving...">
-              Save Password <span aria-hidden="true">→</span>
+              ● Save Password
             </.button>
           </.form>
         </div>

@@ -31,11 +31,11 @@ defmodule PlugboardWeb.UserLive.Confirmation do
               type="submit"
               phx-disable-with="Confirming..."
             >
-              Confirm and stay logged in <span aria-hidden="true">→</span>
+              ● Log in
             </.button>
-            <.button type="submit" phx-disable-with="Confirming..." class="mt-2">
+            <%!-- <.button type="submit" phx-disable-with="Confirming..." class="mt-2">
               Confirm and log in only this time
-            </.button>
+            </.button> --%>
           </.form>
 
           <.form
@@ -59,11 +59,11 @@ defmodule PlugboardWeb.UserLive.Confirmation do
                 type="submit"
                 phx-disable-with="Logging in..."
               >
-                Keep me logged in on this device <span aria-hidden="true">→</span>
+                ● Log in
               </.button>
-              <.button type="submit" phx-disable-with="Logging in..." class="mt-2">
+              <%!-- <.button type="submit" phx-disable-with="Logging in..." class="mt-2">
                 Log me in only this time
-              </.button>
+              </.button> --%>
             <% end %>
           </.form>
 
