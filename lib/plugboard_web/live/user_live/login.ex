@@ -32,7 +32,7 @@ defmodule PlugboardWeb.UserLive.Login do
 
           <div
             :if={local_mail_adapter?()}
-            class="ui-inverted-background rounded-lg p-3 flex gap-3"
+            class="ui-inverted-background rounded-2xl p-5 flex gap-3"
           >
             <.icon name="hero-information-circle" class="size-6 shrink-0 ui-inverted-text-primary" />
             <div>

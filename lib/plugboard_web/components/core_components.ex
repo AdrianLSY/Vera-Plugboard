@@ -60,7 +60,7 @@ defmodule PlugboardWeb.CoreComponents do
       {@rest}
     >
       <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap text-[var(--ui-background-light)]",
+        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap text-[var(--ui-background-light)] rounded-4xl",
         @kind == :info && "border-l-4 border-[var(--ui-info)] bg-[var(--ui-info)]",
         @kind == :success && "border-l-4 border-[var(--ui-success)] bg-[var(--ui-success)]",
         @kind == :warning && "border-l-4 border-[var(--ui-warning)] bg-[var(--ui-warning)]",
@@ -522,7 +522,7 @@ defmodule PlugboardWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
+    <header class={[@actions != [] && "flex items-center justify-between gap-6"]}>
       <div>
         <h1 class="text-lg font-semibold leading-8">
           {render_slot(@inner_block)}
@@ -702,5 +702,218 @@ defmodule PlugboardWeb.CoreComponents do
   """
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
+  end
+
+  @doc """
+  Renders a paths table with consistent styling for file-browser-like navigation.
+
+  This component displays a list of paths with visual distinction between
+  regular paths (folders) and mount points (connection endpoints). It supports
+  navigation, actions, and customizable rendering.
+
+  ## Examples
+
+      <.paths_table
+        id="paths"
+        paths={@paths}
+        on_path_click={fn path -> JS.navigate(~p"/paths?parent=\#{path.id}") end}
+      >
+        <:action :let={path}>
+          <button phx-click="delete" phx-value-id={path.id}>Delete</button>
+        </:action>
+      </.paths_table>
+
+      # With custom empty state
+      <.paths_table id="mount-points" paths={@mount_points}>
+        <:empty>No mount points configured yet</:empty>
+      </.paths_table>
+  """
+  attr :id, :string, required: true, doc: "unique identifier for the table"
+  attr :paths, :list, required: true, doc: "list of path structs to display"
+
+  attr :on_path_click, :any,
+    default: nil,
+    doc: "function to handle path clicks, receives path struct"
+
+  attr :show_full_path, :boolean,
+    default: false,
+    doc: "whether to show full path or just segment"
+
+  attr :class, :string, default: nil, doc: "additional CSS classes for the table container"
+
+  slot :action, doc: "action buttons/links to display for each path" do
+    attr :path, :any
+  end
+
+  slot :empty, doc: "content to display when paths list is empty"
+
+  def paths_table(assigns) do
+    ~H"""
+    <div class={["w-full", @class]}>
+      <%= if @paths == [] do %>
+        <div class="text-center py-8 ui-text-secondary">
+          <%= if @empty != [] do %>
+            {render_slot(@empty)}
+          <% else %>
+            No paths found
+          <% end %>
+        </div>
+      <% else %>
+        <table class="w-full border-separate border-spacing-y-1">
+          <thead>
+            <tr>
+              <th class="text-left py-3 px-4 ui-text-primary font-semibold">Path</th>
+              <th :if={@action != []} class="text-right py-3 px-4 ui-text-primary font-semibold">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              :for={path <- @paths}
+              id={"#{@id}-#{path.id}"}
+              class="group transition-colors"
+            >
+              <td class="py-3 px-4 rounded-l-full group-hover:bg-[var(--ui-foreground)]">
+                <div class="flex items-center gap-3">
+                  <!-- Icon: Folder for paths, connection for mount points -->
+                  <div class="flex-shrink-0">
+                    <%= if path.mount_point do %>
+                      <.icon name="hero-link" class="size-5 ui-text-primary" />
+                    <% else %>
+                      <.icon name="hero-folder" class="size-5 ui-text-primary" />
+                    <% end %>
+                  </div>
+                  <!-- Path name (clickable if on_path_click provided and not a mount point) -->
+                  <div class="flex-1 min-w-0">
+                    <%= if @on_path_click && !path.mount_point do %>
+                      <button
+                        type="button"
+                        phx-click={@on_path_click.(path)}
+                        class="text-left w-full ui-text-primary hover:underline focus:outline-none"
+                      >
+                        <span class="font-medium">
+                          {if @show_full_path, do: path.full_path, else: path.path}
+                        </span>
+                        <%= if path.mount_point do %>
+                          <span class="ml-2 text-xs ui-text-secondary">(mount point)</span>
+                        <% end %>
+                      </button>
+                    <% else %>
+                      <div class="ui-text-primary">
+                        <span class="font-medium">
+                          {if @show_full_path, do: path.full_path, else: path.path}
+                        </span>
+                        <%= if path.mount_point do %>
+                          <span class="ml-2 text-xs ui-text-secondary">(mount point)</span>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+              </td>
+              <!-- Actions column -->
+              <td
+                :if={@action != []}
+                class="py-3 px-4 rounded-r-full group-hover:bg-[var(--ui-foreground)]"
+              >
+                <div class="flex justify-end items-center gap-2">
+                  <%= for action <- @action do %>
+                    {render_slot(action, path)}
+                  <% end %>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      <% end %>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a modal popup form with overlay.
+
+  This component creates a modal dialog that appears in the foreground with
+  a semi-transparent backdrop. It includes a title, form content area, and
+  action buttons.
+
+  ## Examples
+
+      <.pop_up_form
+        :if={@show_edit_form}
+        id="edit-path-modal"
+        title="Edit Path"
+        on_cancel={JS.push("close_edit")}
+      >
+        <:form>
+          <.input field={@form[:path]} type="text" label="Path Name" />
+        </:form>
+        <:actions>
+          <.button phx-click="save_edit">Save</.button>
+          <.button phx-click="close_edit">Cancel</.button>
+        </:actions>
+      </.pop_up_form>
+  """
+  attr :id, :string, required: true, doc: "unique identifier for the modal"
+  attr :title, :string, required: true, doc: "title displayed at the top of the modal"
+
+  attr :on_cancel, :any,
+    default: nil,
+    doc: "JS command to execute when clicking backdrop or close button"
+
+  attr :class, :string, default: nil, doc: "additional CSS classes for the modal content"
+
+  attr :title_align, :string,
+    default: "center",
+    doc: "alignment of the title (left, center, right)"
+
+  slot :form, required: true, doc: "the form content to display in the modal"
+  slot :actions, doc: "action buttons to display at the bottom of the modal"
+
+  def pop_up_form(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      class="fixed inset-0 z-50 flex items-center justify-center"
+      phx-mounted={show("##{@id}")}
+      phx-remove={hide("##{@id}")}
+    >
+      <!-- Backdrop -->
+      <div
+        class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        phx-click={@on_cancel}
+      >
+      </div>
+      
+    <!-- Modal Content -->
+      <div class={[
+        "relative ui-foreground rounded-4xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4",
+        @class
+      ]}>
+        <!-- Header with close button -->
+        <div class="flex items-center justify-between">
+          <div class={"text-#{@title_align} flex-1"}>
+            <.header>
+              <p class="ui-text-primary">{@title}</p>
+            </.header>
+          </div>
+          <button
+            :if={@on_cancel}
+            type="button"
+            class="interactive-button-base icon-button flex-shrink-0"
+            phx-click={@on_cancel}
+          >
+            <.icon name="hero-x-mark" class="icon-button-icon" />
+          </button>
+        </div>
+        
+    <!-- Form Content -->
+        <div>
+          {render_slot(@form)}
+        </div>
+      </div>
+    </div>
+    """
   end
 end

@@ -41,7 +41,7 @@ defmodule PlugboardWeb.UserLive.Settings do
             </.button>
           </.form>
 
-          <div class="divider">or</div>
+          <div class="divider ui-text-primary">or</div>
 
           <.form
             for={@password_form}

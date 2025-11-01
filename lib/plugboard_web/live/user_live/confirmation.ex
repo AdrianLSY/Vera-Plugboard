@@ -67,10 +67,13 @@ defmodule PlugboardWeb.UserLive.Confirmation do
             <% end %>
           </.form>
 
-          <div :if={!@user.confirmed_at} class="ui-inverted-background rounded-lg p-3 flex gap-3 mt-8">
+          <div
+            :if={!@user.confirmed_at}
+            class="ui-inverted-background rounded-2xl p-3 flex gap-3 mt-8"
+          >
             <.icon name="hero-information-circle" class="size-6 shrink-0 ui-inverted-text-primary" />
             <p class="ui-inverted-text-primary">
-              Tip: If you prefer passwords, you can enable them in the user settings.
+              If you prefer passwords, you can enable them in the user settings.
             </p>
           </div>
         </div>
