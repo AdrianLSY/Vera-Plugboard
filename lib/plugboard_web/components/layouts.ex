@@ -46,6 +46,11 @@ defmodule PlugboardWeb.Layouts do
           />
           <%= if @current_scope do %>
             <.icon_button
+              href={~p"/paths"}
+              icon="hero-folder"
+              tooltip="Paths"
+            />
+            <.icon_button
               href={~p"/users/settings"}
               icon="hero-cog-6-tooth"
               tooltip="Settings"
