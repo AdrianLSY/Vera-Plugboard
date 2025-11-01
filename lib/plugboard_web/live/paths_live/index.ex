@@ -64,9 +64,9 @@ defmodule PlugboardWeb.PathsLive.Index do
         <div class="mt-8">
           <.paths_table id="paths-list" paths={@paths} on_path_click={&navigate_to_path/1}>
             <:action :let={path}>
-              <div class="group/actions relative inline-flex items-center">
+              <div class="group/actions relative inline-flex items-center gap-2">
                 <!-- Settings icon (always visible) -->
-                <div class="interactive-button-base icon-button flex items-center justify-center">
+                <div class="interactive-button-base icon-button flex items-center justify-center flex-shrink-0">
                   <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
                 </div>
                 
