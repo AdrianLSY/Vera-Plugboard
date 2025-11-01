@@ -11,11 +11,11 @@ defmodule Plugboard.Paths.Path do
     field :mount_point, :boolean, default: false
     field :deleted_at, :utc_datetime
 
-    belongs_to :user, Plugboard.Accounts.User
-    belongs_to :created_by_user, Plugboard.Accounts.User
     belongs_to :parent, __MODULE__
 
     has_many :children, __MODULE__, foreign_key: :parent_id
+    has_many :user_paths, Plugboard.Paths.UserPath
+    many_to_many :users, Plugboard.Accounts.User, join_through: Plugboard.Paths.UserPath
 
     timestamps(type: :utc_datetime)
   end
@@ -24,14 +24,13 @@ defmodule Plugboard.Paths.Path do
   Changeset for creating a new path.
 
   Note: full_path is computed by database trigger and should not be set manually.
+  User associations are managed separately through the user_paths junction table.
   """
   def create_changeset(path, attrs) do
     path
-    |> cast(attrs, [:path, :parent_id, :user_id, :created_by_user_id, :mount_point])
-    |> validate_required([:path, :user_id, :created_by_user_id])
+    |> cast(attrs, [:path, :parent_id, :mount_point])
+    |> validate_required([:path])
     |> validate_path_segment()
-    |> foreign_key_constraint(:user_id)
-    |> foreign_key_constraint(:created_by_user_id)
     |> foreign_key_constraint(:parent_id)
     |> unique_constraint(:path, name: :paths_unique_sibling_path)
   end

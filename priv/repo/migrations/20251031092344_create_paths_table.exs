@@ -5,11 +5,6 @@ defmodule Plugboard.Repo.Migrations.CreatePathsTable do
     create table(:paths, primary_key: false) do
       add :id, :binary_id, primary_key: true
 
-      add :user_id, references(:users, type: :binary_id, on_delete: :delete_all), null: false
-
-      add :created_by_user_id, references(:users, type: :binary_id, on_delete: :restrict),
-        null: false
-
       # Use RESTRICT instead of CASCADE - soft-delete cascade handled by application code
       add :parent_id, references(:paths, type: :binary_id, on_delete: :restrict), null: true
       add :path, :text, null: false
@@ -22,16 +17,24 @@ defmodule Plugboard.Repo.Migrations.CreatePathsTable do
 
     # Use expression index to handle NULL parent_id properly
     # COALESCE converts NULL to a consistent value for the unique constraint
+    # Note: Without user_id, this constraint ensures globally unique sibling paths
     execute """
             CREATE UNIQUE INDEX paths_unique_sibling_path
-            ON paths (user_id, COALESCE(parent_id::text, ''), path)
+            ON paths (COALESCE(parent_id::text, ''), path)
             WHERE deleted_at IS NULL
             """,
             "DROP INDEX paths_unique_sibling_path"
 
+    # Unique constraint on full_path - ensures globally unique paths
+    execute """
+            CREATE UNIQUE INDEX paths_unique_full_path
+            ON paths (full_path)
+            WHERE deleted_at IS NULL
+            """,
+            "DROP INDEX paths_unique_full_path"
+
     create index(:paths, [:full_path], name: :idx_paths_full_path)
     create index(:paths, [:mount_point, :full_path], name: :idx_paths_mount_point_full_path)
-    create index(:paths, [:user_id], name: :idx_paths_user_id)
     create index(:paths, [:parent_id], name: :idx_paths_parent_id)
 
     # Add CHECK constraints for path validation (defense-in-depth)

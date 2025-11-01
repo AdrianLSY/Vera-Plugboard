@@ -17,8 +17,7 @@ defmodule Plugboard.PathsConcurrentTest do
       {:ok, original} =
         Paths.create_path(%{
           path: "concurrent_test",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       original_id = original.id
@@ -101,8 +100,7 @@ defmodule Plugboard.PathsConcurrentTest do
       {:ok, original} =
         Paths.create_path(%{
           path: "idempotent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, deleted} = Paths.delete_path(original)
@@ -135,8 +133,7 @@ defmodule Plugboard.PathsConcurrentTest do
       {:ok, parent} =
         Paths.create_path(%{
           path: "parent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # One task marks parent as mount, other tries to create child
@@ -192,8 +189,7 @@ defmodule Plugboard.PathsConcurrentTest do
       {:ok, parent} =
         Paths.create_path(%{
           path: "parent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Try to create multiple children concurrently
@@ -231,8 +227,7 @@ defmodule Plugboard.PathsConcurrentTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "test",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # One task updates path segment, another checks mount status
@@ -256,8 +251,7 @@ defmodule Plugboard.PathsConcurrentTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "test",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Try to delete concurrently
@@ -292,8 +286,7 @@ defmodule Plugboard.PathsConcurrentTest do
       {:ok, original} =
         Paths.create_path(%{
           path: "rollback_test",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, _deleted} = Paths.delete_path(original)
@@ -302,30 +295,23 @@ defmodule Plugboard.PathsConcurrentTest do
       {:ok, _restored} =
         Paths.create_path(%{
           path: "rollback_test",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Second restoration should fail with unique constraint
       result =
         Paths.create_path(%{
           path: "rollback_test",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert {:error, changeset} = result
       assert "has already been taken" in errors_on(changeset).path
 
-      # Verify no partial state was created
-      count =
-        Path
-        |> where([p], p.path == "rollback_test")
-        |> where([p], p.user_id == ^user.id)
-        |> where([p], is_nil(p.deleted_at))
-        |> Repo.aggregate(:count)
-
-      assert count == 1
+      # Verify no partial state was created (only one active path for this user)
+      paths = Paths.list_paths(user.id)
+      active_rollback_test = Enum.filter(paths, fn p -> p.path == "rollback_test" end)
+      assert length(active_rollback_test) == 1
     end
   end
 
@@ -342,8 +328,7 @@ defmodule Plugboard.PathsConcurrentTest do
       {:ok, root} =
         Paths.create_path(%{
           path: "perf_root",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Create 10 level-1 children
@@ -375,6 +360,137 @@ defmodule Plugboard.PathsConcurrentTest do
     end
   end
 
+  describe "concurrent user_path operations" do
+    setup do
+      user = user_fixture()
+      {:ok, path} = Paths.create_path(%{path: "shared-path", user_id: user.id})
+      %{user: user, path: path}
+    end
+
+    test "concurrent role updates on same user_path", %{path: path} do
+      test_user = user_fixture()
+      {:ok, _user_path} = Paths.add_user_to_path(test_user.id, path.id, "viewer")
+
+      # Try to update role concurrently
+      tasks =
+        for role <- ["maintainer", "owner", "viewer", "maintainer", "owner"] do
+          Task.async(fn ->
+            # Reload to get fresh record
+            fresh_user_path = Paths.get_user_path(test_user.id, path.id)
+            Paths.update_user_path_role(fresh_user_path, role)
+          end)
+        end
+
+      results = Task.await_many(tasks, 10_000)
+
+      # All should succeed (last write wins)
+      successes = Enum.count(results, fn {status, _} -> status == :ok end)
+      assert successes == 5
+
+      # Verify final state is consistent
+      final_user_path = Paths.get_user_path(test_user.id, path.id)
+      assert final_user_path.role in ["owner", "maintainer", "viewer"]
+    end
+
+    test "concurrent additions of different users to same path", %{path: path} do
+      users = for _ <- 1..10, do: user_fixture()
+
+      tasks =
+        for user <- users do
+          Task.async(fn ->
+            Paths.add_user_to_path(user.id, path.id, "viewer")
+          end)
+        end
+
+      results = Task.await_many(tasks, 10_000)
+
+      # All should succeed
+      successes = Enum.count(results, fn {status, _} -> status == :ok end)
+      assert successes == 10
+
+      # Verify all users have access
+      path_users = Paths.list_path_users(path.id)
+      # 10 new users + 1 original owner
+      assert length(path_users) == 11
+    end
+
+    test "concurrent removal and role update", %{path: path} do
+      test_user = user_fixture()
+      {:ok, _user_path} = Paths.add_user_to_path(test_user.id, path.id, "viewer")
+
+      # One task removes, another updates role
+      remove_task =
+        Task.async(fn ->
+          Process.sleep(1)
+          user_path = Paths.get_user_path(test_user.id, path.id)
+          if user_path, do: Paths.remove_user_from_path(user_path), else: {:ok, :already_removed}
+        end)
+
+      update_task =
+        Task.async(fn ->
+          Process.sleep(1)
+          user_path = Paths.get_user_path(test_user.id, path.id)
+
+          if user_path do
+            # Wrap in try/catch to handle stale entry errors gracefully
+            try do
+              Paths.update_user_path_role(user_path, "maintainer")
+            rescue
+              Ecto.StaleEntryError -> {:error, :stale_entry}
+            end
+          else
+            {:error, :not_found}
+          end
+        end)
+
+      results = Task.await_many([remove_task, update_task], 10_000)
+
+      # One should succeed, one should fail or both could succeed depending on timing
+      # The important part is no crash and final state is consistent
+      assert length(results) == 2
+
+      # At least one operation should complete successfully
+      successes =
+        Enum.count(results, fn
+          {:ok, _} -> true
+          _ -> false
+        end)
+
+      assert successes >= 1
+
+      # Verify final state is consistent
+      final_user_path = Paths.get_user_path(test_user.id, path.id)
+      # Either exists with maintainer role or doesn't exist
+      assert final_user_path == nil or final_user_path.role == "maintainer"
+    end
+
+    test "concurrent duplicate user_path creation", %{path: path} do
+      test_user = user_fixture()
+
+      # Try to add same user to same path concurrently
+      tasks =
+        for _ <- 1..10 do
+          Task.async(fn ->
+            Paths.add_user_to_path(test_user.id, path.id, "viewer")
+          end)
+        end
+
+      results = Task.await_many(tasks, 10_000)
+
+      # Exactly one should succeed
+      successes = Enum.count(results, fn {status, _} -> status == :ok end)
+      failures = Enum.count(results, fn {status, _} -> status == :error end)
+
+      assert successes == 1
+      assert failures == 9
+
+      # Verify only one record exists
+      user_path = Paths.get_user_path(test_user.id, path.id)
+      assert user_path != nil
+      assert user_path.role == "viewer"
+    end
+  end
+
   describe "stress test" do
     setup do
       user = user_fixture()
@@ -388,8 +504,7 @@ defmodule Plugboard.PathsConcurrentTest do
       {:ok, parent} =
         Paths.create_path(%{
           path: "stress_parent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Spawn many concurrent operations

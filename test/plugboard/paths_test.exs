@@ -15,15 +15,13 @@ defmodule Plugboard.PathsTest do
       {:ok, path1} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, path2} =
         Paths.create_path(%{
           path: "abc",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       paths = Paths.list_paths(user.id)
@@ -36,8 +34,7 @@ defmodule Plugboard.PathsTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, _deleted} = Paths.delete_path(path)
@@ -52,8 +49,7 @@ defmodule Plugboard.PathsTest do
       {:ok, _path} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: other_user.id,
-          created_by_user_id: other_user.id
+          user_id: other_user.id
         })
 
       paths = Paths.list_paths(user.id)
@@ -71,15 +67,13 @@ defmodule Plugboard.PathsTest do
       {:ok, regular_path} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, mount_point} =
         Paths.create_path(%{
           path: "abc",
           user_id: user.id,
-          created_by_user_id: user.id,
           mount_point: true
         })
 
@@ -99,26 +93,27 @@ defmodule Plugboard.PathsTest do
     test "creates a root path with valid data", %{user: user} do
       attrs = %{
         path: "xyz",
-        user_id: user.id,
-        created_by_user_id: user.id
+        user_id: user.id
       }
 
       assert {:ok, %Path{} = path} = Paths.create_path(attrs)
       assert path.path == "xyz"
       assert path.full_path == "/xyz"
-      assert path.user_id == user.id
-      assert path.created_by_user_id == user.id
       assert path.mount_point == false
       assert is_nil(path.parent_id)
       assert is_nil(path.deleted_at)
+
+      # Verify user association exists
+      user_path = Paths.get_user_path(user.id, path.id)
+      assert user_path != nil
+      assert user_path.role == "owner"
     end
 
     test "creates a child path with valid data", %{user: user} do
       {:ok, parent} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       attrs = %{
@@ -138,24 +133,21 @@ defmodule Plugboard.PathsTest do
       {:ok, level1} =
         Paths.create_path(%{
           path: "a",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, level2} =
         Paths.create_path(%{
           path: "b",
           parent_id: level1.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, level3} =
         Paths.create_path(%{
           path: "c",
           parent_id: level2.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert level1.full_path == "/a"
@@ -202,15 +194,13 @@ defmodule Plugboard.PathsTest do
       errors = errors_on(changeset)
       assert "can't be blank" in errors.path
       assert "can't be blank" in errors.user_id
-      assert "can't be blank" in errors.created_by_user_id
     end
 
     test "enforces unique sibling paths", %{user: user} do
       {:ok, _path1} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Attempt to create duplicate
@@ -228,31 +218,27 @@ defmodule Plugboard.PathsTest do
       {:ok, parent1} =
         Paths.create_path(%{
           path: "parent1",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, parent2} =
         Paths.create_path(%{
           path: "parent2",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, child1} =
         Paths.create_path(%{
           path: "child",
           parent_id: parent1.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, child2} =
         Paths.create_path(%{
           path: "child",
           parent_id: parent2.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert child1.full_path == "/parent1/child"
@@ -265,7 +251,6 @@ defmodule Plugboard.PathsTest do
         Paths.create_path(%{
           path: "xyz",
           user_id: user.id,
-          created_by_user_id: user.id,
           mount_point: true
         })
 
@@ -277,8 +262,7 @@ defmodule Plugboard.PathsTest do
       {:ok, restored} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Should restore the same record
@@ -292,16 +276,14 @@ defmodule Plugboard.PathsTest do
       {:ok, parent} =
         Paths.create_path(%{
           path: "parent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, child} =
         Paths.create_path(%{
           path: "child",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       child_id = child.id
@@ -312,12 +294,53 @@ defmodule Plugboard.PathsTest do
         Paths.create_path(%{
           path: "child",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert restored.id == child_id
       assert is_nil(restored.deleted_at)
+    end
+
+    test "failed path creation rolls back user_path association", %{user: user} do
+      # Count initial user_paths
+      initial_count = Repo.aggregate(Plugboard.Paths.UserPath, :count, :id)
+
+      # Attempt to create invalid path (path name too long)
+      too_long_path = String.duplicate("a", 256)
+
+      assert {:error, _changeset} =
+               Paths.create_path(%{
+                 path: too_long_path,
+                 user_id: user.id
+               })
+
+      # Verify no orphaned user_path record was created
+      final_count = Repo.aggregate(Plugboard.Paths.UserPath, :count, :id)
+      assert final_count == initial_count
+    end
+
+    test "failed path creation with invalid parent rolls back cleanly", %{user: user} do
+      fake_parent_id = Ecto.UUID.generate()
+
+      # Count initial records
+      initial_paths = Repo.aggregate(Path, :count, :id)
+      initial_user_paths = Repo.aggregate(Plugboard.Paths.UserPath, :count, :id)
+
+      # Attempt to create path with non-existent parent
+      assert_raise Postgrex.Error, ~r/Parent path not found/, fn ->
+        Paths.create_path(%{
+          path: "child",
+          parent_id: fake_parent_id,
+          user_id: user.id
+        })
+      end
+
+      # Verify no records were created (transaction rolled back)
+      final_paths = Repo.aggregate(Path, :count, :id)
+      final_user_paths = Repo.aggregate(Plugboard.Paths.UserPath, :count, :id)
+
+      assert final_paths == initial_paths
+      assert final_user_paths == initial_user_paths
     end
   end
 
@@ -333,7 +356,6 @@ defmodule Plugboard.PathsTest do
         Paths.create_path(%{
           path: "mount",
           user_id: user.id,
-          created_by_user_id: user.id,
           mount_point: true
         })
 
@@ -342,8 +364,7 @@ defmodule Plugboard.PathsTest do
         Paths.create_path(%{
           path: "child",
           parent_id: mount.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
       end
     end
@@ -353,15 +374,13 @@ defmodule Plugboard.PathsTest do
         Paths.create_path(%{
           path: "mount",
           user_id: user.id,
-          created_by_user_id: user.id,
           mount_point: true
         })
 
       {:ok, regular_path} =
         Paths.create_path(%{
           path: "regular",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Attempt to move regular_path under mount
@@ -383,16 +402,14 @@ defmodule Plugboard.PathsTest do
       {:ok, parent} =
         Paths.create_path(%{
           path: "parent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, _child} =
         Paths.create_path(%{
           path: "child",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Attempt to mark parent as mount point
@@ -405,8 +422,7 @@ defmodule Plugboard.PathsTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "path",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert {:ok, updated} = Paths.update_path(path, %{mount_point: true})
@@ -424,8 +440,7 @@ defmodule Plugboard.PathsTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert {:ok, updated} = Paths.update_path(path, %{path: "abc"})
@@ -438,7 +453,6 @@ defmodule Plugboard.PathsTest do
         Paths.create_path(%{
           path: "xyz",
           user_id: user.id,
-          created_by_user_id: user.id,
           mount_point: false
         })
 
@@ -450,24 +464,21 @@ defmodule Plugboard.PathsTest do
       {:ok, parent} =
         Paths.create_path(%{
           path: "parent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, child} =
         Paths.create_path(%{
           path: "child",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, grandchild} =
         Paths.create_path(%{
           path: "grandchild",
           parent_id: child.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Update parent path
@@ -493,8 +504,7 @@ defmodule Plugboard.PathsTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert {:ok, deleted} = Paths.delete_path(path)
@@ -514,16 +524,14 @@ defmodule Plugboard.PathsTest do
       {:ok, parent} =
         Paths.create_path(%{
           path: "parent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, child} =
         Paths.create_path(%{
           path: "child",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Delete parent
@@ -537,32 +545,28 @@ defmodule Plugboard.PathsTest do
       {:ok, parent} =
         Paths.create_path(%{
           path: "parent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, child1} =
         Paths.create_path(%{
           path: "child1",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, _child2} =
         Paths.create_path(%{
           path: "child2",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, _grandchild} =
         Paths.create_path(%{
           path: "grandchild",
           parent_id: child1.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       # Capture logs - temporarily set log level to info
@@ -592,8 +596,7 @@ defmodule Plugboard.PathsTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert %Path{} = retrieved = Paths.get_path(path.id)
@@ -608,8 +611,7 @@ defmodule Plugboard.PathsTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, _deleted} = Paths.delete_path(path)
@@ -628,8 +630,7 @@ defmodule Plugboard.PathsTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert %Path{} = retrieved = Paths.get_path_by_full_path(user.id, "/xyz")
@@ -664,8 +665,7 @@ defmodule Plugboard.PathsTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert Paths.can_mark_as_mount?(path) == true
@@ -675,16 +675,14 @@ defmodule Plugboard.PathsTest do
       {:ok, parent} =
         Paths.create_path(%{
           path: "parent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, _child} =
         Paths.create_path(%{
           path: "child",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert Paths.can_mark_as_mount?(parent) == false
@@ -701,8 +699,7 @@ defmodule Plugboard.PathsTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "xyz",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert {:ok, true} = Paths.can_add_child?(path)
@@ -713,7 +710,6 @@ defmodule Plugboard.PathsTest do
         Paths.create_path(%{
           path: "mount",
           user_id: user.id,
-          created_by_user_id: user.id,
           mount_point: true
         })
 
@@ -731,32 +727,28 @@ defmodule Plugboard.PathsTest do
       {:ok, parent} =
         Paths.create_path(%{
           path: "parent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, child1} =
         Paths.create_path(%{
           path: "child1",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, child2} =
         Paths.create_path(%{
           path: "child2",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, _grandchild} =
         Paths.create_path(%{
           path: "grandchild",
           parent_id: child1.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       children = Paths.get_children(parent)
@@ -769,8 +761,7 @@ defmodule Plugboard.PathsTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "lonely",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert Paths.get_children(path) == []
@@ -787,40 +778,35 @@ defmodule Plugboard.PathsTest do
       {:ok, parent} =
         Paths.create_path(%{
           path: "parent",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, child1} =
         Paths.create_path(%{
           path: "child1",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, child2} =
         Paths.create_path(%{
           path: "child2",
           parent_id: parent.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, grandchild1} =
         Paths.create_path(%{
           path: "grandchild1",
           parent_id: child1.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       {:ok, grandchild2} =
         Paths.create_path(%{
           path: "grandchild2",
           parent_id: child2.id,
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       descendants = Paths.get_descendants(parent)
@@ -837,8 +823,7 @@ defmodule Plugboard.PathsTest do
       {:ok, path} =
         Paths.create_path(%{
           path: "lonely",
-          user_id: user.id,
-          created_by_user_id: user.id
+          user_id: user.id
         })
 
       assert Paths.get_descendants(path) == []
@@ -851,19 +836,16 @@ defmodule Plugboard.PathsTest do
       %{user: user}
     end
 
-    test "prevents paths with slashes at database level", %{user: user} do
+    test "prevents paths with slashes at database level", %{user: _user} do
       # Bypass application validation by using raw SQL
       {:ok, uuid_binary} = Ecto.UUID.dump(Ecto.UUID.generate())
-      {:ok, user_id_binary} = Ecto.UUID.dump(user.id)
 
       assert_raise Postgrex.Error, ~r/path_no_slashes/, fn ->
         Repo.query!(
-          "INSERT INTO paths (id, user_id, created_by_user_id, path, full_path, mount_point, inserted_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())",
+          "INSERT INTO paths (id, path, full_path, mount_point, inserted_at, updated_at)
+           VALUES ($1, $2, $3, $4, NOW(), NOW())",
           [
             uuid_binary,
-            user_id_binary,
-            user_id_binary,
             "invalid/path",
             "/invalid/path",
             false
@@ -872,18 +854,15 @@ defmodule Plugboard.PathsTest do
       end
     end
 
-    test "prevents paths with invalid characters at database level", %{user: user} do
+    test "prevents paths with invalid characters at database level", %{user: _user} do
       {:ok, uuid_binary} = Ecto.UUID.dump(Ecto.UUID.generate())
-      {:ok, user_id_binary} = Ecto.UUID.dump(user.id)
 
       assert_raise Postgrex.Error, ~r/path_valid_chars/, fn ->
         Repo.query!(
-          "INSERT INTO paths (id, user_id, created_by_user_id, path, full_path, mount_point, inserted_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())",
+          "INSERT INTO paths (id, path, full_path, mount_point, inserted_at, updated_at)
+           VALUES ($1, $2, $3, $4, NOW(), NOW())",
           [
             uuid_binary,
-            user_id_binary,
-            user_id_binary,
             "invalid@path!",
             "/invalid@path!",
             false
@@ -892,18 +871,15 @@ defmodule Plugboard.PathsTest do
       end
     end
 
-    test "prevents empty paths at database level", %{user: user} do
+    test "prevents empty paths at database level", %{user: _user} do
       {:ok, uuid_binary} = Ecto.UUID.dump(Ecto.UUID.generate())
-      {:ok, user_id_binary} = Ecto.UUID.dump(user.id)
 
       assert_raise Postgrex.Error, ~r/path_length/, fn ->
         Repo.query!(
-          "INSERT INTO paths (id, user_id, created_by_user_id, path, full_path, mount_point, inserted_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())",
+          "INSERT INTO paths (id, path, full_path, mount_point, inserted_at, updated_at)
+           VALUES ($1, $2, $3, $4, NOW(), NOW())",
           [
             uuid_binary,
-            user_id_binary,
-            user_id_binary,
             "",
             "/",
             false
@@ -912,25 +888,535 @@ defmodule Plugboard.PathsTest do
       end
     end
 
-    test "prevents paths longer than 255 characters at database level", %{user: user} do
+    test "prevents paths longer than 255 characters at database level", %{user: _user} do
       long_path = String.duplicate("a", 256)
       {:ok, uuid_binary} = Ecto.UUID.dump(Ecto.UUID.generate())
-      {:ok, user_id_binary} = Ecto.UUID.dump(user.id)
 
       assert_raise Postgrex.Error, ~r/path_length/, fn ->
         Repo.query!(
-          "INSERT INTO paths (id, user_id, created_by_user_id, path, full_path, mount_point, inserted_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())",
+          "INSERT INTO paths (id, path, full_path, mount_point, inserted_at, updated_at)
+           VALUES ($1, $2, $3, $4, NOW(), NOW())",
           [
             uuid_binary,
-            user_id_binary,
-            user_id_binary,
             long_path,
             "/#{long_path}",
             false
           ]
         )
       end
+    end
+  end
+
+  describe "database foreign key constraints" do
+    setup do
+      user = user_fixture()
+      %{user: user}
+    end
+
+    test "foreign key constraint on parent_id", %{user: user} do
+      fake_parent_id = Ecto.UUID.generate()
+
+      # Database trigger raises Postgrex.Error with "Parent path not found"
+      assert_raise Postgrex.Error, ~r/Parent path not found/, fn ->
+        Paths.create_path(%{path: "child", parent_id: fake_parent_id, user_id: user.id})
+      end
+    end
+
+    test "user_paths foreign key constraint on user_id" do
+      {:ok, user} = Accounts.register_user(%{email: "test@test.com", password: "hello world!"})
+      {:ok, path} = Paths.create_path(%{path: "test", user_id: user.id})
+
+      fake_user_id = Ecto.UUID.generate()
+
+      {:error, changeset} = Paths.add_user_to_path(fake_user_id, path.id, "viewer")
+      assert %{user_id: ["does not exist"]} = errors_on(changeset)
+    end
+
+    test "user_paths foreign key constraint on path_id" do
+      {:ok, user} = Accounts.register_user(%{email: "test@test.com", password: "hello world!"})
+      fake_path_id = Ecto.UUID.generate()
+
+      {:error, changeset} = Paths.add_user_to_path(user.id, fake_path_id, "viewer")
+      assert %{path_id: ["does not exist"]} = errors_on(changeset)
+    end
+
+    test "deleting user cascades to user_paths (ON DELETE CASCADE)", %{user: user} do
+      {:ok, path} = Paths.create_path(%{path: "test", user_id: user.id})
+      viewer = user_fixture()
+      {:ok, user_path} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+
+      # Hard delete the viewer user
+      Repo.delete!(viewer)
+
+      # user_path should be automatically deleted
+      assert is_nil(Repo.get(Plugboard.Paths.UserPath, user_path.id))
+    end
+
+    test "hard deleting path cascades to user_paths (ON DELETE CASCADE)", %{user: user} do
+      {:ok, path} = Paths.create_path(%{path: "test", user_id: user.id})
+      viewer = user_fixture()
+      {:ok, user_path} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+
+      # Hard delete the path (bypass soft-delete)
+      Repo.delete!(path)
+
+      # user_path should be automatically deleted
+      assert is_nil(Repo.get(Plugboard.Paths.UserPath, user_path.id))
+    end
+
+    test "soft-deleting path does NOT cascade to user_paths", %{user: user} do
+      {:ok, path} = Paths.create_path(%{path: "test", user_id: user.id})
+      viewer = user_fixture()
+      {:ok, user_path} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+
+      # Soft-delete the path
+      Paths.delete_path(path)
+
+      # user_path should still exist in database
+      assert Repo.get(Plugboard.Paths.UserPath, user_path.id) != nil
+    end
+
+    test "parent_id ON DELETE RESTRICT prevents deleting parent with active children", %{
+      user: user
+    } do
+      {:ok, parent} = Paths.create_path(%{path: "parent", user_id: user.id})
+      {:ok, _child} = Paths.create_path(%{path: "child", parent_id: parent.id, user_id: user.id})
+
+      # Hard delete should fail due to foreign key constraint (RESTRICT)
+      # This raises Postgrex.Error with RESTRICT violation
+      assert_raise Postgrex.Error, ~r/restrict_violation|foreign key constraint/, fn ->
+        Repo.delete!(parent)
+      end
+    end
+  end
+
+  describe "database unique constraints" do
+    setup do
+      user = user_fixture()
+      %{user: user}
+    end
+
+    test "paths_unique_sibling_path enforces unique (parent_id, path) with NULL parent", %{
+      user: user
+    } do
+      {:ok, _path1} = Paths.create_path(%{path: "xyz", user_id: user.id})
+
+      # Duplicate root path should fail
+      {:error, changeset} = Paths.create_path(%{path: "xyz", user_id: user.id})
+      assert "has already been taken" in errors_on(changeset).path
+    end
+
+    test "paths_unique_sibling_path allows same path name under different parents", %{user: user} do
+      {:ok, parent1} = Paths.create_path(%{path: "parent1", user_id: user.id})
+      {:ok, parent2} = Paths.create_path(%{path: "parent2", user_id: user.id})
+
+      {:ok, child1} = Paths.create_path(%{path: "child", parent_id: parent1.id, user_id: user.id})
+      {:ok, child2} = Paths.create_path(%{path: "child", parent_id: parent2.id, user_id: user.id})
+
+      assert child1.full_path == "/parent1/child"
+      assert child2.full_path == "/parent2/child"
+    end
+
+    test "paths_unique_full_path enforces globally unique full paths", %{user: user} do
+      {:ok, _path1} = Paths.create_path(%{path: "xyz", user_id: user.id})
+
+      # The unique constraint on full_path is enforced by the partial index
+      # WHERE deleted_at IS NULL. However, the database trigger compute_full_path
+      # will compute the full_path based on parent and path, so we can't directly
+      # insert a duplicate full_path with different path segments.
+
+      # Instead, test that creating a duplicate via application logic is prevented
+      {:error, changeset} = Paths.create_path(%{path: "xyz", user_id: user.id})
+
+      # Should get a "has already been taken" error
+      assert "has already been taken" in errors_on(changeset).path
+    end
+
+    test "soft-deleted paths don't block new paths with same full_path", %{user: user} do
+      {:ok, path1} = Paths.create_path(%{path: "xyz", user_id: user.id})
+      {:ok, _deleted} = Paths.delete_path(path1)
+
+      # Creating path with same name should restore the soft-deleted one
+      {:ok, path2} = Paths.create_path(%{path: "xyz", user_id: user.id})
+
+      # Should be the same record, restored
+      assert path2.id == path1.id
+      assert is_nil(path2.deleted_at)
+    end
+
+    test "user_paths_unique_user_path prevents duplicate user-path associations", %{user: user} do
+      {:ok, path} = Paths.create_path(%{path: "test", user_id: user.id})
+      viewer = user_fixture()
+
+      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+
+      # Duplicate should fail
+      {:error, changeset} = Paths.add_user_to_path(viewer.id, path.id, "owner")
+
+      errors = errors_on(changeset)
+      # Either user_id or path_id should show "has already been taken"
+      assert (errors[:user_id] && "has already been taken" in errors[:user_id]) or
+               (errors[:path_id] && "has already been taken" in errors[:path_id])
+    end
+  end
+
+  describe "user_paths CHECK constraints" do
+    test "valid_role CHECK constraint enforces role values" do
+      {:ok, user} = Accounts.register_user(%{email: "test@test.com", password: "hello world!"})
+      {:ok, path} = Paths.create_path(%{path: "test", user_id: user.id})
+      another_user = user_fixture()
+
+      # Valid roles should work (tested elsewhere)
+      assert {:ok, _} = Paths.add_user_to_path(another_user.id, path.id, "viewer")
+
+      # Invalid role at database level (bypass application validation)
+      {:ok, user_id_binary} = Ecto.UUID.dump(user.id)
+      {:ok, path_id_binary} = Ecto.UUID.dump(path.id)
+      {:ok, uuid_binary} = Ecto.UUID.dump(Ecto.UUID.generate())
+
+      assert_raise Postgrex.Error, ~r/valid_role/, fn ->
+        Repo.query!(
+          "INSERT INTO user_paths (id, user_id, path_id, role, inserted_at, updated_at)
+           VALUES ($1, $2, $3, $4, NOW(), NOW())",
+          [
+            uuid_binary,
+            user_id_binary,
+            path_id_binary,
+            # Invalid role
+            "admin"
+          ]
+        )
+      end
+    end
+  end
+
+  describe "authorization and permissions" do
+    setup do
+      owner = user_fixture()
+      viewer = user_fixture()
+      maintainer = user_fixture()
+      other_user = user_fixture()
+
+      {:ok, path} = Paths.create_path(%{path: "shared-path", user_id: owner.id})
+
+      # Add viewer and maintainer roles
+      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+
+      %{owner: owner, viewer: viewer, maintainer: maintainer, other_user: other_user, path: path}
+    end
+
+    test "viewer can list and view paths", %{viewer: viewer, path: path} do
+      paths = Paths.list_paths(viewer.id)
+      assert length(paths) == 1
+      assert hd(paths).id == path.id
+
+      # Can get path by full_path
+      retrieved = Paths.get_path_by_full_path(viewer.id, path.full_path)
+      assert retrieved.id == path.id
+    end
+
+    test "maintainer can list and view paths", %{maintainer: maintainer, path: path} do
+      paths = Paths.list_paths(maintainer.id)
+      assert length(paths) == 1
+      assert hd(paths).id == path.id
+    end
+
+    test "owner can list and view paths", %{owner: owner, path: path} do
+      paths = Paths.list_paths(owner.id)
+      assert length(paths) == 1
+      assert hd(paths).id == path.id
+    end
+
+    test "user without access cannot view path", %{other_user: other_user, path: path} do
+      paths = Paths.list_paths(other_user.id)
+      assert paths == []
+
+      # Cannot get by full_path
+      assert is_nil(Paths.get_path_by_full_path(other_user.id, path.full_path))
+    end
+
+    test "viewer can see children of path they have access to", %{
+      owner: owner,
+      path: path
+    } do
+      {:ok, child} = Paths.create_path(%{path: "child", parent_id: path.id, user_id: owner.id})
+
+      # Viewer should see the child through parent relationship
+      children = Paths.get_children(path)
+      assert length(children) == 1
+      assert hd(children).id == child.id
+    end
+
+    test "multiple users with different roles can access same path", %{
+      owner: owner,
+      viewer: viewer,
+      maintainer: maintainer,
+      path: path
+    } do
+      # All should see the path
+      assert Enum.any?(Paths.list_paths(owner.id), fn p -> p.id == path.id end)
+      assert Enum.any?(Paths.list_paths(viewer.id), fn p -> p.id == path.id end)
+      assert Enum.any?(Paths.list_paths(maintainer.id), fn p -> p.id == path.id end)
+
+      # Verify roles
+      assert Paths.has_role?(owner.id, path.id, "owner")
+      assert Paths.has_role?(viewer.id, path.id, "viewer")
+      assert Paths.has_role?(maintainer.id, path.id, "maintainer")
+    end
+
+    test "removing user access removes path from their list", %{viewer: viewer, path: path} do
+      # Viewer can see path
+      assert Enum.any?(Paths.list_paths(viewer.id), fn p -> p.id == path.id end)
+
+      # Remove viewer access
+      user_path = Paths.get_user_path(viewer.id, path.id)
+      {:ok, _} = Paths.remove_user_from_path(user_path)
+
+      # Viewer can no longer see path
+      paths = Paths.list_paths(viewer.id)
+      refute Enum.any?(paths, fn p -> p.id == path.id end)
+    end
+
+    test "user can create child under path they own", %{owner: owner, path: path} do
+      assert {:ok, child} =
+               Paths.create_path(%{path: "child", parent_id: path.id, user_id: owner.id})
+
+      assert child.parent_id == path.id
+      assert child.full_path == "/shared-path/child"
+    end
+
+    test "granting access to parent doesn't automatically grant access to children", %{
+      owner: owner,
+      path: parent
+    } do
+      # Create a child path
+      {:ok, child} = Paths.create_path(%{path: "child", parent_id: parent.id, user_id: owner.id})
+
+      # Create new user and give them access to parent only
+      new_user = user_fixture()
+      {:ok, _} = Paths.add_user_to_path(new_user.id, parent.id, "viewer")
+
+      # New user should see parent
+      paths = Paths.list_paths(new_user.id)
+      parent_ids = Enum.map(paths, & &1.id)
+      assert parent.id in parent_ids
+
+      # But not the child (unless explicitly granted)
+      refute child.id in parent_ids
+    end
+
+    test "user can be granted access to child without parent access", %{
+      owner: owner,
+      path: parent
+    } do
+      # Create a child path
+      {:ok, child} = Paths.create_path(%{path: "child", parent_id: parent.id, user_id: owner.id})
+
+      # Grant new user access to child only
+      new_user = user_fixture()
+      {:ok, _} = Paths.add_user_to_path(new_user.id, child.id, "viewer")
+
+      # User should see child but not parent
+      paths = Paths.list_paths(new_user.id)
+      path_ids = Enum.map(paths, & &1.id)
+
+      assert child.id in path_ids
+      refute parent.id in path_ids
+    end
+
+    test "list_mount_points/1 respects user permissions", %{
+      owner: owner,
+      viewer: viewer,
+      other_user: other_user,
+      path: path
+    } do
+      # Mark as mount point
+      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+
+      # Owner and viewer should see it
+      owner_mounts = Paths.list_mount_points(owner.id)
+      viewer_mounts = Paths.list_mount_points(viewer.id)
+      other_mounts = Paths.list_mount_points(other_user.id)
+
+      assert Enum.any?(owner_mounts, fn p -> p.id == path.id end)
+      assert Enum.any?(viewer_mounts, fn p -> p.id == path.id end)
+      refute Enum.any?(other_mounts, fn p -> p.id == path.id end)
+    end
+
+    test "soft-deleted paths are hidden from all users", %{
+      owner: owner,
+      viewer: viewer,
+      path: path
+    } do
+      # Both can see the path initially
+      assert Enum.any?(Paths.list_paths(owner.id), fn p -> p.id == path.id end)
+      assert Enum.any?(Paths.list_paths(viewer.id), fn p -> p.id == path.id end)
+
+      # Owner soft-deletes the path
+      {:ok, _} = Paths.delete_path(path)
+
+      # Neither should see it now
+      refute Enum.any?(Paths.list_paths(owner.id), fn p -> p.id == path.id end)
+      refute Enum.any?(Paths.list_paths(viewer.id), fn p -> p.id == path.id end)
+    end
+
+    test "restoring path preserves all user_path associations", %{
+      owner: owner,
+      viewer: viewer,
+      maintainer: maintainer,
+      path: path
+    } do
+      # Soft-delete the path
+      {:ok, _} = Paths.delete_path(path)
+
+      # Restore by recreating (should restore existing record)
+      {:ok, restored} = Paths.create_path(%{path: "shared-path", user_id: owner.id})
+      assert restored.id == path.id
+
+      # All users should still have their roles (except deleted_at is cleared)
+      assert Paths.has_role?(owner.id, restored.id, "owner")
+      assert Paths.has_role?(viewer.id, restored.id, "viewer")
+      assert Paths.has_role?(maintainer.id, restored.id, "maintainer")
+    end
+  end
+
+  describe "edge cases for user-path relationships" do
+    setup do
+      user = user_fixture()
+      %{user: user}
+    end
+
+    test "creating path with non-existent parent_id fails gracefully", %{user: user} do
+      fake_parent_id = Ecto.UUID.generate()
+
+      # Database trigger raises Postgrex.Error with "Parent path not found"
+      assert_raise Postgrex.Error, ~r/Parent path not found/, fn ->
+        Paths.create_path(%{path: "child", parent_id: fake_parent_id, user_id: user.id})
+      end
+    end
+
+    test "concurrent user_path creation for same user/path", %{user: user} do
+      {:ok, path} = Paths.create_path(%{path: "test", user_id: user.id})
+      new_user = user_fixture()
+
+      # Try to add same user to same path concurrently
+      tasks =
+        for _ <- 1..5 do
+          Task.async(fn ->
+            Paths.add_user_to_path(new_user.id, path.id, "viewer")
+          end)
+        end
+
+      results = Task.await_many(tasks, 10_000)
+
+      # Exactly one should succeed
+      successes = Enum.count(results, fn {status, _} -> status == :ok end)
+      failures = Enum.count(results, fn {status, _} -> status == :error end)
+
+      assert successes == 1
+      assert failures == 4
+    end
+
+    test "creating child under soft-deleted parent succeeds (soft-delete doesn't restrict)", %{
+      user: user
+    } do
+      {:ok, parent} = Paths.create_path(%{path: "parent", user_id: user.id})
+      {:ok, _} = Paths.delete_path(parent)
+
+      # Soft-deleted parents can still have children created
+      # (the foreign key constraint only checks existence, not deleted_at)
+      assert {:ok, child} =
+               Paths.create_path(%{path: "child", parent_id: parent.id, user_id: user.id})
+
+      assert child.parent_id == parent.id
+
+      # However, the child won't be visible in normal queries if parent is deleted
+      # This is a known edge case - application should prevent this scenario
+    end
+
+    test "maximum nesting depth", %{user: user} do
+      # Create 50 levels deep to test performance and correctness
+      {_final_id, _final_path} =
+        Enum.reduce(1..50, {nil, ""}, fn level, {current_parent_id, parent_path} ->
+          segment = "level#{level}"
+          expected_path = parent_path <> "/#{segment}"
+
+          {:ok, path} =
+            Paths.create_path(%{
+              path: segment,
+              parent_id: current_parent_id,
+              user_id: user.id
+            })
+
+          assert path.full_path == expected_path
+          {path.id, expected_path}
+        end)
+
+      # Verify we can query deeply nested paths
+      paths = Paths.list_paths(user.id)
+      assert length(paths) == 50
+    end
+
+    test "path with special characters (dots, dashes, underscores)", %{user: user} do
+      valid_segments = ["v1.0", "api-v2", "test_path", "a.b-c_d"]
+
+      for segment <- valid_segments do
+        assert {:ok, path} = Paths.create_path(%{path: segment, user_id: user.id})
+        assert path.path == segment
+      end
+    end
+
+    test "path starting with number", %{user: user} do
+      assert {:ok, path} = Paths.create_path(%{path: "123", user_id: user.id})
+      assert path.path == "123"
+      assert path.full_path == "/123"
+    end
+
+    test "path with maximum length (255 characters)", %{user: user} do
+      max_length_path = String.duplicate("a", 255)
+      assert {:ok, path} = Paths.create_path(%{path: max_length_path, user_id: user.id})
+      assert String.length(path.path) == 255
+    end
+
+    test "path exceeding maximum length fails", %{user: user} do
+      too_long_path = String.duplicate("a", 256)
+      assert {:error, changeset} = Paths.create_path(%{path: too_long_path, user_id: user.id})
+      assert %{path: ["should be at most 255 character(s)"]} = errors_on(changeset)
+    end
+
+    test "soft-delete cascade performance with many descendants", %{user: user} do
+      # Create a tree with 100 nodes
+      {:ok, root} = Paths.create_path(%{path: "perf-root", user_id: user.id})
+
+      # Create 10 level-1 children
+      for i <- 1..10 do
+        {:ok, child} =
+          Paths.create_path(%{
+            path: "child-#{i}",
+            parent_id: root.id,
+            user_id: user.id
+          })
+
+        # Create 9 grandchildren under each child (90 total)
+        for j <- 1..9 do
+          Paths.create_path(%{
+            path: "gc-#{i}-#{j}",
+            parent_id: child.id,
+            user_id: user.id
+          })
+        end
+      end
+
+      # Measure delete time
+      {time_us, {:ok, _}} = :timer.tc(fn -> Paths.delete_path(root) end)
+
+      # Should complete reasonably fast
+      assert time_us < 1_000_000, "Delete took #{time_us}μs (expected < 1s)"
+
+      # Verify all descendants are soft-deleted
+      remaining_paths = Paths.list_paths(user.id)
+      assert remaining_paths == []
     end
   end
 

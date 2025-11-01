@@ -6,12 +6,14 @@ defmodule Plugboard.Paths do
   - Creating, updating, and soft-deleting paths
   - Restoring soft-deleted paths
   - Querying paths and mount points
+  - Managing user-path associations with roles (owner, maintainer, viewer)
   - Enforcing ownership and permissions
   """
 
   import Ecto.Query, warn: false
   alias Plugboard.Repo
   alias Plugboard.Paths.Path
+  alias Plugboard.Paths.UserPath
 
   @doc """
   Returns the list of active paths for a given user.
@@ -23,10 +25,13 @@ defmodule Plugboard.Paths do
 
   """
   def list_paths(user_id) do
-    Path
-    |> where([p], p.user_id == ^user_id)
-    |> where([p], is_nil(p.deleted_at))
-    |> order_by([p], asc: p.full_path)
+    from(p in Path,
+      join: up in UserPath,
+      on: up.path_id == p.id,
+      where: up.user_id == ^user_id,
+      where: is_nil(p.deleted_at),
+      order_by: [asc: p.full_path]
+    )
     |> Repo.all()
   end
 
@@ -46,20 +51,26 @@ defmodule Plugboard.Paths do
 
   """
   def list_paths_by_parent(user_id, nil) do
-    Path
-    |> where([p], p.user_id == ^user_id)
-    |> where([p], is_nil(p.parent_id))
-    |> where([p], is_nil(p.deleted_at))
-    |> order_by([p], asc: p.path)
+    from(p in Path,
+      join: up in UserPath,
+      on: up.path_id == p.id,
+      where: up.user_id == ^user_id,
+      where: is_nil(p.parent_id),
+      where: is_nil(p.deleted_at),
+      order_by: [asc: p.path]
+    )
     |> Repo.all()
   end
 
   def list_paths_by_parent(user_id, parent_id) do
-    Path
-    |> where([p], p.user_id == ^user_id)
-    |> where([p], p.parent_id == ^parent_id)
-    |> where([p], is_nil(p.deleted_at))
-    |> order_by([p], asc: p.path)
+    from(p in Path,
+      join: up in UserPath,
+      on: up.path_id == p.id,
+      where: up.user_id == ^user_id,
+      where: p.parent_id == ^parent_id,
+      where: is_nil(p.deleted_at),
+      order_by: [asc: p.path]
+    )
     |> Repo.all()
   end
 
@@ -73,11 +84,14 @@ defmodule Plugboard.Paths do
 
   """
   def list_mount_points(user_id) do
-    Path
-    |> where([p], p.user_id == ^user_id)
-    |> where([p], p.mount_point == true)
-    |> where([p], is_nil(p.deleted_at))
-    |> order_by([p], asc: p.full_path)
+    from(p in Path,
+      join: up in UserPath,
+      on: up.path_id == p.id,
+      where: up.user_id == ^user_id,
+      where: p.mount_point == true,
+      where: is_nil(p.deleted_at),
+      order_by: [asc: p.full_path]
+    )
     |> Repo.all()
   end
 
@@ -126,10 +140,13 @@ defmodule Plugboard.Paths do
 
   """
   def get_path_by_full_path(user_id, full_path) do
-    Path
-    |> where([p], p.user_id == ^user_id)
-    |> where([p], p.full_path == ^full_path)
-    |> where([p], is_nil(p.deleted_at))
+    from(p in Path,
+      join: up in UserPath,
+      on: up.path_id == p.id,
+      where: up.user_id == ^user_id,
+      where: p.full_path == ^full_path,
+      where: is_nil(p.deleted_at)
+    )
     |> Repo.one()
   end
 
@@ -143,42 +160,51 @@ defmodule Plugboard.Paths do
 
   """
   def get_path_by_full_path_including_deleted(user_id, full_path) do
-    Path
-    |> where([p], p.user_id == ^user_id)
-    |> where([p], p.full_path == ^full_path)
+    from(p in Path,
+      join: up in UserPath,
+      on: up.path_id == p.id,
+      where: up.user_id == ^user_id,
+      where: p.full_path == ^full_path
+    )
     |> Repo.one()
   end
 
   @doc """
-  Creates a path.
+  Creates a path and associates it with a user.
 
   If a path with the same full_path exists and is soft-deleted, it will be restored
   instead of creating a new record. The restored path will have mount_point set to false.
 
+  Attrs must include:
+  - user_id: The user who will own this path (owner role)
+  - path: The path segment
+  - parent_id: (optional) The parent path ID
+
   ## Examples
 
-      iex> create_path(%{path: "xyz", user_id: user_id, created_by_user_id: user_id})
+      iex> create_path(%{path: "xyz", user_id: user_id})
       {:ok, %Path{}}
 
-      iex> create_path(%{path: "", user_id: user_id})
+      iex> create_path(%{path: ""})
       {:error, %Ecto.Changeset{}}
 
   """
   def create_path(attrs \\ %{}) do
+    # Extract user_id from attrs before validating path changeset
+    user_id = Map.get(attrs, :user_id) || Map.get(attrs, "user_id")
+
     # First, validate the changeset
     changeset = Path.create_changeset(%Path{}, attrs)
 
-    if changeset.valid? do
+    if changeset.valid? && user_id do
       # Wrap in transaction with row-level locking to prevent race conditions
       Repo.transaction(fn ->
-        user_id = Ecto.Changeset.get_field(changeset, :user_id)
         path_segment = Ecto.Changeset.get_field(changeset, :path)
         parent_id = Ecto.Changeset.get_field(changeset, :parent_id)
 
         # Lock any matching soft-deleted row to prevent concurrent restoration
         query =
           from p in Path,
-            where: p.user_id == ^user_id,
             where: p.path == ^path_segment,
             where: not is_nil(p.deleted_at),
             lock: "FOR UPDATE"
@@ -195,7 +221,20 @@ defmodule Plugboard.Paths do
             # No soft-deleted path exists, create new
             case Repo.insert(changeset) do
               {:ok, path} ->
-                Repo.get!(Path, path.id)
+                # Create user_path association with owner role
+                user_path_attrs = %{
+                  user_id: user_id,
+                  path_id: path.id,
+                  role: "owner"
+                }
+
+                case UserPath.changeset(%UserPath{}, user_path_attrs) |> Repo.insert() do
+                  {:ok, _user_path} ->
+                    Repo.get!(Path, path.id)
+
+                  {:error, changeset} ->
+                    Repo.rollback(changeset)
+                end
 
               {:error, changeset} ->
                 Repo.rollback(changeset)
@@ -205,7 +244,29 @@ defmodule Plugboard.Paths do
             # Restore the soft-deleted path
             case Path.restore_changeset(path, attrs) |> Repo.update() do
               {:ok, path} ->
-                Repo.get!(Path, path.id)
+                # Check if user_path association already exists
+                existing_user_path =
+                  Repo.get_by(UserPath, user_id: user_id, path_id: path.id)
+
+                if existing_user_path do
+                  # User path already exists, just return the path
+                  Repo.get!(Path, path.id)
+                else
+                  # Create new user_path association with owner role
+                  user_path_attrs = %{
+                    user_id: user_id,
+                    path_id: path.id,
+                    role: "owner"
+                  }
+
+                  case UserPath.changeset(%UserPath{}, user_path_attrs) |> Repo.insert() do
+                    {:ok, _user_path} ->
+                      Repo.get!(Path, path.id)
+
+                    {:error, changeset} ->
+                      Repo.rollback(changeset)
+                  end
+                end
 
               {:error, changeset} ->
                 Repo.rollback(changeset)
@@ -213,7 +274,13 @@ defmodule Plugboard.Paths do
         end
       end)
     else
-      {:error, changeset}
+      if user_id do
+        {:error, changeset}
+      else
+        {:error,
+         Path.create_changeset(%Path{}, attrs)
+         |> Ecto.Changeset.add_error(:user_id, "can't be blank")}
+      end
     end
   end
 
@@ -308,6 +375,97 @@ defmodule Plugboard.Paths do
     Path.update_changeset(path, attrs)
   end
 
+  # User-Path Association Management
+
+  @doc """
+  Associates a user with a path with a specific role.
+
+  ## Examples
+
+      iex> add_user_to_path(user_id, path_id, "viewer")
+      {:ok, %UserPath{}}
+
+  """
+  def add_user_to_path(user_id, path_id, role) do
+    %UserPath{}
+    |> UserPath.changeset(%{user_id: user_id, path_id: path_id, role: role})
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates a user's role for a path.
+
+  ## Examples
+
+      iex> update_user_path_role(user_path, "maintainer")
+      {:ok, %UserPath{}}
+
+  """
+  def update_user_path_role(%UserPath{} = user_path, role) do
+    user_path
+    |> UserPath.changeset(%{role: role})
+    |> Repo.update()
+  end
+
+  @doc """
+  Removes a user's association with a path.
+
+  ## Examples
+
+      iex> remove_user_from_path(user_path)
+      {:ok, %UserPath{}}
+
+  """
+  def remove_user_from_path(%UserPath{} = user_path) do
+    Repo.delete(user_path)
+  end
+
+  @doc """
+  Gets a user_path association by user_id and path_id.
+
+  ## Examples
+
+      iex> get_user_path(user_id, path_id)
+      %UserPath{}
+
+  """
+  def get_user_path(user_id, path_id) do
+    Repo.get_by(UserPath, user_id: user_id, path_id: path_id)
+  end
+
+  @doc """
+  Lists all users associated with a path.
+
+  ## Examples
+
+      iex> list_path_users(path_id)
+      [%UserPath{}, ...]
+
+  """
+  def list_path_users(path_id) do
+    UserPath
+    |> where([up], up.path_id == ^path_id)
+    |> Repo.all()
+    |> Repo.preload(:user)
+  end
+
+  @doc """
+  Checks if a user has a specific role for a path.
+
+  ## Examples
+
+      iex> has_role?(user_id, path_id, "owner")
+      true
+
+  """
+  def has_role?(user_id, path_id, role) do
+    UserPath
+    |> where([up], up.user_id == ^user_id)
+    |> where([up], up.path_id == ^path_id)
+    |> where([up], up.role == ^role)
+    |> Repo.exists?()
+  end
+
   @doc """
   Checks if a path can be marked as a mount point.
 
@@ -383,7 +541,7 @@ defmodule Plugboard.Paths do
   def get_descendants(%Path{} = path) do
     query = """
     WITH RECURSIVE descendants AS (
-      SELECT id, user_id, created_by_user_id, parent_id, path, full_path,
+      SELECT id, parent_id, path, full_path,
              mount_point, inserted_at, updated_at, deleted_at
       FROM paths
       WHERE parent_id = $1
@@ -391,7 +549,7 @@ defmodule Plugboard.Paths do
 
       UNION ALL
 
-      SELECT p.id, p.user_id, p.created_by_user_id, p.parent_id, p.path, p.full_path,
+      SELECT p.id, p.parent_id, p.path, p.full_path,
              p.mount_point, p.inserted_at, p.updated_at, p.deleted_at
       FROM paths p
       INNER JOIN descendants d ON p.parent_id = d.id

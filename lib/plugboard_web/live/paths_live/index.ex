@@ -183,8 +183,10 @@ defmodule PlugboardWeb.PathsLive.Index do
             {nil, Paths.list_paths_by_parent(user.id, nil)}
 
           parent ->
-            # Verify user owns this path
-            if parent.user_id == user.id do
+            # Verify user has access to this path via user_paths
+            user_path = Paths.get_user_path(user.id, parent.id)
+
+            if user_path do
               {parent, Paths.list_paths_by_parent(user.id, parent.id)}
             else
               {nil, Paths.list_paths_by_parent(user.id, nil)}
@@ -221,7 +223,6 @@ defmodule PlugboardWeb.PathsLive.Index do
     attrs = %{
       path: String.trim(path_name),
       user_id: user.id,
-      created_by_user_id: user.id,
       parent_id:
         if(socket.assigns.current_parent, do: socket.assigns.current_parent.id, else: nil)
     }
@@ -243,11 +244,23 @@ defmodule PlugboardWeb.PathsLive.Index do
          |> put_flash(:info, "Path created successfully")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        # Show validation errors
+        # Extract and format validation errors
+        error_message =
+          changeset
+          |> Ecto.Changeset.traverse_errors(fn {msg, opts} ->
+            Enum.reduce(opts, msg, fn {key, value}, acc ->
+              String.replace(acc, "%{#{key}}", to_string(value))
+            end)
+          end)
+          |> Enum.map(fn {_field, errors} ->
+            Enum.join(errors, ", ")
+          end)
+          |> Enum.join("; ")
+
         {:noreply,
          socket
          |> assign(form: to_form(changeset, as: "path"))
-         |> put_flash(:error, "Failed to create path. Please check the errors.")}
+         |> put_flash(:error, "Failed to create path: #{error_message}")}
     end
   end
 
