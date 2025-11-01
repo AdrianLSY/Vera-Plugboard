@@ -20,6 +20,28 @@ defmodule PlugboardWeb.PathsLive.Index do
     <!-- Create Path Form -->
         <div class="mt-8">
           <.form for={@form} phx-submit="create_path" class="flex gap-2 items-center">
+            <%= if @breadcrumbs != [] do %>
+              <div class="bg-[var(--ui-foreground)] rounded-full px-4 py-2 overflow-x-auto max-w-xs flex-shrink-0">
+                <div class="flex items-center gap-2 text-sm ui-text-secondary whitespace-nowrap">
+                  <.link navigate={~p"/paths"} class="hover:ui-text-primary transition-colors">
+                    Root
+                  </.link>
+                  <%= for {breadcrumb, index} <- Enum.with_index(@breadcrumbs) do %>
+                    <span>/</span>
+                    <%= if index == length(@breadcrumbs) - 1 do %>
+                      <span class="ui-text-primary font-medium">{breadcrumb.path}</span>
+                    <% else %>
+                      <.link
+                        navigate={~p"/paths?parent=#{breadcrumb.id}"}
+                        class="hover:ui-text-primary transition-colors"
+                      >
+                        {breadcrumb.path}
+                      </.link>
+                    <% end %>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
             <div class="flex-1">
               <input
                 type="text"
@@ -42,38 +64,50 @@ defmodule PlugboardWeb.PathsLive.Index do
         <div class="mt-8">
           <.paths_table id="paths-list" paths={@paths} on_path_click={&navigate_to_path/1}>
             <:action :let={path}>
-              <button
-                type="button"
-                class="interactive-button-base icon-button"
-                phx-click="toggle_mount"
-                phx-value-id={path.id}
-                title={if path.mount_point, do: "Unmount", else: "Mount"}
-              >
-                <%= if path.mount_point do %>
-                  <.icon name="hero-link-slash" class="icon-button-icon" />
-                <% else %>
-                  <.icon name="hero-link" class="icon-button-icon" />
-                <% end %>
-              </button>
-              <button
-                type="button"
-                class="interactive-button-base icon-button"
-                phx-click="open_edit"
-                phx-value-id={path.id}
-              >
-                <.icon name="hero-pencil" class="icon-button-icon" />
-              </button>
-              <button
-                type="button"
-                class="interactive-button-base icon-button"
-                phx-click="open_delete"
-                phx-value-id={path.id}
-              >
-                <.icon name="hero-trash" class="icon-button-icon" />
-              </button>
+              <div class="group/actions relative inline-flex items-center">
+                <!-- Settings icon (always visible) -->
+                <div class="interactive-button-base icon-button flex items-center justify-center">
+                  <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
+                </div>
+                
+    <!-- Expandable actions (visible on hover) -->
+                <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[10rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
+                  <button
+                    type="button"
+                    class="interactive-button-base icon-button flex-shrink-0"
+                    phx-click="open_delete"
+                    phx-value-id={path.id}
+                    title="Delete"
+                  >
+                    <.icon name="hero-trash" class="icon-button-icon" />
+                  </button>
+                  <button
+                    type="button"
+                    class="interactive-button-base icon-button flex-shrink-0"
+                    phx-click="open_edit"
+                    phx-value-id={path.id}
+                    title="Edit"
+                  >
+                    <.icon name="hero-pencil" class="icon-button-icon" />
+                  </button>
+                  <button
+                    type="button"
+                    class="interactive-button-base icon-button flex-shrink-0"
+                    phx-click="toggle_mount"
+                    phx-value-id={path.id}
+                    title={if path.mount_point, do: "Unmount", else: "Mount"}
+                  >
+                    <%= if path.mount_point do %>
+                      <.icon name="hero-link-slash" class="icon-button-icon" />
+                    <% else %>
+                      <.icon name="hero-link" class="icon-button-icon" />
+                    <% end %>
+                  </button>
+                </div>
+              </div>
             </:action>
             <:empty>
-              No paths found. Create your first path to get started!
+              No paths found.
             </:empty>
           </.paths_table>
         </div>
@@ -93,6 +127,7 @@ defmodule PlugboardWeb.PathsLive.Index do
                 type="text"
                 placeholder="Enter path name"
                 phx-mounted={JS.focus()}
+                class="w-full input ui-foreground focus:outline-none focus:border-ui-text-primary rounded-full ui-text-primary"
               />
               <.button type="submit" phx-disable-with="Saving...">
                 ● Save Changes
@@ -111,7 +146,7 @@ defmodule PlugboardWeb.PathsLive.Index do
         >
           <:form>
             <.form for={@delete_form} phx-submit="confirm_delete">
-              <p class="ui-text-secondary mb-4">
+              <p class="ui-text-primary mb-4">
                 To confirm deletion, please enter the full path below:
               </p>
               <p class="font-mono font-semibold ui-text-primary mb-4">
@@ -122,6 +157,7 @@ defmodule PlugboardWeb.PathsLive.Index do
                 type="text"
                 placeholder="Enter full path to confirm"
                 phx-mounted={JS.focus()}
+                class="w-full input ui-foreground focus:outline-none focus:border-ui-text-primary rounded-full ui-text-primary"
               />
               <.button type="submit" phx-disable-with="Deleting...">
                 ● Confirm Delete
@@ -135,11 +171,31 @@ defmodule PlugboardWeb.PathsLive.Index do
   end
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     user = socket.assigns.current_scope.user
+    parent_id = params["parent"]
 
-    # Load paths for the current user
-    paths = Paths.list_paths(user.id)
+    # Determine current parent and load paths
+    {current_parent, paths} =
+      if parent_id do
+        case Paths.get_path(parent_id) do
+          nil ->
+            {nil, Paths.list_paths_by_parent(user.id, nil)}
+
+          parent ->
+            # Verify user owns this path
+            if parent.user_id == user.id do
+              {parent, Paths.list_paths_by_parent(user.id, parent.id)}
+            else
+              {nil, Paths.list_paths_by_parent(user.id, nil)}
+            end
+        end
+      else
+        {nil, Paths.list_paths_by_parent(user.id, nil)}
+      end
+
+    # Build breadcrumbs if we have a current parent
+    breadcrumbs = if current_parent, do: build_breadcrumbs(current_parent), else: []
 
     # Initialize form
     form = to_form(%{"path" => ""}, as: "path")
@@ -148,6 +204,8 @@ defmodule PlugboardWeb.PathsLive.Index do
      assign(socket,
        paths: paths,
        form: form,
+       current_parent: current_parent,
+       breadcrumbs: breadcrumbs,
        editing_path: nil,
        edit_form: nil,
        deleting_path: nil,
@@ -164,14 +222,17 @@ defmodule PlugboardWeb.PathsLive.Index do
       path: String.trim(path_name),
       user_id: user.id,
       created_by_user_id: user.id,
-      # Root path for now, will handle nested paths later
-      parent_id: nil
+      parent_id:
+        if(socket.assigns.current_parent, do: socket.assigns.current_parent.id, else: nil)
     }
 
     case Paths.create_path(attrs) do
       {:ok, _path} ->
-        # Reload paths
-        paths = Paths.list_paths(user.id)
+        # Reload paths for current context
+        parent_id =
+          if socket.assigns.current_parent, do: socket.assigns.current_parent.id, else: nil
+
+        paths = Paths.list_paths_by_parent(user.id, parent_id)
 
         # Reset form
         form = to_form(%{"path" => ""}, as: "path")
@@ -216,8 +277,13 @@ defmodule PlugboardWeb.PathsLive.Index do
           true ->
             case Paths.update_path(path, %{mount_point: !path.mount_point}) do
               {:ok, _updated_path} ->
-                # Reload paths
-                paths = Paths.list_paths(user.id)
+                # Reload paths for current context
+                parent_id =
+                  if socket.assigns.current_parent,
+                    do: socket.assigns.current_parent.id,
+                    else: nil
+
+                paths = Paths.list_paths_by_parent(user.id, parent_id)
 
                 {:noreply,
                  socket
@@ -259,7 +325,11 @@ defmodule PlugboardWeb.PathsLive.Index do
 
     case Paths.update_path(path, %{path: String.trim(new_path_name)}) do
       {:ok, _updated_path} ->
-        paths = Paths.list_paths(user.id)
+        # Reload paths for current context
+        parent_id =
+          if socket.assigns.current_parent, do: socket.assigns.current_parent.id, else: nil
+
+        paths = Paths.list_paths_by_parent(user.id, parent_id)
 
         {:noreply,
          socket
@@ -300,7 +370,11 @@ defmodule PlugboardWeb.PathsLive.Index do
     if String.trim(confirmation) == path.full_path do
       case Paths.delete_path(path) do
         {:ok, _deleted_path} ->
-          paths = Paths.list_paths(user.id)
+          # Reload paths for current context
+          parent_id =
+            if socket.assigns.current_parent, do: socket.assigns.current_parent.id, else: nil
+
+          paths = Paths.list_paths_by_parent(user.id, parent_id)
 
           {:noreply,
            socket
@@ -318,5 +392,21 @@ defmodule PlugboardWeb.PathsLive.Index do
 
   defp navigate_to_path(path) do
     JS.navigate(~p"/paths?parent=#{path.id}")
+  end
+
+  # Builds a breadcrumb trail from root to the current path
+  defp build_breadcrumbs(nil), do: []
+
+  defp build_breadcrumbs(path) do
+    case path.parent_id do
+      nil ->
+        [path]
+
+      parent_id ->
+        case Paths.get_path(parent_id) do
+          nil -> [path]
+          parent -> build_breadcrumbs(parent) ++ [path]
+        end
+    end
   end
 end

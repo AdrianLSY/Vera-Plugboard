@@ -760,22 +760,14 @@ defmodule PlugboardWeb.CoreComponents do
         </div>
       <% else %>
         <table class="w-full border-separate border-spacing-y-1">
-          <thead>
-            <tr>
-              <th class="text-left py-3 px-4 ui-text-primary font-semibold">Path</th>
-              <th :if={@action != []} class="text-right py-3 px-4 ui-text-primary font-semibold">
-                Actions
-              </th>
-            </tr>
-          </thead>
           <tbody>
             <tr
               :for={path <- @paths}
               id={"#{@id}-#{path.id}"}
               class="group transition-colors"
             >
-              <td class="py-3 px-4 rounded-l-full group-hover:bg-[var(--ui-foreground)]">
-                <div class="flex items-center gap-3">
+              <td class="py-3 px-4 rounded-full group-hover:bg-[var(--ui-foreground)]">
+                <div class="flex items-center justify-between gap-3">
                   <!-- Icon: Folder for paths, connection for mount points -->
                   <div class="flex-shrink-0">
                     <%= if path.mount_point do %>
@@ -796,7 +788,7 @@ defmodule PlugboardWeb.CoreComponents do
                           {if @show_full_path, do: path.full_path, else: path.path}
                         </span>
                         <%= if path.mount_point do %>
-                          <span class="ml-2 text-xs ui-text-secondary">(mount point)</span>
+                          <span class="ml-2 text-xs ui-text-secondary">(mounted)</span>
                         <% end %>
                       </button>
                     <% else %>
@@ -805,21 +797,18 @@ defmodule PlugboardWeb.CoreComponents do
                           {if @show_full_path, do: path.full_path, else: path.path}
                         </span>
                         <%= if path.mount_point do %>
-                          <span class="ml-2 text-xs ui-text-secondary">(mount point)</span>
+                          <span class="ml-2 text-xs ui-text-secondary">(mounted)</span>
                         <% end %>
                       </div>
                     <% end %>
                   </div>
-                </div>
-              </td>
-              <!-- Actions column -->
-              <td
-                :if={@action != []}
-                class="py-3 px-4 rounded-r-full group-hover:bg-[var(--ui-foreground)]"
-              >
-                <div class="flex justify-end items-center gap-2">
-                  <%= for action <- @action do %>
-                    {render_slot(action, path)}
+                  <!-- Actions integrated into path column -->
+                  <%= if @action != [] do %>
+                    <div class="flex justify-end items-center gap-2 flex-shrink-0">
+                      <%= for action <- @action do %>
+                        {render_slot(action, path)}
+                      <% end %>
+                    </div>
                   <% end %>
                 </div>
               </td>

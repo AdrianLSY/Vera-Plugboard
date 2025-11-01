@@ -31,6 +31,39 @@ defmodule Plugboard.Paths do
   end
 
   @doc """
+  Returns the list of active paths for a given user filtered by parent_id.
+
+  When parent_id is nil, returns root-level paths.
+  When parent_id is set, returns direct children of that path.
+
+  ## Examples
+
+      iex> list_paths_by_parent(user_id, nil)
+      [%Path{parent_id: nil}, ...]
+
+      iex> list_paths_by_parent(user_id, parent_id)
+      [%Path{parent_id: ^parent_id}, ...]
+
+  """
+  def list_paths_by_parent(user_id, nil) do
+    Path
+    |> where([p], p.user_id == ^user_id)
+    |> where([p], is_nil(p.parent_id))
+    |> where([p], is_nil(p.deleted_at))
+    |> order_by([p], asc: p.path)
+    |> Repo.all()
+  end
+
+  def list_paths_by_parent(user_id, parent_id) do
+    Path
+    |> where([p], p.user_id == ^user_id)
+    |> where([p], p.parent_id == ^parent_id)
+    |> where([p], is_nil(p.deleted_at))
+    |> order_by([p], asc: p.path)
+    |> Repo.all()
+  end
+
+  @doc """
   Returns the list of active mount points for a given user.
 
   ## Examples
@@ -278,15 +311,15 @@ defmodule Plugboard.Paths do
   @doc """
   Checks if a path can be marked as a mount point.
 
-  Returns {:ok, true} if it can be marked as mount, or {:error, reason} if not.
+  Returns true if it can be marked as mount, false if it has children.
 
   ## Examples
 
       iex> can_mark_as_mount?(path)
-      {:ok, true}
+      true
 
       iex> can_mark_as_mount?(path_with_children)
-      {:error, "Cannot mark path as mount point when it has children"}
+      false
 
   """
   def can_mark_as_mount?(%Path{} = path) do
@@ -296,11 +329,7 @@ defmodule Plugboard.Paths do
       |> where([p], is_nil(p.deleted_at))
       |> Repo.aggregate(:count)
 
-    if child_count > 0 do
-      {:error, "Cannot mark path as mount point when it has children"}
-    else
-      {:ok, true}
-    end
+    child_count == 0
   end
 
   @doc """

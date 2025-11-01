@@ -668,7 +668,7 @@ defmodule Plugboard.PathsTest do
           created_by_user_id: user.id
         })
 
-      assert {:ok, true} = Paths.can_mark_as_mount?(path)
+      assert Paths.can_mark_as_mount?(path) == true
     end
 
     test "returns error for path with children", %{user: user} do
@@ -687,7 +687,7 @@ defmodule Plugboard.PathsTest do
           created_by_user_id: user.id
         })
 
-      assert {:error, _msg} = Paths.can_mark_as_mount?(parent)
+      assert Paths.can_mark_as_mount?(parent) == false
     end
   end
 
