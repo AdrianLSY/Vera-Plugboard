@@ -167,14 +167,14 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       |> element("button[phx-click='toggle_mount'][phx-value-id='#{path.id}']")
       |> render_click()
 
-      assert render(lv) =~ "Mounted path"
+      assert render(lv) =~ "Mounted path."
 
       # Verify in database
       updated = Paths.get_path(path.id)
       assert updated.mount_point == true
     end
 
-    test "unmounts a mounted path", %{conn: conn, user: user} do
+    test "unmounts a mounted path.", %{conn: conn, user: user} do
       path = create_path_for_user(user, %{path: "mounted"})
       {:ok, _} = Paths.update_path(path, %{mount_point: true})
 
@@ -461,7 +461,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       |> element("button[phx-click='toggle_mount'][phx-value-id='#{path.id}']")
       |> render_click()
 
-      assert render(lv) =~ "Mounted path"
+      assert render(lv) =~ "Mounted path."
 
       # Verify in database
       updated = Paths.get_path(path.id)

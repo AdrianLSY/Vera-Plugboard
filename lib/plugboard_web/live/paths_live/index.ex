@@ -303,7 +303,7 @@ defmodule PlugboardWeb.PathsLive.Index do
                  |> assign(paths: paths)
                  |> put_flash(
                    :info,
-                   if(path.mount_point, do: "Unmounted path", else: "Mounted path")
+                   if(path.mount_point, do: "Unmounted path.", else: "Mounted path.")
                  )}
 
               {:error, _changeset} ->
