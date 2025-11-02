@@ -1,19 +1,19 @@
-# Plugboard Agent Development Guide
+# Plugboard Telephone Development Guide
 
 # Plugboard — Technical Specification & Development Plan
 
 ## Overview
 
-Plugboard is a **Phoenix-based reverse proxy** that dynamically connects HTTP traffic to backend web servers through persistent WebSocket connections with lightweight agents. It replaces traditional reverse proxy setups (like Nginx or Traefik) with a dynamic, database-driven routing system.
+Plugboard is a **Phoenix-based reverse proxy** that dynamically connects HTTP traffic to backend web servers through persistent WebSocket connections with lightweight telephones. It replaces traditional reverse proxy setups (like Nginx or Traefik) with a dynamic, database-driven routing system.
 
-Agents register **mount points**, which define URI prefixes that Plugboard will proxy. Each mount point is terminal (no sub-paths allowed under it), ensuring clean, deterministic routing.
+Telephones register **mount points**, which define URI prefixes that Plugboard will proxy. Each mount point is terminal (no sub-paths allowed under it), ensuring clean, deterministic routing.
 
 ---
 
 ## 1. Core Goals
 
 * Replace static reverse proxies with dynamic, database-managed routes.
-* Enable automatic service discovery via connected agents.
+* Enable automatic service discovery via connected telephones.
 * Provide real-time creation/removal of proxies without manual configuration reloads.
 * Maintain minimal latency and high throughput.
 * Ensure high availability through clustering and in-memory routing tables.
@@ -94,29 +94,75 @@ CREATE INDEX idx_user_paths_path_id ON user_paths (path_id);
 CREATE INDEX idx_user_paths_role ON user_paths (role);
 ```
 
-### 3.3 Rules
+### 3.3 Table: `telephone_tokens`
+
+Stores JWT tokens for telephone authentication. Each token belongs to exactly one path.
+
+```sql
+CREATE TABLE telephone_tokens (
+  id BINARY_ID PRIMARY KEY,
+  path_id BINARY_ID NOT NULL REFERENCES paths(id) ON DELETE CASCADE,
+  user_id BINARY_ID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,           -- SHA256 hash of JWT for revocation lookups
+  description TEXT,                   -- User-provided description (e.g., "Production server")
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ NULL,
+  last_used_at TIMESTAMPTZ NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX telephone_tokens_unique_hash
+  ON telephone_tokens (token_hash)
+  WHERE revoked_at IS NULL;
+CREATE INDEX idx_telephone_tokens_path_id ON telephone_tokens (path_id);
+CREATE INDEX idx_telephone_tokens_user_id ON telephone_tokens (user_id);
+CREATE INDEX idx_telephone_tokens_expires_at ON telephone_tokens (expires_at);
+```
+
+**Token Management:**
+* `token_hash` stores SHA256 hash of JWT for revocation checks (not the JWT itself)
+* `expires_at` set based on `TELEPHONE_TOKEN_EXPIRY` config
+* `revoked_at IS NULL` means token is active
+* `last_used_at` updated on each successful connection for auditing
+
+### 3.4 Path Timeout Configuration
+
+Timeout fields added to `paths` table for telephone request handling:
+
+```sql
+ALTER TABLE paths
+ADD COLUMN request_timeout_ms INTEGER DEFAULT 60000 NOT NULL,
+ADD COLUMN connect_timeout_ms INTEGER DEFAULT 5000 NOT NULL;
+```
+
+* `request_timeout_ms` - Maximum time (ms) to wait for telephone response (default: 60000ms = 60s)
+* `connect_timeout_ms` - Maximum time (ms) to wait for telephone connection (default: 5000ms = 5s)
+* Allows per-path SLA configuration for different service requirements
+
+### 3.5 Rules
 
 * `parent_id IS NULL` → root path.
 * `mount_point = TRUE` → terminal node (no children allowed).
 * `full_path` is computed automatically from parent hierarchy.
 * `full_path` must be globally unique (enforced by unique index).
 * Paths are global entities; user access controlled via `user_paths` junction table.
+* Telephone tokens belong to exactly one path (1:1 relationship).
 
-### 3.4 Triggers
+### 3.6 Triggers
 
 1. **Compute full_path** before insert/update.
 2. **Prevent child under a mount:** reject insert if `parent.mount_point = TRUE`.
 3. **Prevent marking mount if children exist:** reject update if existing children present.
 4. **Update descendant full_paths:** cascade full_path updates when parent path changes.
 
-### 3.5 Soft Delete behavior (deleted_at)
+### 3.7 Soft Delete behavior (deleted_at)
 
 * `deleted_at` is a **soft-delete** flag; records are never physically deleted.
 * When a user *creates* a route that matches an existing row where `deleted_at IS NOT NULL`, the system must **restore** that record instead of inserting a duplicate: set `deleted_at = NULL`, set `mount_point = FALSE` (do not automatically enable it), update `updated_at`.
 * When restoring, create or reuse the `user_path` association with `owner` role.
 * This ensures route history and prevents conflicts while avoiding accidental reactivation of mounts.
 
-### 3.6 Ownership & Permissions
+### 3.8 Ownership & Permissions
 
 User access to paths is managed through the `user_paths` junction table with three role levels:
 
@@ -130,42 +176,76 @@ Permissions cascade down the hierarchy - users with access to a parent path can 
 
 ---
 
-## 4. Agent Model
+## 4. Telephone Model
 
 ### 4.1 Lifecycle
 
-* Agents establish an outbound **TLS WebSocket** connection to Plugboard.
+* Telephones establish an outbound **TLS WebSocket** connection to Plugboard via `/telephone`.
 * Authenticated via **JWT** (MVP) or **mTLS** (future).
-* Upon connection, agent sends a `REGISTER` message with mount points.
-* Each mount must exist in DB (`mount_point = TRUE`) and the authenticating user must have access via `user_paths` (any role: owner, maintainer, or viewer).
+* Upon successful JWT authentication, telephone is registered to its authorized path.
+* Each token belongs to a specific path (stored in `telephone_tokens` table).
 
-### 4.2 Control Protocol
+### 4.2 Token Management
+
+**Token Creation:**
+* Tokens can be created by:
+  1. Users with `owner` or `maintainer` role on a path (via UI or API)
+  2. API endpoint for programmatic token generation
+* Each token belongs to exactly one path (1:1 relationship)
+* Token contains JWT with claims: `{token_id, path_id, user_id, exp, iat}`
+
+**Token Lifecycle:**
+* Short-lived tokens with configurable expiry (env: `TELEPHONE_TOKEN_EXPIRY`, default: 3600s)
+* Auto-refresh at configurable intervals (env: `TELEPHONE_TOKEN_REFRESH_INTERVAL`, default: 1800s)
+* Refresh handled via `REFRESH_TOKEN` message over established WebSocket
+* Tokens stored in `telephone_tokens` table with revocation support
+
+### 4.3 Control Protocol
 
 JSON messages over WebSocket:
 
 ```json
-REGISTER { "agent_id": 1, "user_id": 1, "mounts": ["/xyz/todo"] }
+REGISTER { "token": "jwt_string" }
+REGISTER_ACK { "status": "ok", "path": "/xyz/todo", "expires_in": 3600 }
+REGISTER_ERROR { "status": "error", "reason": "Invalid token" }
+
 HEARTBEAT { "ts": 1730000000 }
-PROXY_REQ { "id": 1, "method": "GET", "forwarded_path": "/items", "headers": {...} }
-PROXY_RES { "id": 1, "status": 200, "headers": {...} }
-PROXY_ERR { "id": 1, "code": 502, "message": "Agent disconnected" }
+HEARTBEAT_ACK { "ts": 1730000000 }
+
+REFRESH_TOKEN {}
+REFRESH_TOKEN_ACK { "token": "new_jwt_string", "expires_in": 3600 }
+
+PROXY_REQ { "method": "GET", "path": "/items", "headers": {...}, "body": "..." }
+PROXY_RES { "status": 200, "headers": {...}, "body": "..." }
+PROXY_ERR { "code": 502, "message": "Backend error" }
 ```
 
-* Each proxied request/response uses a correlation ID.
-* Streaming supported via `REQ_BODY`, `RES_BODY`, `*_END` messages.
+**Note:** No correlation IDs - one request at a time per telephone connection (simple synchronous model for MVP).
 
-### 4.3 Security
+### 4.4 Security
 
-* Agents authenticate using signed JWT containing `agent_id`, `user_id`, and allowed `mount_paths`.
-* Plugboard validates against DB before accepting registration, checking that:
-  1. Each mount path exists in the `paths` table with `mount_point = TRUE`
-  2. A `user_paths` entry exists for the authenticating user with access to each mount
+* Telephones authenticate using JWT from `telephone_tokens` table.
+* JWT validation checks:
+  1. Signature valid (using app secret key base)
+  2. Token not expired
+  3. Token not revoked (`revoked_at IS NULL` in DB)
+  4. Path exists with `mount_point = TRUE` and `deleted_at IS NULL`
+  5. Token's `path_id` references valid mount point
 
-### 4.4 Agent State
+### 4.5 Telephone State
 
-* Agents are **ephemeral**.
-* Live state stored in memory and replicated cluster-wide.
-* Audit history optionally persisted to an `agent_events` table.
+* Telephones are **ephemeral** - no persistent state beyond token.
+* Live connections tracked in `TelephoneRegistry` (ETS-backed).
+* Connection state: `{telephone_pid, path_id, connected_at}`
+* Audit history optionally persisted to `telephone_events` table (future).
+
+### 4.6 Request Timeout Configuration
+
+* Each path stores timeout configuration in database:
+  - `request_timeout_ms` - Maximum time to wait for telephone response (default: 60000ms)
+  - `connect_timeout_ms` - Maximum time to wait for telephone connection (default: 5000ms)
+* Timeouts are per-path to allow different SLAs for different services.
+* On timeout: return `504 Gateway Timeout` to client.
 
 ---
 
@@ -173,7 +253,7 @@ PROXY_ERR { "id": 1, "code": 502, "message": "Agent disconnected" }
 
 ### 5.1 Load Balancing
 
-* Default: **round-robin** among agents registered to same mount.
+* Default: **round-robin** among telephones registered to same mount.
 * Later: least-connections, weighted, or latency-based options.
 
 ---
@@ -200,7 +280,7 @@ PROXY_ERR { "id": 1, "code": 502, "message": "Agent disconnected" }
 3. While path not empty:
 
    * Check ETS for `request_path`.
-   * If found, route to agent.
+   * If found, route to telephone.
    * Else, remove last path segment and retry.
 4. Because mounts are terminal, there’s only one valid match.
 
@@ -215,9 +295,9 @@ PROXY_ERR { "id": 1, "code": 502, "message": "Agent disconnected" }
 ## 7. Clustering & High Availability
 
 * Erlang cluster across all Plugboard nodes.
-* Agents connect to any node.
+* Telephones connect to any node.
 * State replicated via CRDT or Phoenix.PubSub.
-* If a node dies, agents reconnect automatically.
+* If a node dies, telephones reconnect automatically.
 * DB remains authoritative for mount definitions.
 
 ---
@@ -292,29 +372,45 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 
 **See:** `PHASE_2_QA_FIXES.md` for implementation details and QA review responses.
 
-### **Phase 3: WebSocket Agent System (Deliverable: Agent connectivity & proxying)**
+### **Phase 3: WebSocket Telephone System (Deliverable: Telephone connectivity & proxying)**
 
 **Objectives**
 
-* Implement performant WS handler for agent connections.
-* Implement register/auth handshake with JWT.
-* Implement proxy request/response multiplexing over WS.
-* Implement basic round-robin LB.
+* Implement `telephone_tokens` table and JWT token management.
+* Add timeout configuration fields to `paths` table.
+* Implement Phoenix Channel handler for telephone WebSocket connections at `/telephone`.
+* Implement JWT authentication and validation for telephone connections.
+* Implement basic synchronous request/response proxying (no streaming).
+* Implement round-robin load balancing for multiple telephones on same path.
+* Configure token expiry and refresh via environment variables.
 
 **Tasks**
 
-* Implement Cowboy WS handler and supervision for agent connections.
-* Design and implement JSON control frame formats.
-* Track agents per mount in in-memory registry (Horde/Registry/DynamicSupervisor pattern).
-* Implement `REGISTER` validation against DB (must reference existing mount and user).
-* Implement `PROXY_REQ` sending and `PROXY_RES` receiving.
+* Create migration for `telephone_tokens` table with path_id, user_id, token_hash, expires_at, revoked_at.
+* Create migration to add `request_timeout_ms` and `connect_timeout_ms` to `paths` table.
+* Implement `TelephoneToken` schema and context functions (generate, validate, revoke, refresh).
+* Add JWT config to `runtime.exs` (TELEPHONE_TOKEN_EXPIRY, TELEPHONE_TOKEN_REFRESH_INTERVAL).
+* Implement `TelephoneSocket` at `/telephone` with JWT authentication in `connect/3`.
+* Implement `TelephoneChannel` with message handlers: `REGISTER`, `HEARTBEAT`, `PROXY_REQ`, `PROXY_RES`, `REFRESH_TOKEN`.
+* Create `TelephoneRegistry` GenServer with ETS backing to track connected telephones per path.
+* Update `ProxyController` to look up telephone via registry and forward requests with Task.async.
+* Implement round-robin selection when multiple telephones registered to same path.
+* Add telemetry events for telephone connections, disconnections, and proxy requests.
+* Token creation API endpoint (POST /api/paths/:path_id/tokens) with owner/maintainer role check.
 
 **Tests / Acceptance**
 
-* Simulated agent connects and registers mount.
-* Client request to `/proxies/...` proxied to agent; agent returns response; client receives it.
-* Multiple agents register same mount → round-robin distribution.
-* Invalid registration (wrong user or non-existent mount) rejected.
+* Token creation requires owner or maintainer role on path.
+* Token validation checks signature, expiry, revocation status, and path mount point.
+* Telephone connects with valid JWT and registers successfully.
+* Telephone with invalid/expired/revoked JWT is rejected.
+* HTTP request to `/proxies/...` forwarded to registered telephone via WebSocket.
+* Telephone response relayed back to HTTP client correctly.
+* Multiple telephones on same path receive requests in round-robin order.
+* Request timeout returns 504 Gateway Timeout when telephone doesn't respond in time.
+* No telephone available for path returns 503 Service Unavailable.
+* Token refresh updates expiry and returns new JWT.
+* All tests passing with Phase 3 additions.
 
 ### **Phase 4: Timeouts & Error Handling (Deliverable: Robust proxy semantics)**
 
@@ -325,13 +421,13 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 
 **Tasks**
 
-* Add timeout handling and translate agent disconnects to `502/504` appropriately.
+* Add timeout handling and translate telephone disconnects to `502/504` appropriately.
 * Ensure streaming errors are handled correctly and partially-sent responses are surfaced.
 * Implement clear error codes and messages for client-facing errors.
 
 **Tests / Acceptance**
 
-* Agent disconnect mid-request returns 502/504 clearly.
+* Telephone disconnect mid-request returns 502/504 clearly.
 * Streaming errors handled and logged.
 * Timeouts enforced and surfaced to client.
 
@@ -340,19 +436,19 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 **Objectives**
 
 * Ensure multiple Plugboard nodes can operate together.
-* If an agent is connected to Node A and a request lands on Node B, Node B can forward request to Node A which then proxies to the agent.
+* If a telephone is connected to Node A and a request lands on Node B, Node B can forward request to Node A which then proxies to the telephone.
 
 **Tasks**
 
-* Implement cluster-aware agent registry (use Erlang distribution/CRDT/Horde patterns).
+* Implement cluster-aware telephone registry (use Erlang distribution/CRDT/Horde patterns).
 * Implement internal RPC for forwarding requests between nodes (GenServer call or internal socket).
 * Implement periodic reconciliation job to reload mounts from DB if NOTIFY misses occur.
-* Test reconnection and re-registration of agents across nodes.
+* Test reconnection and re-registration of telephones across nodes.
 
 **Tests / Acceptance**
 
-* Two-node cluster: agent connects to node A; client request to node B is proxied correctly to agent on A.
-* Node crash: agent reconnects to other node and resumes serving traffic.
+* Two-node cluster: telephone connects to node A; client request to node B is proxied correctly to telephone on A.
+* Node crash: telephone reconnects to other node and resumes serving traffic.
 * Reconcilation recovers missed NOTIFY updates.
 
 ### **Phase 6: Hardening & Documentation (Deliverable: Production-ready)**
@@ -367,11 +463,11 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 * Add comprehensive tests and load testing scenarios.
 * Review and harden triggers and transaction boundaries.
 * Prepare migration scripts and rollout plan.
-* Draft runbooks: scaling, certificate rotation, agent provisioning, and troubleshooting.
+* Draft runbooks: scaling, certificate rotation, telephone provisioning, and troubleshooting.
 
 **Tests / Acceptance**
 
-* Soak test for 24 hours with simulated agents and traffic.
+* Soak test for 24 hours with simulated telephones and traffic.
 * Migration dry-run successful on staging DB.
 * Runbooks reviewed and validated.
 
@@ -382,7 +478,7 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 **Phase 1 (Complete):**
 * ✅ Path hierarchy with parent-child relationships implemented
 * ✅ Mount points are terminal (no children allowed) - enforced by database triggers
-* ✅ Agents register only for existing mount points that they have access to via user_paths
+* ✅ Telephones register only for existing mount points that they have access to via user_paths
 * ✅ User-path associations with role-based access control (owner, maintainer, viewer)
 * ✅ Soft-delete with automatic restoration logic
 * ✅ All database constraints enforced at DB level
@@ -398,8 +494,8 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 * ✅ Full test coverage including MountNotifier (423 tests passing)
 
 **Phase 3-6 (Pending):**
-* ⏳ WebSocket agent connectivity and registration
-* ⏳ Proxy requests forwarded to registered agents
+* ⏳ WebSocket telephone connectivity and registration
+* ⏳ Proxy requests forwarded to registered telephones
 * ⏳ Round-robin load balancing functional
 * ⏳ Cluster nodes route traffic consistently after restart
 
@@ -407,11 +503,11 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 
 ## 10. Future Work (Post-MVP)
 
-* mTLS agent authentication.
+* mTLS telephone authentication.
 * Sticky sessions and weighted load balancing.
 * Advanced observability (Prometheus, tracing, metrics).
 * Admin dashboard for mount management.
-* Automatic scaling of agent pools.
+* Automatic scaling of telephone pools.
 * WebSocket upgrade proxying.
 
 ---
