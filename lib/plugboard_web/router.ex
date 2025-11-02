@@ -23,6 +23,27 @@ defmodule PlugboardWeb.Router do
     get "/", PageController, :home
   end
 
+  # Proxy pipeline with validation
+  pipeline :proxy do
+    plug :accepts, ["json"]
+    plug PlugboardWeb.Plugs.ValidatePath
+  end
+
+  # Proxy routes - must come after other routes to avoid conflicts
+  scope "/proxies", PlugboardWeb do
+    pipe_through :proxy
+
+    # Catch-all route for proxy requests
+    # The *path captures all remaining path segments as a list
+    get "/*path", ProxyController, :proxy
+    post "/*path", ProxyController, :proxy
+    put "/*path", ProxyController, :proxy
+    patch "/*path", ProxyController, :proxy
+    delete "/*path", ProxyController, :proxy
+    options "/*path", ProxyController, :proxy
+    head "/*path", ProxyController, :proxy
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", PlugboardWeb do
   #   pipe_through :api

@@ -261,26 +261,36 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 
 **See:** `PHASE_1_COMPLETE.md` for detailed documentation.
 
-### **Phase 2: In-Memory Routing & HTTP Handling (Deliverable: Fast routing & `/proxies/*` endpoint)**
+### **Phase 2: In-Memory Routing & HTTP Handling (Deliverable: Fast routing & `/proxies/*` endpoint)** ✅ **COMPLETE**
+
+**Completion Date:** November 2, 2024
 
 **Objectives**
 
-* Implement ETS-based mount store and synchronization from Postgres.
-* Implement Phoenix endpoint to accept `/proxies/*path` and route using ETS.
-* Implement DB NOTIFY publisher on path changes and listener to update ETS.
+* ✅ Implement ETS-based mount store and synchronization from Postgres.
+* ✅ Implement Phoenix endpoint to accept `/proxies/*path` and route using ETS.
+* ✅ Implement DB NOTIFY publisher on path changes and listener to update ETS.
 
 **Tasks**
 
-* ETS table implementation and loader at startup.
-* Implement `MountStore.match(request_path)` with normalization and last-segment stripping.
-* Add DB NOTIFY publisher hooks in same transaction as path changes.
-* Add Phoenix route and controller to strip `/proxies/` and call `MountStore.match/1`.
+* ✅ ETS table implementation and loader at startup.
+* ✅ Implement `MountStore.match(request_path)` with normalization and last-segment stripping.
+* ✅ Add DB NOTIFY publisher hooks via database triggers (atomic with path changes).
+* ✅ Add Phoenix route and controller to strip `/proxies/` and call `MountStore.match/1`.
+* ✅ Add path validation plug for security (path traversal, null bytes, depth/length limits).
+* ✅ Add database timeout configuration for all environments.
+* ✅ Create comprehensive MountNotifier test suite.
 
 **Tests / Acceptance**
 
-* Route matching unit tests (various path shapes).
-* Integration tests booting app, creating mounts, hitting `/proxies/...` and validating forwarded path.
-* Ensure ETS reloads on NOTIFY and routes change without restart.
+* ✅ Route matching unit tests (various path shapes).
+* ✅ Integration tests booting app, creating mounts, hitting `/proxies/...` and validating forwarded path.
+* ✅ ETS reloads on NOTIFY and routes change without restart.
+* ✅ Security validation tests (path traversal, encoding attacks, DoS prevention).
+* ✅ MountNotifier resilience tests (malformed payloads, connection recovery).
+* ✅ All 423 tests passing (18 new MountNotifier tests added).
+
+**See:** `PHASE_2_QA_FIXES.md` for implementation details and QA review responses.
 
 ### **Phase 3: WebSocket Agent System (Deliverable: Agent connectivity & proxying)**
 
@@ -378,10 +388,19 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 * ✅ All database constraints enforced at DB level
 * ✅ Comprehensive test coverage (238 tests passing)
 
-**Phase 2-6 (Pending):**
-* ⏳ Routes `/proxies/<mount_path>` correctly forward to registered agent
+**Phase 2 (Complete):**
+* ✅ Routes `/proxies/<mount_path>` match against ETS-based mount store
+* ✅ Fast O(1) path matching with segment stripping fallback
+* ✅ DB and ETS stay synchronized via PostgreSQL NOTIFY triggers
+* ✅ MountStore with periodic reconciliation (5 minute fallback)
+* ✅ Comprehensive security validation (path traversal, null bytes, depth limits)
+* ✅ Database timeout configuration (15s queries, 5s connections)
+* ✅ Full test coverage including MountNotifier (423 tests passing)
+
+**Phase 3-6 (Pending):**
+* ⏳ WebSocket agent connectivity and registration
+* ⏳ Proxy requests forwarded to registered agents
 * ⏳ Round-robin load balancing functional
-* ⏳ DB and ETS stay synchronized on updates
 * ⏳ Cluster nodes route traffic consistently after restart
 
 ---

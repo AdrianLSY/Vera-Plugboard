@@ -9,7 +9,10 @@ config :plugboard, Plugboard.Repo,
   database: System.get_env("POSTGRES_DB"),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
-  pool_size: String.to_integer(System.get_env("DB_POOL_SIZE"))
+  pool_size: String.to_integer(System.get_env("DB_POOL_SIZE")),
+  # Query and connection timeouts
+  timeout: 15_000,
+  connect_timeout: 5_000
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -87,3 +90,9 @@ config :phoenix_live_view,
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+# MountStore configuration - reconcile every 5 minutes by default
+# Override with MOUNT_STORE_RECONCILE_INTERVAL env var
+config :plugboard, Plugboard.MountStore,
+  reconcile_interval:
+    System.get_env("MOUNT_STORE_RECONCILE_INTERVAL", "300000") |> String.to_integer()

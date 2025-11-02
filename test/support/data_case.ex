@@ -37,6 +37,18 @@ defmodule Plugboard.DataCase do
   """
   def setup_sandbox(tags) do
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Plugboard.Repo, shared: not tags[:async])
+
+    # Allow the MountStore GenServer to access the database
+    # This is needed because MountStore loads mounts from the DB
+    if Process.whereis(Plugboard.MountStore) do
+      Ecto.Adapters.SQL.Sandbox.allow(Plugboard.Repo, pid, Plugboard.MountStore)
+    end
+
+    # Allow the MountNotifier GenServer to access the database if it exists
+    if Process.whereis(Plugboard.MountNotifier) do
+      Ecto.Adapters.SQL.Sandbox.allow(Plugboard.Repo, pid, Plugboard.MountNotifier)
+    end
+
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
   end
 

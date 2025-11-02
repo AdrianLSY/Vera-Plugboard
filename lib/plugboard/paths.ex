@@ -300,15 +300,25 @@ defmodule Plugboard.Paths do
 
   """
   def update_path(%Path{} = path, attrs) do
-    case path
-         |> Path.update_changeset(attrs)
-         |> Repo.update() do
-      {:ok, updated} ->
-        # Reload to get trigger-computed full_path
-        {:ok, Repo.get!(Path, updated.id)}
+    result =
+      Repo.transaction(fn ->
+        case path
+             |> Path.update_changeset(attrs)
+             |> Repo.update() do
+          {:ok, updated} ->
+            # Reload to get trigger-computed full_path
+            # Note: Database trigger handles NOTIFY automatically
+            reloaded = Repo.get!(Path, updated.id)
+            reloaded
 
-      error ->
-        error
+          {:error, changeset} ->
+            Repo.rollback(changeset)
+        end
+      end)
+
+    case result do
+      {:ok, path} -> {:ok, path}
+      {:error, error} -> {:error, error}
     end
   end
 
@@ -326,40 +336,58 @@ defmodule Plugboard.Paths do
   def delete_path(%Path{} = path) do
     deleted_at = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    # Soft-delete all descendants first
-    query = """
-    WITH RECURSIVE descendants AS (
-      SELECT id
-      FROM paths
-      WHERE parent_id = $1
-        AND deleted_at IS NULL
+    result =
+      Repo.transaction(fn ->
+        # Soft-delete all descendants first (database trigger will handle NOTIFY)
+        query = """
+        WITH RECURSIVE descendants AS (
+          SELECT id
+          FROM paths
+          WHERE parent_id = $1
+            AND deleted_at IS NULL
 
-      UNION ALL
+          UNION ALL
 
-      SELECT p.id
-      FROM paths p
-      INNER JOIN descendants d ON p.parent_id = d.id
-      WHERE p.deleted_at IS NULL
-    )
-    UPDATE paths
-    SET deleted_at = $2, updated_at = $2
-    WHERE id IN (SELECT id FROM descendants)
-    """
+          SELECT p.id
+          FROM paths p
+          INNER JOIN descendants d ON p.parent_id = d.id
+          WHERE p.deleted_at IS NULL
+        )
+        UPDATE paths
+        SET deleted_at = $2, updated_at = $2
+        WHERE id IN (SELECT id FROM descendants)
+        """
 
-    {:ok, uuid_binary} = Ecto.UUID.dump(path.id)
+        {:ok, uuid_binary} = Ecto.UUID.dump(path.id)
 
-    # Execute with explicit timeout and log cascade operations
-    result = Repo.query!(query, [uuid_binary, deleted_at], timeout: 30_000)
+        # Execute with explicit timeout and log cascade operations
+        result = Repo.query!(query, [uuid_binary, deleted_at], timeout: 30_000)
 
-    if result.num_rows > 0 do
-      require Logger
-      Logger.info("Cascade soft-deleted #{result.num_rows} descendant paths for path #{path.id}")
+        if result.num_rows > 0 do
+          require Logger
+
+          Logger.info(
+            "Cascade soft-deleted #{result.num_rows} descendant paths for path #{path.id}"
+          )
+        end
+
+        # Then soft-delete the path itself
+        case path
+             |> Path.delete_changeset()
+             |> Repo.update() do
+          {:ok, deleted_path} ->
+            # Note: Database trigger handles NOTIFY automatically
+            deleted_path
+
+          {:error, changeset} ->
+            Repo.rollback(changeset)
+        end
+      end)
+
+    case result do
+      {:ok, path} -> {:ok, path}
+      {:error, error} -> {:error, error}
     end
-
-    # Then soft-delete the path itself
-    path
-    |> Path.delete_changeset()
-    |> Repo.update()
   end
 
   @doc """
@@ -567,4 +595,8 @@ defmodule Plugboard.Paths do
       Repo.load(Path, {result.columns, row})
     end)
   end
+
+  # Private helpers
+  # Note: NOTIFY is now handled by database trigger (notify_mount_change function)
+  # See migration: 20251102153313_add_mount_notify_trigger.exs
 end

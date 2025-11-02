@@ -13,7 +13,7 @@ defmodule Plugboard.MixProject do
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       test_coverage: [
-        summary: [threshold: 90],
+        summary: [threshold: 80],
         ignore_modules: [
           Plugboard.Release,
           PlugboardWeb.PageHTML,

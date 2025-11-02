@@ -15,7 +15,10 @@ config :plugboard, Plugboard.Repo,
   port: String.to_integer(System.get_env("POSTGRES_PORT")),
   database: "#{System.get_env("POSTGRES_DB")}_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
+  pool_size: System.schedulers_online() * 2,
+  # Query and connection timeouts
+  timeout: 15_000,
+  connect_timeout: 5_000
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
@@ -30,8 +33,8 @@ config :plugboard, Plugboard.Mailer, adapter: Swoosh.Adapters.Test
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 
-# Print only warnings and errors during test
-config :logger, level: :warning
+# Print only errors during test (suppress warnings from security tests)
+config :logger, level: :error
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
@@ -39,3 +42,9 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# MountStore configuration - use shorter interval for tests (30 seconds)
+# Override with MOUNT_STORE_RECONCILE_INTERVAL env var
+config :plugboard, Plugboard.MountStore,
+  reconcile_interval:
+    System.get_env("MOUNT_STORE_RECONCILE_INTERVAL", "30000") |> String.to_integer()

@@ -12,6 +12,10 @@ defmodule Plugboard.Application do
       Plugboard.Repo,
       {DNSCluster, query: Application.get_env(:plugboard, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Plugboard.PubSub},
+      # Start the MountStore for in-memory mount point routing
+      Plugboard.MountStore,
+      # Start the MountNotifier to listen for PostgreSQL NOTIFY events
+      Plugboard.MountNotifier,
       # Start a worker by calling: Plugboard.Worker.start_link(arg)
       # {Plugboard.Worker, arg},
       # Start to serve requests, typically the last entry
