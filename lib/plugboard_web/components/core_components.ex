@@ -492,7 +492,7 @@ defmodule PlugboardWeb.CoreComponents do
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={[
             @class ||
-              "w-full input ui-foreground focus:outline-none focus:border-ui-inverted-foreground rounded-full",
+              "w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full",
             @errors != [] && (@error_class || "input-error")
           ]}
           {@rest}
