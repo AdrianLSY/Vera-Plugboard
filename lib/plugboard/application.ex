@@ -16,6 +16,8 @@ defmodule Plugboard.Application do
       Plugboard.MountStore,
       # Start the MountNotifier to listen for PostgreSQL NOTIFY events
       Plugboard.MountNotifier,
+      # Start the TelephoneRegistry to track connected telephones
+      Plugboard.TelephoneRegistry,
       # Start a worker by calling: Plugboard.Worker.start_link(arg)
       # {Plugboard.Worker, arg},
       # Start to serve requests, typically the last entry

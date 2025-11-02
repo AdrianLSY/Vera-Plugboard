@@ -11,10 +11,14 @@ defmodule Plugboard.Paths.Path do
     field :mount_point, :boolean, default: false
     field :deleted_at, :utc_datetime
 
+    field :request_timeout_ms, :integer, default: 60000
+    field :connect_timeout_ms, :integer, default: 5000
+
     belongs_to :parent, __MODULE__
 
     has_many :children, __MODULE__, foreign_key: :parent_id
     has_many :user_paths, Plugboard.Paths.UserPath
+    has_many :telephone_tokens, Plugboard.TelephoneTokens.TelephoneToken
     many_to_many :users, Plugboard.Accounts.User, join_through: Plugboard.Paths.UserPath
 
     timestamps(type: :utc_datetime)

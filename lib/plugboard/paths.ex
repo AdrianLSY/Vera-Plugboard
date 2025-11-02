@@ -462,6 +462,27 @@ defmodule Plugboard.Paths do
   end
 
   @doc """
+  Gets a user's role for a specific path.
+
+  Returns the role string ("owner", "maintainer", "viewer") or nil if no association exists.
+
+  ## Examples
+
+      iex> get_user_role(user_id, path_id)
+      "owner"
+
+      iex> get_user_role(user_id, nonexistent_path_id)
+      nil
+
+  """
+  def get_user_role(user_id, path_id) do
+    case get_user_path(user_id, path_id) do
+      nil -> nil
+      user_path -> user_path.role
+    end
+  end
+
+  @doc """
   Lists all users associated with a path.
 
   ## Examples

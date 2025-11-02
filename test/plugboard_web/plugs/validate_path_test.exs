@@ -23,14 +23,14 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
   describe "path validation" do
     test "allows valid paths", %{conn: conn} do
       conn = get(conn, "/proxies/api/users/123")
-      # Should pass validation and match the mount
-      assert json_response(conn, 200)["status"] == "matched"
+      # Phase 3: Should pass validation but return 503 without telephone
+      assert json_response(conn, 503)["error"] == "No telephone available for this path"
     end
 
     test "allows paths with hyphens and underscores", %{conn: conn} do
       conn = get(conn, "/proxies/api/user-profile/test_123")
-      # Should pass validation and match the /api mount
-      assert json_response(conn, 200)["status"] == "matched"
+      # Phase 3: Should pass validation but return 503 without telephone
+      assert json_response(conn, 503)["error"] == "No telephone available for this path"
     end
 
     test "rejects path traversal with ../", %{conn: conn} do
@@ -112,8 +112,8 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
       max_segment = String.duplicate("a", 255)
       conn = get(conn, "/proxies/api/#{max_segment}")
 
-      # Should pass validation and match the /api mount
-      assert json_response(conn, 200)["status"] == "matched"
+      # Phase 3: Should pass validation but return 503 without telephone
+      assert json_response(conn, 503)["error"] == "No telephone available for this path"
     end
   end
 
@@ -129,22 +129,22 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
 
     test "allows valid POST requests", %{conn: conn} do
       conn = post(conn, "/proxies/api/users", %{name: "Test"})
-      # Should pass validation and match the mount
-      assert json_response(conn, 200)["status"] == "matched"
+      # Phase 3: Should pass validation but return 503 without telephone
+      assert json_response(conn, 503)["error"] == "No telephone available for this path"
     end
   end
 
   describe "special characters" do
     test "allows unicode characters in paths", %{conn: conn} do
       conn = get(conn, "/proxies/api/users/josé")
-      # Should pass validation and match the /api mount
-      assert json_response(conn, 200)["status"] == "matched"
+      # Phase 3: Should pass validation but return 503 without telephone
+      assert json_response(conn, 503)["error"] == "No telephone available for this path"
     end
 
     test "allows URL-encoded characters (except dangerous ones)", %{conn: conn} do
       conn = get(conn, "/proxies/api/files/my%20file")
-      # Should pass validation and match the /api mount (Phoenix decodes %20 to space)
-      assert json_response(conn, 200)["status"] == "matched"
+      # Phase 3: Should pass validation but return 503 without telephone
+      assert json_response(conn, 503)["error"] == "No telephone available for this path"
     end
   end
 end

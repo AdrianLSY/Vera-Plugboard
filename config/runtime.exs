@@ -128,3 +128,9 @@ end
 config :plugboard, Plugboard.MountStore,
   reconcile_interval:
     System.get_env("MOUNT_STORE_RECONCILE_INTERVAL", "300000") |> String.to_integer()
+
+# Telephone token configuration for all environments
+config :plugboard, :telephone,
+  token_expiry: System.get_env("TELEPHONE_TOKEN_EXPIRY", "3600") |> String.to_integer(),
+  token_refresh_interval:
+    System.get_env("TELEPHONE_TOKEN_REFRESH_INTERVAL", "1800") |> String.to_integer()

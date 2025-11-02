@@ -15,6 +15,8 @@ defmodule PlugboardWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug :fetch_session
+    plug :fetch_current_scope_for_user
   end
 
   scope "/", PlugboardWeb do
@@ -44,10 +46,15 @@ defmodule PlugboardWeb.Router do
     head "/*path", ProxyController, :proxy
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", PlugboardWeb do
-  #   pipe_through :api
-  # end
+  # API routes for telephone token management
+  scope "/api", PlugboardWeb.Api do
+    pipe_through [:api, :require_authenticated_user]
+
+    # Telephone token endpoints
+    post "/paths/:path_id/tokens", TelephoneTokenController, :create
+    get "/paths/:path_id/tokens", TelephoneTokenController, :index
+    delete "/tokens/:id", TelephoneTokenController, :delete
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:plugboard, :dev_routes) do

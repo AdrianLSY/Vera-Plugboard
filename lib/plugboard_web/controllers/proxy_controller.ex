@@ -1,17 +1,18 @@
 defmodule PlugboardWeb.ProxyController do
   @moduledoc """
-  Controller for handling proxy requests to backend agents.
+  Controller for handling proxy requests to backend telephones.
 
   This controller receives requests at `/proxies/*path` and routes them to
-  the appropriate backend agent based on the mount point matching.
+  the appropriate backend telephone based on the mount point matching.
 
-  For Phase 2, this controller returns placeholder responses showing which
-  mount point matched and what the forwarded path would be. In Phase 3,
-  this will be replaced with actual WebSocket-based proxying to agents.
+  Phase 3 implements actual WebSocket-based proxying to telephones.
   """
 
   use PlugboardWeb, :controller
   require Logger
+
+  alias Plugboard.TelephoneRegistry
+  alias Plugboard.Paths
 
   @doc """
   Handles all proxy requests.
@@ -19,8 +20,8 @@ defmodule PlugboardWeb.ProxyController do
   Routing logic:
   1. Extract the request path after `/proxies/`
   2. Use MountStore.match/1 to find a matching mount point
-  3. If match found, return mount info (Phase 2) or proxy to agent (Phase 3+)
-  4. If no match, return 404
+  3. If match found, proxy request to telephone via WebSocket
+  4. If no match or no telephone available, return appropriate error
   """
   def proxy(conn, params) do
     # Extract the full path from params - Phoenix captures it as a list
@@ -34,19 +35,7 @@ defmodule PlugboardWeb.ProxyController do
           "ProxyController: Matched mount #{mount_path} (#{mount_id}), forwarding: #{forwarded_path}"
         )
 
-        # Phase 2: Return placeholder response showing mount info
-        # Phase 3+: This will proxy to the actual agent via WebSocket
-        conn
-        |> put_status(:ok)
-        |> json(%{
-          status: "matched",
-          mount_path: mount_path,
-          mount_id: mount_id,
-          forwarded_path: forwarded_path,
-          original_request: request_path,
-          message:
-            "Phase 2: Mount matched successfully. Agent proxying will be implemented in Phase 3."
-        })
+        proxy_to_telephone(conn, mount_id, forwarded_path)
 
       {:error, :not_found} ->
         Logger.debug("ProxyController: No mount found for path: #{request_path}")
@@ -61,6 +50,141 @@ defmodule PlugboardWeb.ProxyController do
   end
 
   # Private helpers
+
+  defp proxy_to_telephone(conn, path_id, forwarded_path) do
+    # Get the path to retrieve timeout configuration
+    case Paths.get_path(path_id) do
+      nil ->
+        Logger.error("Path #{path_id} not found in database")
+
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Path configuration not found"})
+
+      path ->
+        # Get a telephone from the registry using round-robin
+        case TelephoneRegistry.get_telephone(path_id) do
+          {:ok, telephone_pid} ->
+            # Forward the request to the telephone
+            forward_request_to_telephone(conn, telephone_pid, path, forwarded_path)
+
+          {:error, :no_telephone} ->
+            Logger.warning("No telephone available for path #{path.full_path}")
+
+            conn
+            |> put_status(:service_unavailable)
+            |> json(%{
+              error: "No telephone available for this path",
+              path: path.full_path
+            })
+        end
+    end
+  end
+
+  defp forward_request_to_telephone(conn, telephone_pid, path, forwarded_path) do
+    timeout = path.request_timeout_ms
+
+    # Read request body
+    {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+    # Build request payload for telephone
+    request_payload = %{
+      "method" => conn.method,
+      "path" => forwarded_path,
+      "headers" => build_headers_map(conn),
+      "body" => body,
+      "query_string" => conn.query_string
+    }
+
+    # Record start time for telemetry
+    start_time = System.monotonic_time()
+
+    # Send request to telephone and wait for response
+    task =
+      Task.async(fn ->
+        send_to_telephone_and_wait(telephone_pid, request_payload, timeout)
+      end)
+
+    case Task.await(task, timeout + 1000) do
+      {:ok, response} ->
+        # Record telemetry
+        duration = System.monotonic_time() - start_time
+
+        :telemetry.execute(
+          [:plugboard, :telephone, :proxy_request],
+          %{duration: duration},
+          %{
+            path_id: path.id,
+            method: conn.method,
+            status: response["status"]
+          }
+        )
+
+        # Send response back to client
+        send_telephone_response(conn, response)
+
+      {:error, :timeout} ->
+        Logger.warning("Telephone timeout for path #{path.full_path}")
+
+        :telemetry.execute(
+          [:plugboard, :telephone, :proxy_timeout],
+          %{count: 1},
+          %{path_id: path.id, timeout_ms: timeout}
+        )
+
+        conn
+        |> put_status(:gateway_timeout)
+        |> json(%{
+          error: "Telephone response timeout",
+          timeout_ms: timeout
+        })
+
+      {:error, reason} ->
+        Logger.error("Telephone error for path #{path.full_path}: #{inspect(reason)}")
+
+        conn
+        |> put_status(:bad_gateway)
+        |> json(%{
+          error: "Telephone error",
+          reason: inspect(reason)
+        })
+    end
+  end
+
+  defp send_to_telephone_and_wait(telephone_pid, request_payload, timeout) do
+    # Send the request to the telephone channel process
+    send(telephone_pid, {:proxy_request, self(), request_payload})
+
+    # Wait for response
+    receive do
+      {:proxy_res, response} ->
+        {:ok, response}
+    after
+      timeout ->
+        {:error, :timeout}
+    end
+  end
+
+  defp send_telephone_response(conn, response) do
+    status = response["status"] || 200
+    headers = response["headers"] || %{}
+    body = response["body"] || ""
+
+    # Set response headers
+    conn =
+      Enum.reduce(headers, conn, fn {key, value}, acc_conn ->
+        put_resp_header(acc_conn, String.downcase(key), to_string(value))
+      end)
+
+    # Send response
+    conn
+    |> put_status(status)
+    |> text(body)
+  end
+
+  defp build_headers_map(conn) do
+    Enum.into(conn.req_headers, %{})
+  end
 
   defp build_request_path(%{"path" => path_segments}) when is_list(path_segments) do
     "/" <> Enum.join(path_segments, "/")
