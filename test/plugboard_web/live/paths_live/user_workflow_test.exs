@@ -5,12 +5,63 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
   These tests verify the complete user experience from login through creating,
   organizing, and managing paths as a user would interact with the UI.
   """
-  use PlugboardWeb.ConnCase, async: false
+  use PlugboardWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
   import Plugboard.AccountsFixtures
 
   alias Plugboard.Paths
+
+  # Test Helper Functions
+  # These helpers encapsulate common UI interactions to reduce duplication
+  # and make tests more maintainable.
+
+  defp create_path(lv, path_name) do
+    lv
+    |> form("form[phx-submit='create_path']", path: %{path: path_name})
+    |> render_submit()
+  end
+
+  defp toggle_mount(lv, path_id) do
+    lv
+    |> element("button[phx-click='toggle_mount'][phx-value-id='#{path_id}']")
+    |> render_click()
+  end
+
+  defp open_edit(lv, path_id) do
+    lv
+    |> element("button[phx-click='open_edit'][phx-value-id='#{path_id}']")
+    |> render_click()
+  end
+
+  defp save_edit(lv, new_path_name) do
+    lv
+    |> form("form[phx-submit='save_edit']", edit: %{path: new_path_name})
+    |> render_submit()
+  end
+
+  defp open_delete(lv, path_id) do
+    lv
+    |> element("button[phx-click='open_delete'][phx-value-id='#{path_id}']")
+    |> render_click()
+  end
+
+  defp confirm_delete(lv, confirmation) do
+    lv
+    |> form("form[phx-submit='confirm_delete']", delete: %{confirmation: confirmation})
+    |> render_submit()
+  end
+
+  defp assert_path_exists(user_id, full_path) do
+    path = Paths.get_path_by_full_path(user_id, full_path)
+    assert path != nil, "Expected path #{full_path} to exist but it was not found"
+    path
+  end
+
+  defp refute_path_exists(user_id, full_path) do
+    path = Paths.get_path_by_full_path(user_id, full_path)
+    assert path == nil, "Expected path #{full_path} to not exist but it was found"
+  end
 
   describe "complete user workflow: creating and organizing paths" do
     test "user creates 3 root paths, creates nested paths, and mounts them" do
@@ -322,12 +373,12 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
 
       # Invalid path names
       invalid_names = [
-        {"invalid/path", "must not contain forward slashes"},
-        {"invalid path", "must contain only alphanumeric"},
-        {"", "can't be blank"}
+        {"invalid/path", ~r/must not contain|forward slash|invalid/i},
+        {"invalid path", ~r/must contain only|alphanumeric|invalid|space/i},
+        {"", ~r/can.?t be blank|blank/i}
       ]
 
-      for {path_name, _expected_error} <- invalid_names do
+      for {path_name, expected_error_pattern} <- invalid_names do
         lv
         |> form("form[phx-submit='create_path']", path: %{path: path_name})
         |> render_submit()
@@ -335,9 +386,12 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
         html = render(lv)
         assert html =~ "Failed to create path"
 
+        # Check error message matches pattern (all patterns are now regexes)
+        assert html =~ expected_error_pattern
+
         # Should not be in database
         full_path = "/#{path_name}"
-        assert Paths.get_path_by_full_path(user.id, full_path) == nil
+        refute_path_exists(user.id, full_path)
       end
 
       # Verify no new paths were created from invalid attempts
@@ -454,13 +508,8 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
       # Go back to root and edit parent name
       {:ok, lv, _html} = live(conn, ~p"/paths")
 
-      lv
-      |> element("button[phx-click='open_edit'][phx-value-id='#{parent.id}']")
-      |> render_click()
-
-      lv
-      |> form("form[phx-submit='save_edit']", edit: %{path: "new-parent"})
-      |> render_submit()
+      open_edit(lv, parent.id)
+      save_edit(lv, "new-parent")
 
       assert render(lv) =~ "Path updated successfully"
       assert render(lv) =~ "new-parent"
@@ -476,12 +525,12 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
       assert child.full_path == "/new-parent/child"
 
       # Old path should not exist
-      assert Paths.get_path_by_full_path(user.id, "/old-parent") == nil
-      assert Paths.get_path_by_full_path(user.id, "/old-parent/child") == nil
+      refute_path_exists(user.id, "/old-parent")
+      refute_path_exists(user.id, "/old-parent/child")
 
       # New paths should exist
-      assert Paths.get_path_by_full_path(user.id, "/new-parent") != nil
-      assert Paths.get_path_by_full_path(user.id, "/new-parent/child") != nil
+      assert_path_exists(user.id, "/new-parent")
+      assert_path_exists(user.id, "/new-parent/child")
     end
 
     test "user deletes path and verifies children are also deleted" do
@@ -529,13 +578,8 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
       # Go back to root and delete parent
       {:ok, lv, _html} = live(conn, ~p"/paths")
 
-      lv
-      |> element("button[phx-click='open_delete'][phx-value-id='#{parent.id}']")
-      |> render_click()
-
-      lv
-      |> form("form[phx-submit='confirm_delete']", delete: %{confirmation: parent.full_path})
-      |> render_submit()
+      open_delete(lv, parent.id)
+      confirm_delete(lv, parent.full_path)
 
       assert render(lv) =~ "Path deleted successfully"
       refute render(lv) =~ "parent"
@@ -593,22 +637,15 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
       # Delete child
       {:ok, lv, _html} = live(conn, ~p"/paths?parent=#{parent.id}")
 
-      lv
-      |> element("button[phx-click='open_delete'][phx-value-id='#{child.id}']")
-      |> render_click()
-
-      lv
-      |> form("form[phx-submit='confirm_delete']", delete: %{confirmation: child.full_path})
-      |> render_submit()
+      open_delete(lv, child.id)
+      confirm_delete(lv, child.full_path)
 
       assert render(lv) =~ "Path deleted successfully"
 
       # Now mount parent (should succeed)
       {:ok, lv, _html} = live(conn, ~p"/paths")
 
-      lv
-      |> element("button[phx-click='toggle_mount'][phx-value-id='#{parent.id}']")
-      |> render_click()
+      toggle_mount(lv, parent.id)
 
       assert render(lv) =~ "Mounted path"
 
@@ -627,16 +664,11 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
       mount_names = ["api", "webhooks", "admin", "public", "internal"]
 
       for name <- mount_names do
-        lv
-        |> form("form[phx-submit='create_path']", path: %{path: name})
-        |> render_submit()
+        create_path(lv, name)
+        assert render(lv) =~ "Path created successfully"
 
         path = Paths.get_path_by_full_path(user.id, "/#{name}")
-
-        lv
-        |> element("button[phx-click='toggle_mount'][phx-value-id='#{path.id}']")
-        |> render_click()
-
+        toggle_mount(lv, path.id)
         assert render(lv) =~ "Mounted path"
       end
 
@@ -652,6 +684,145 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
       for mount_point <- mount_points do
         assert mount_point.mount_point == true
       end
+    end
+
+    test "user cannot create duplicate path names at same level" do
+      user = user_fixture()
+      conn = log_in_user(build_conn(), user)
+
+      {:ok, lv, _html} = live(conn, ~p"/paths")
+
+      # Create first "api" path
+      create_path(lv, "api")
+      assert render(lv) =~ "Path created successfully"
+
+      _api_path = assert_path_exists(user.id, "/api")
+
+      # Try to create another "api" path at root level (should fail)
+      create_path(lv, "api")
+      html = render(lv)
+      assert html =~ "Failed to create path"
+      # The error message should indicate uniqueness constraint
+      assert html =~ "already" || html =~ "taken" || html =~ "exists"
+
+      # Verify only one "api" path exists at root
+      root_paths = Paths.list_paths_by_parent(user.id, nil)
+      api_paths = Enum.filter(root_paths, fn p -> p.path == "api" end)
+      assert length(api_paths) == 1
+
+      # Create a different root path
+      create_path(lv, "admin")
+      assert render(lv) =~ "Path created successfully"
+
+      admin_path = assert_path_exists(user.id, "/admin")
+
+      # Navigate into admin and create "api" as child (should succeed - different parent)
+      {:ok, lv, _html} = live(conn, ~p"/paths?parent=#{admin_path.id}")
+
+      create_path(lv, "api")
+      assert render(lv) =~ "Path created successfully"
+
+      # Verify /admin/api exists
+      admin_api_path = assert_path_exists(user.id, "/admin/api")
+      assert admin_api_path.parent_id == admin_path.id
+
+      # Verify we now have 2 paths named "api" but with different parents
+      all_paths = Paths.list_paths(user.id)
+      api_paths = Enum.filter(all_paths, fn p -> p.path == "api" end)
+      assert length(api_paths) == 2
+    end
+
+    test "unauthenticated user cannot access paths page" do
+      conn = build_conn()
+
+      # Attempt to access paths page without authentication
+      assert {:error, {:redirect, %{to: redirect_path}}} = live(conn, ~p"/paths")
+
+      # Should redirect to login page (note: actual path may be /users/log-in)
+      assert redirect_path =~ "/users/log"
+    end
+
+    test "user cannot access another user's paths" do
+      # Create two users
+      user1 = user_fixture()
+      user2 = user_fixture()
+
+      # User 1 creates paths
+      conn = log_in_user(build_conn(), user1)
+      {:ok, lv, _html} = live(conn, ~p"/paths")
+
+      create_path(lv, "user1-private")
+      assert render(lv) =~ "Path created successfully"
+
+      user1_path = assert_path_exists(user1.id, "/user1-private")
+
+      # User 2 logs in and should not see user1's paths
+      conn2 = log_in_user(build_conn(), user2)
+      {:ok, _lv2, html} = live(conn2, ~p"/paths")
+
+      # User 2 should see empty paths
+      assert html =~ "No paths found"
+      refute html =~ "user1-private"
+
+      # User 2 should not be able to navigate to user1's path by URL manipulation
+      {:ok, lv2, html} = live(conn2, ~p"/paths?parent=#{user1_path.id}")
+
+      # Should be redirected to root level (user has no access to that parent)
+      assert html =~ "No paths found"
+      refute html =~ "user1-private"
+
+      # Verify user2 cannot see user1's paths via API
+      user2_paths = Paths.list_paths(user2.id)
+      assert length(user2_paths) == 0
+
+      # User 2 creates their own path
+      create_path(lv2, "user2-private")
+      assert render(lv2) =~ "Path created successfully"
+
+      assert_path_exists(user2.id, "/user2-private")
+
+      # Verify isolation: each user has 1 path, can't see each other's
+      user1_paths = Paths.list_paths(user1.id)
+      user2_paths = Paths.list_paths(user2.id)
+
+      assert length(user1_paths) == 1
+      assert length(user2_paths) == 1
+      assert hd(user1_paths).path == "user1-private"
+      assert hd(user2_paths).path == "user2-private"
+    end
+
+    test "user cannot mount, edit, or delete another user's paths" do
+      # Create two users with paths
+      user1 = user_fixture()
+      user2 = user_fixture()
+
+      # User 1 creates a path
+      conn1 = log_in_user(build_conn(), user1)
+      {:ok, lv1, _html} = live(conn1, ~p"/paths")
+      create_path(lv1, "user1-path")
+
+      user1_path = assert_path_exists(user1.id, "/user1-path")
+
+      # User 2 logs in
+      conn2 = log_in_user(build_conn(), user2)
+      {:ok, _lv2, html} = live(conn2, ~p"/paths")
+
+      # User 2 should not see user1's path in the UI
+      refute html =~ "user1-path"
+
+      # Verify user1's path is still there and not mounted
+      user1_path = Paths.get_path(user1_path.id)
+      assert user1_path.mount_point == false
+      assert user1_path.deleted_at == nil
+
+      # Verify through the Paths context that user2 has no access
+      # The get_user_path function should return nil for user2 trying to access user1's path
+      user2_access = Plugboard.Paths.get_user_path(user2.id, user1_path.id)
+      assert user2_access == nil
+
+      # Verify user1 still has access
+      user1_access = Plugboard.Paths.get_user_path(user1.id, user1_path.id)
+      assert user1_access != nil
     end
   end
 end

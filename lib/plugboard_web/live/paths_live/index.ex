@@ -23,7 +23,11 @@ defmodule PlugboardWeb.PathsLive.Index do
             <%= if @breadcrumbs != [] do %>
               <div class="bg-[var(--ui-foreground)] rounded-full px-4 py-2 overflow-x-auto max-w-xs flex-shrink-0">
                 <div class="flex items-center gap-2 text-sm ui-text-secondary whitespace-nowrap">
-                  <.link navigate={~p"/paths"} class="hover:ui-text-primary transition-colors">
+                  <.link
+                    navigate={~p"/paths"}
+                    class="hover:ui-text-primary transition-colors"
+                    data-test="breadcrumb-root"
+                  >
                     Root
                   </.link>
                   <%= for {breadcrumb, index} <- Enum.with_index(@breadcrumbs) do %>
@@ -34,6 +38,7 @@ defmodule PlugboardWeb.PathsLive.Index do
                       <.link
                         navigate={~p"/paths?parent=#{breadcrumb.id}"}
                         class="hover:ui-text-primary transition-colors"
+                        data-test={"breadcrumb-#{breadcrumb.path}"}
                       >
                         {breadcrumb.path}
                       </.link>
@@ -51,10 +56,16 @@ defmodule PlugboardWeb.PathsLive.Index do
                 placeholder="Create new path (e.g., 'users', 'to-do', 'shopping-cart')"
                 autocomplete="off"
                 phx-mounted={JS.focus()}
+                data-test="path-input"
                 class="w-full input ui-foreground focus:outline-none focus:border-ui-inverted-foreground rounded-full"
               />
             </div>
-            <.button type="submit" phx-disable-with="Creating..." class="!w-auto px-6">
+            <.button
+              type="submit"
+              phx-disable-with="Creating..."
+              data-test="create-path-button"
+              class="!w-auto px-6"
+            >
               ● Create Path
             </.button>
           </.form>
@@ -77,6 +88,7 @@ defmodule PlugboardWeb.PathsLive.Index do
                     class="interactive-button-base icon-button flex-shrink-0"
                     phx-click="open_delete"
                     phx-value-id={path.id}
+                    data-test="delete-button"
                     title="Delete"
                   >
                     <.icon name="hero-trash" class="icon-button-icon" />
@@ -86,6 +98,7 @@ defmodule PlugboardWeb.PathsLive.Index do
                     class="interactive-button-base icon-button flex-shrink-0"
                     phx-click="open_edit"
                     phx-value-id={path.id}
+                    data-test="edit-button"
                     title="Edit"
                   >
                     <.icon name="hero-pencil" class="icon-button-icon" />
@@ -95,6 +108,7 @@ defmodule PlugboardWeb.PathsLive.Index do
                     class="interactive-button-base icon-button flex-shrink-0"
                     phx-click="toggle_mount"
                     phx-value-id={path.id}
+                    data-test="mount-button"
                     title={if path.mount_point, do: "Unmount", else: "Mount"}
                   >
                     <%= if path.mount_point do %>
