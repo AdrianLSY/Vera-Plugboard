@@ -409,7 +409,7 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
       assert level2_sibling.parent_id == level1.id
 
       # Navigate back to root
-      {:ok, lv, html} = live(conn, ~p"/paths")
+      {:ok, _lv, html} = live(conn, ~p"/paths")
       assert html =~ "level1"
       refute html =~ "level2"
       refute html =~ "level3"
