@@ -54,6 +54,19 @@ defmodule PlugboardWeb.Router do
     post "/paths/:path_id/tokens", TelephoneTokenController, :create
     get "/paths/:path_id/tokens", TelephoneTokenController, :index
     delete "/tokens/:id", TelephoneTokenController, :delete
+
+    # Service account endpoints
+    post "/paths/:path_id/service-accounts", ServiceAccountController, :create
+    get "/paths/:path_id/service-accounts", ServiceAccountController, :index
+    get "/service-accounts", ServiceAccountController, :index_for_user
+    delete "/service-accounts/:id", ServiceAccountController, :delete
+  end
+
+  # Token Vending Machine API (no user authentication required, uses service account API key)
+  scope "/api/token-vending", PlugboardWeb.Api do
+    pipe_through :api
+
+    post "/generate", TokenVendingController, :generate
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
@@ -83,6 +96,7 @@ defmodule PlugboardWeb.Router do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
       live "/paths", PathsLive.Index, :index
+      live "/paths/:path_id/tokens", PathTokensLive.Index, :index
     end
 
     post "/users/update-password", UserSessionController, :update_password

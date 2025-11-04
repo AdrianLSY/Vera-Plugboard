@@ -16,7 +16,7 @@ defmodule PlugboardWeb.PathsLive.Index do
             </span>
           </:subtitle>
         </.header>
-        
+
     <!-- Create Path Form -->
         <div class="mt-8">
           <.form for={@form} phx-submit="create_path" class="flex gap-2 items-center">
@@ -70,7 +70,7 @@ defmodule PlugboardWeb.PathsLive.Index do
             </.button>
           </.form>
         </div>
-        
+
     <!-- Paths List -->
         <div class="mt-8">
           <.paths_table id="paths-list" paths={@paths} on_path_click={&navigate_to_path/1}>
@@ -80,9 +80,9 @@ defmodule PlugboardWeb.PathsLive.Index do
                 <div class="interactive-button-base icon-button flex items-center justify-center flex-shrink-0">
                   <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
                 </div>
-                
+
     <!-- Expandable actions (visible on hover) -->
-                <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[10rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
+                <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[14rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
                   <button
                     type="button"
                     class="interactive-button-base icon-button flex-shrink-0"
@@ -117,6 +117,16 @@ defmodule PlugboardWeb.PathsLive.Index do
                       <.icon name="hero-link" class="icon-button-icon" />
                     <% end %>
                   </button>
+                  <%= if path.mount_point do %>
+                    <.link
+                      navigate={~p"/paths/#{path.id}/tokens"}
+                      class="interactive-button-base icon-button flex-shrink-0"
+                      title="Manage Tokens"
+                      data-test="tokens-button"
+                    >
+                      <.icon name="hero-key" class="icon-button-icon" />
+                    </.link>
+                  <% end %>
                 </div>
               </div>
             </:action>
@@ -125,7 +135,7 @@ defmodule PlugboardWeb.PathsLive.Index do
             </:empty>
           </.paths_table>
         </div>
-        
+
     <!-- Edit Path Modal -->
         <.pop_up_form
           :if={@editing_path}
@@ -149,7 +159,7 @@ defmodule PlugboardWeb.PathsLive.Index do
             </.form>
           </:form>
         </.pop_up_form>
-        
+
     <!-- Delete Path Modal -->
         <.pop_up_form
           :if={@deleting_path}
