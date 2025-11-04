@@ -169,6 +169,27 @@ defmodule PlugboardWeb.TelephoneChannel do
     # Unregister from the registry
     TelephoneRegistry.unregister(socket.assigns.path_id, self())
 
+    # Notify all waiting callers that the telephone disconnected
+    waiting_callers = Map.get(socket.assigns, :waiting_callers, %{})
+
+    if map_size(waiting_callers) > 0 do
+      Logger.warning(
+        "Telephone disconnected with #{map_size(waiting_callers)} pending requests for path #{socket.assigns.path.full_path}"
+      )
+
+      # Notify each waiting caller with disconnect error
+      Enum.each(waiting_callers, fn {request_id, caller_pid} ->
+        send(caller_pid, {:proxy_error, request_id, :telephone_disconnected})
+      end)
+    end
+
+    # Emit telemetry
+    :telemetry.execute(
+      [:plugboard, :telephone, :disconnected],
+      %{count: 1, pending_requests: map_size(waiting_callers)},
+      %{path_id: socket.assigns.path_id, path: socket.assigns.path.full_path, reason: reason}
+    )
+
     Logger.info(
       "Telephone disconnected from path #{socket.assigns.path.full_path}, reason: #{inspect(reason)}"
     )

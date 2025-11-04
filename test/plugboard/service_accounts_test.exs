@@ -86,7 +86,9 @@ defmodule Plugboard.ServiceAccountsTest do
       assert {:error, changeset} =
                ServiceAccounts.generate_service_account(user, path.id, "invalid name!", nil)
 
-      assert "must contain only letters, numbers, hyphens, and underscores" in errors_on(changeset).name
+      assert "must contain only letters, numbers, hyphens, and underscores" in errors_on(
+               changeset
+             ).name
     end
 
     test "validates name length", %{user: user, path: path} do
@@ -102,7 +104,9 @@ defmodule Plugboard.ServiceAccountsTest do
     setup do
       user = Plugboard.AccountsFixtures.user_fixture()
       {:ok, path} = create_mount_point(user)
-      {:ok, api_key, service_account} = ServiceAccounts.generate_service_account(user, path.id, "test", nil)
+
+      {:ok, api_key, service_account} =
+        ServiceAccounts.generate_service_account(user, path.id, "test", nil)
 
       %{user: user, path: path, api_key: api_key, service_account: service_account}
     end
@@ -141,7 +145,9 @@ defmodule Plugboard.ServiceAccountsTest do
     setup do
       user = Plugboard.AccountsFixtures.user_fixture()
       {:ok, path} = create_mount_point(user)
-      {:ok, api_key, service_account} = ServiceAccounts.generate_service_account(user, path.id, "test", nil)
+
+      {:ok, api_key, service_account} =
+        ServiceAccounts.generate_service_account(user, path.id, "test", nil)
 
       %{api_key: api_key, service_account: service_account}
     end
@@ -180,7 +186,9 @@ defmodule Plugboard.ServiceAccountsTest do
     setup do
       user = Plugboard.AccountsFixtures.user_fixture()
       {:ok, path} = create_mount_point(user)
-      {:ok, _api_key, service_account} = ServiceAccounts.generate_service_account(user, path.id, "test", nil)
+
+      {:ok, _api_key, service_account} =
+        ServiceAccounts.generate_service_account(user, path.id, "test", nil)
 
       %{service_account: service_account}
     end

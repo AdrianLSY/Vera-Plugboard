@@ -16,10 +16,10 @@ defmodule PlugboardWeb.ProxyControllerTest do
     test "returns 404 when no mount point exists", %{conn: conn} do
       conn = get(conn, "/proxies/nonexistent/path")
 
-      assert json_response(conn, 404) == %{
-               "error" => "No mount point found for path",
-               "path" => "/nonexistent/path"
-             }
+      # Phase 5: Returns HTML error page with images
+      assert conn.status == 404
+      assert html_response(conn, 404) =~ "404"
+      assert html_response(conn, 404) =~ "No mount point found"
     end
 
     test "returns 503 when mount exists but no telephone available", %{conn: conn} do
@@ -38,10 +38,10 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       conn = get(conn, "/proxies/api")
 
-      # Phase 3: Returns 503 when no telephone is connected
-      assert response = json_response(conn, 503)
-      assert response["error"] == "No telephone available for this path"
-      assert response["path"] == "/api"
+      # Phase 5: Returns HTML error page with images
+      assert conn.status == 503
+      assert html_response(conn, 503) =~ "503"
+      assert html_response(conn, 503) =~ "No telephone available"
     end
 
     test "returns 503 for nested requests when no telephone available", %{conn: conn} do
@@ -60,10 +60,10 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       conn = get(conn, "/proxies/services/users/123/profile")
 
-      # Phase 3: Returns 503 when no telephone is connected
-      assert response = json_response(conn, 503)
-      assert response["error"] == "No telephone available for this path"
-      assert response["path"] == "/services"
+      # Phase 5: Returns HTML error page with images
+      assert conn.status == 503
+      assert html_response(conn, 503) =~ "503"
+      assert html_response(conn, 503) =~ "No telephone available"
     end
 
     test "matches nested mount points but returns 503 without telephone", %{conn: conn} do
@@ -89,10 +89,10 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       conn = get(conn, "/proxies/app/api/v1/users")
 
-      # Phase 3: Returns 503 when no telephone is connected
-      assert response = json_response(conn, 503)
-      assert response["error"] == "No telephone available for this path"
-      assert response["path"] == "/app/api"
+      # Phase 5: Returns HTML error page with images
+      assert conn.status == 503
+      assert html_response(conn, 503) =~ "503"
+      assert html_response(conn, 503) =~ "No telephone available"
     end
 
     test "handles trailing slashes correctly but returns 503 without telephone", %{conn: conn} do
@@ -111,10 +111,10 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       conn = get(conn, "/proxies/service/")
 
-      # Phase 3: Returns 503 when no telephone is connected
-      assert response = json_response(conn, 503)
-      assert response["error"] == "No telephone available for this path"
-      assert response["path"] == "/service"
+      # Phase 5: Returns HTML error page with images
+      assert conn.status == 503
+      assert html_response(conn, 503) =~ "503"
+      assert html_response(conn, 503) =~ "No telephone available"
     end
   end
 
@@ -135,10 +135,10 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       conn = post(conn, "/proxies/api/users", %{name: "Test"})
 
-      # Phase 3: Returns 503 when no telephone is connected
-      assert response = json_response(conn, 503)
-      assert response["error"] == "No telephone available for this path"
-      assert response["path"] == "/api"
+      # Phase 5: Returns HTML error page with images
+      assert conn.status == 503
+      assert html_response(conn, 503) =~ "503"
+      assert html_response(conn, 503) =~ "No telephone available"
     end
   end
 
@@ -159,10 +159,10 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       conn = put(conn, "/proxies/api/users/1", %{name: "Updated"})
 
-      # Phase 3: Returns 503 when no telephone is connected
-      assert response = json_response(conn, 503)
-      assert response["error"] == "No telephone available for this path"
-      assert response["path"] == "/api"
+      # Phase 5: Returns HTML error page with images
+      assert conn.status == 503
+      assert html_response(conn, 503) =~ "503"
+      assert html_response(conn, 503) =~ "No telephone available"
     end
   end
 
@@ -183,10 +183,10 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       conn = delete(conn, "/proxies/api/users/1")
 
-      # Phase 3: Returns 503 when no telephone is connected
-      assert response = json_response(conn, 503)
-      assert response["error"] == "No telephone available for this path"
-      assert response["path"] == "/api"
+      # Phase 5: Returns HTML error page with images
+      assert conn.status == 503
+      assert html_response(conn, 503) =~ "503"
+      assert html_response(conn, 503) =~ "No telephone available"
     end
   end
 
@@ -197,7 +197,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       # Initially no mount exists
       conn1 = get(conn, "/proxies/newservice/test")
-      assert json_response(conn1, 404)
+      assert conn1.status == 404
 
       # Create and mark as mount
       {:ok, path} =
@@ -214,11 +214,10 @@ defmodule PlugboardWeb.ProxyControllerTest do
       :timer.sleep(50)
       MountStore.reload_all()
 
-      # Phase 3: Now mount exists but returns 503 without telephone
+      # Phase 5: Now mount exists but returns 503 without telephone
       conn2 = get(build_conn(), "/proxies/newservice/test")
-      assert response = json_response(conn2, 503)
-      assert response["error"] == "No telephone available for this path"
-      assert response["path"] == "/newservice"
+      assert conn2.status == 503
+      assert html_response(conn2, 503) =~ "503"
     end
 
     test "reflects removed mounts", %{conn: conn} do
@@ -235,9 +234,9 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
 
-      # Phase 3: Mount exists but no telephone, returns 503
+      # Phase 5: Mount exists but no telephone, returns 503
       conn1 = get(conn, "/proxies/tempservice/test")
-      assert json_response(conn1, 503)["error"] == "No telephone available for this path"
+      assert conn1.status == 503
 
       # Unmark as mount (use the mounted_path, not the original path)
       {:ok, _unmounted_path} = Paths.update_path(mounted_path, %{mount_point: false})
@@ -247,7 +246,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       # Should no longer match (404, not 503)
       conn2 = get(build_conn(), "/proxies/tempservice/test")
-      assert json_response(conn2, 404)
+      assert conn2.status == 404
     end
 
     @tag :integration
@@ -265,9 +264,9 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Reload to ensure ETS is updated
       MountStore.reload_all()
 
-      # Phase 3: Mount exists but no telephone, returns 503
+      # Phase 5: Mount exists but no telephone, returns 503
       conn1 = get(conn, "/proxies/deleteservice/test")
-      assert json_response(conn1, 503)["error"] == "No telephone available for this path"
+      assert conn1.status == 503
 
       # Delete path
       {:ok, _path} = Paths.delete_path(path)
@@ -279,7 +278,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       # Should no longer match (404, not 503)
       conn2 = get(build_conn(), "/proxies/deleteservice/test")
-      assert json_response(conn2, 404)
+      assert conn2.status == 404
     end
   end
 
@@ -301,10 +300,9 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Request with double slashes should still work after normalization
       conn = get(conn, "/proxies/api")
 
-      # Phase 3: Returns 503 when no telephone is connected
-      assert response = json_response(conn, 503)
-      assert response["error"] == "No telephone available for this path"
-      assert response["path"] == "/api"
+      # Phase 5: Returns 503 when no telephone is connected
+      assert conn.status == 503
+      assert html_response(conn, 503) =~ "503"
     end
 
     test "matches most specific mount when multiple exist", %{conn: _conn} do
@@ -332,18 +330,16 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
 
-      # Phase 3: Both return 503 when no telephone is connected
+      # Phase 5: Both return 503 when no telephone is connected
       # /api-v2/users should match the /api-v2 mount
       conn1 = get(build_conn(), "/proxies/api-v2/users")
-      assert response1 = json_response(conn1, 503)
-      assert response1["error"] == "No telephone available for this path"
-      assert response1["path"] == "/api-v2"
+      assert conn1.status == 503
+      assert html_response(conn1, 503) =~ "503"
 
       # /api/users should match the /api mount
       conn2 = get(build_conn(), "/proxies/api/users")
-      assert response2 = json_response(conn2, 503)
-      assert response2["error"] == "No telephone available for this path"
-      assert response2["path"] == "/api"
+      assert conn2.status == 503
+      assert html_response(conn2, 503) =~ "503"
     end
   end
 end

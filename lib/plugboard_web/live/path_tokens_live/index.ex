@@ -22,13 +22,16 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             </span>
           </:subtitle>
           <:actions>
-            <.link navigate={~p"/paths?parent=#{@path.parent_id}"} class="text-sm ui-text-secondary hover:ui-text-primary">
+            <.link
+              navigate={~p"/paths?parent=#{@path.parent_id}"}
+              class="text-sm ui-text-secondary hover:ui-text-primary"
+            >
               ← Back to Paths
             </.link>
           </:actions>
         </.header>
-
-        <!-- Tab Navigation -->
+        
+    <!-- Tab Navigation -->
         <div class="mt-8 border-b border-ui-border">
           <div class="flex gap-4">
             <button
@@ -57,8 +60,8 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             </button>
           </div>
         </div>
-
-        <!-- Telephone Tokens Tab -->
+        
+    <!-- Telephone Tokens Tab -->
         <div :if={@active_tab == "tokens"} class="mt-8">
           <!-- Create Token Form -->
           <div class="mb-8 p-6 bg-[var(--ui-foreground)] rounded-lg">
@@ -84,8 +87,8 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               </.button>
             </.form>
           </div>
-
-          <!-- Token Created Modal -->
+          
+    <!-- Token Created Modal -->
           <.pop_up_form
             :if={@created_token}
             id="token-created-modal"
@@ -106,8 +109,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                   phx-click={JS.dispatch("phx:copy", to: "#token-value")}
                   class="interactive-button-base icon-button"
                 >
-                  <.icon name="hero-clipboard" class="icon-button-icon" />
-                  Copy to Clipboard
+                  <.icon name="hero-clipboard" class="icon-button-icon" /> Copy to Clipboard
                 </button>
                 <input
                   id="token-value"
@@ -118,8 +120,8 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               </div>
             </:form>
           </.pop_up_form>
-
-          <!-- Tokens List -->
+          
+    <!-- Tokens List -->
           <div class="space-y-4">
             <h3 class="text-lg font-semibold ui-text-primary">Active Tokens</h3>
             <%= if @tokens == [] do %>
@@ -158,8 +160,8 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             <% end %>
           </div>
         </div>
-
-        <!-- Service Accounts Tab -->
+        
+    <!-- Service Accounts Tab -->
         <div :if={@active_tab == "service_accounts"} class="mt-8">
           <!-- Create Service Account Form -->
           <div class="mb-8 p-6 bg-[var(--ui-foreground)] rounded-lg">
@@ -200,8 +202,8 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               </.button>
             </.form>
           </div>
-
-          <!-- Service Account Created Modal -->
+          
+    <!-- Service Account Created Modal -->
           <.pop_up_form
             :if={@created_api_key}
             id="api-key-created-modal"
@@ -222,8 +224,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                   phx-click={JS.dispatch("phx:copy", to: "#api-key-value")}
                   class="interactive-button-base icon-button"
                 >
-                  <.icon name="hero-clipboard" class="icon-button-icon" />
-                  Copy to Clipboard
+                  <.icon name="hero-clipboard" class="icon-button-icon" /> Copy to Clipboard
                 </button>
                 <input
                   id="api-key-value"
@@ -234,12 +235,14 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               </div>
             </:form>
           </.pop_up_form>
-
-          <!-- Service Accounts List -->
+          
+    <!-- Service Accounts List -->
           <div class="space-y-4">
             <h3 class="text-lg font-semibold ui-text-primary">Active Service Accounts</h3>
             <%= if @service_accounts == [] do %>
-              <p class="ui-text-secondary">No service accounts found. Create one to enable auto-scaling.</p>
+              <p class="ui-text-secondary">
+                No service accounts found. Create one to enable auto-scaling.
+              </p>
             <% else %>
               <div class="space-y-2">
                 <%= for sa <- @service_accounts do %>
@@ -426,7 +429,8 @@ defmodule PlugboardWeb.PathTokensLive.Index do
       case ServiceAccounts.revoke_service_account(sa_id) do
         {:ok, _sa} ->
           # Reload service accounts
-          service_accounts = ServiceAccounts.list_service_accounts_for_path(socket.assigns.path.id)
+          service_accounts =
+            ServiceAccounts.list_service_accounts_for_path(socket.assigns.path.id)
 
           {:noreply,
            socket

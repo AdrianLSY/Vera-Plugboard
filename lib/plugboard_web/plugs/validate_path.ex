@@ -14,6 +14,8 @@ defmodule PlugboardWeb.Plugs.ValidatePath do
   import Plug.Conn
   require Logger
 
+  alias PlugboardWeb.HTTPError
+
   @max_segment_length 255
   @max_path_depth 50
 
@@ -28,8 +30,11 @@ defmodule PlugboardWeb.Plugs.ValidatePath do
         Logger.warning("ValidatePath: Rejected request - #{reason}")
 
         conn
-        |> put_status(:bad_request)
-        |> Phoenix.Controller.json(%{error: "Invalid path", reason: reason})
+        |> HTTPError.send_error(400,
+          reason: "Invalid path",
+          details: %{validation_error: reason},
+          log: false
+        )
         |> halt()
     end
   end

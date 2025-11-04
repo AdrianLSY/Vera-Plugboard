@@ -8,7 +8,9 @@ defmodule PlugboardWeb.Api.TokenVendingControllerTest do
   setup do
     user = Plugboard.AccountsFixtures.user_fixture()
     {:ok, path} = create_mount_point(user)
-    {:ok, api_key, service_account} = ServiceAccounts.generate_service_account(user, path.id, "test-sa", "Test")
+
+    {:ok, api_key, service_account} =
+      ServiceAccounts.generate_service_account(user, path.id, "test-sa", "Test")
 
     %{user: user, path: path, api_key: api_key, service_account: service_account}
   end
@@ -176,7 +178,8 @@ defmodule PlugboardWeb.Api.TokenVendingControllerTest do
         })
 
       # Create service account for non-mount path (this should succeed)
-      {:ok, api_key, _sa} = ServiceAccounts.generate_service_account(user, non_mount_path.id, "test2", nil)
+      {:ok, api_key, _sa} =
+        ServiceAccounts.generate_service_account(user, non_mount_path.id, "test2", nil)
 
       conn =
         conn

@@ -44,8 +44,10 @@ defmodule Plugboard.Paths.Path do
   """
   def update_changeset(path, attrs) do
     path
-    |> cast(attrs, [:path, :mount_point])
+    |> cast(attrs, [:path, :mount_point, :request_timeout_ms, :connect_timeout_ms])
     |> validate_path_segment()
+    |> validate_number(:request_timeout_ms, greater_than: 0, less_than_or_equal_to: 300_000)
+    |> validate_number(:connect_timeout_ms, greater_than: 0, less_than_or_equal_to: 60_000)
   end
 
   @doc """
