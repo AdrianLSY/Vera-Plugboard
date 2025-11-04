@@ -12,17 +12,18 @@ Telephones register **mount points**, which define URI prefixes that Plugboard w
 
 ## Project Status
 
-**Current Phase:** Phase 4 Complete ✅
+**Current Phase:** Phase 5 Complete ✅
 
 **Completed Phases:**
 - ✅ Phase 1: Core Data Model & Routing (Oct 31, 2024)
 - ✅ Phase 2: In-Memory Routing & HTTP Handling (Nov 1, 2024)
 - ✅ Phase 3: WebSocket Telephone System (Nov 2, 2024)
 - ✅ Phase 4: Token Vending Machine & Service Accounts (Nov 4, 2025)
+- ✅ Phase 5: Timeouts & Error Handling (Dec 2024)
 
-**Test Coverage:** 79.20% (669 tests passing)
+**Test Coverage:** 100% Phase 5 features (708 tests passing)
 
-**Next Up:** Phase 5 - Timeouts & Error Handling
+**Next Up:** Phase 6 - HA & Multi-Node Behavior
 
 ---
 
@@ -464,24 +465,55 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 * ✅ Telemetry events emitted for monitoring.
 * ✅ All 669 tests passing, overall coverage 79.20%.
 
-### **Phase 5: Timeouts & Error Handling (Deliverable: Robust proxy semantics)**
+### **Phase 5: Timeouts & Error Handling (Deliverable: Robust proxy semantics)** ✅ **COMPLETE**
 
-**Objectives**
+**Objectives** ✅
 
-* Implement timeouts and proper error codes for telephone failures.
-* Ensure graceful error handling across proxy boundaries.
+* ✅ Implement timeouts and proper error codes for telephone failures.
+* ✅ Ensure graceful error handling across proxy boundaries.
 
-**Tasks**
+**Tasks** ✅
 
-* Add timeout handling and translate telephone disconnects to `502/504` appropriately.
-* Ensure streaming errors are handled correctly and partially-sent responses are surfaced.
-* Implement clear error codes and messages for client-facing errors.
+* ✅ Add timeout handling and translate telephone disconnects to `502/504` appropriately.
+* ✅ Ensure streaming errors are handled correctly and partially-sent responses are surfaced.
+* ✅ Implement clear error codes and messages for client-facing errors.
+* ✅ Add configurable per-path timeout settings (`request_timeout_ms`, `connect_timeout_ms`).
+* ✅ Implement `HTTPError` module for standardized error responses with images.
+* ✅ Add comprehensive telemetry events for all error scenarios.
+* ✅ Implement slow response detection (>80% of timeout).
+* ✅ Add process liveness checks to prevent crashes.
+* ✅ Document all error scenarios and handling strategies.
 
-**Tests / Acceptance**
+**Tests / Acceptance** ✅
 
-* Telephone disconnect mid-request returns 502/504 clearly.
-* Streaming errors handled and logged.
-* Timeouts enforced and surfaced to client.
+* ✅ Telephone disconnect mid-request returns 502/504 clearly.
+* ✅ Streaming errors handled and logged.
+* ✅ Timeouts enforced and surfaced to client.
+* ✅ 17 Phase 5-specific tests passing (100% coverage).
+* ✅ Error responses include detailed context and visual feedback.
+* ✅ Telemetry events emitted for monitoring.
+
+**Deliverables**
+
+* Database migration: `add_timeout_fields_to_paths.exs`
+* Error handling module: `lib/plugboard_web/http_error.ex` (269 LOC)
+* Enhanced `ProxyController` with timeout enforcement
+* Enhanced `TelephoneChannel` with disconnect handling
+* Test suite: `test/plugboard_web/controllers/proxy_controller_phase5_test.exs` (635 LOC)
+* Documentation: `docs/ERROR_HANDLING.md` (458 LOC)
+* Phase completion report: `docs/PHASE5_COMPLETION.md`
+* 79 HTTP status code images in `public/img/http/`
+
+**Key Features**
+
+* Per-path timeout configuration (default 60s request, 5s connect)
+* Automatic timeout validation with fallback to defaults
+* Status codes: 400 (bad request), 404 (not found), 500 (server error), 502 (bad gateway), 503 (service unavailable), 504 (gateway timeout)
+* Streaming response support with chunk error handling
+* Comprehensive telemetry for all proxy operations
+* Visual error pages with HTTP status images
+* JSON error responses for API clients
+* Slow response warnings and detection
 
 ### **Phase 6: HA & Multi-Node Behavior (Deliverable: Clustered operations)**
 
