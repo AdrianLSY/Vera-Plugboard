@@ -198,12 +198,10 @@ defmodule Plugboard.DistributedRegistryTest do
 
   ## Helper Functions
 
-  @doc """
-  Spawns multiple processes that register themselves for a path.
-
-  This helper follows Horde's constraint that processes must register themselves.
-  Each spawned process registers itself and then waits indefinitely.
-  """
+  # Spawns multiple processes that register themselves for a path.
+  #
+  # This helper follows Horde's constraint that processes must register themselves.
+  # Each spawned process registers itself and then waits indefinitely.
   defp spawn_and_register_multiple(path_id, count) do
     parent = self()
 
