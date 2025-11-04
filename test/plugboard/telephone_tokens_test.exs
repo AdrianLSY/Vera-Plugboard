@@ -518,8 +518,15 @@ defmodule Plugboard.TelephoneTokensTest do
       assert length(tokens) == 3
 
       # Verify ordering by checking timestamps
-      assert DateTime.compare(Enum.at(tokens, 0).inserted_at, Enum.at(tokens, 1).inserted_at) in [:gt, :eq]
-      assert DateTime.compare(Enum.at(tokens, 1).inserted_at, Enum.at(tokens, 2).inserted_at) in [:gt, :eq]
+      assert DateTime.compare(Enum.at(tokens, 0).inserted_at, Enum.at(tokens, 1).inserted_at) in [
+               :gt,
+               :eq
+             ]
+
+      assert DateTime.compare(Enum.at(tokens, 1).inserted_at, Enum.at(tokens, 2).inserted_at) in [
+               :gt,
+               :eq
+             ]
 
       # Verify all three tokens are present
       token_ids = Enum.map(tokens, & &1.id)
@@ -671,6 +678,58 @@ defmodule Plugboard.TelephoneTokensTest do
     test "returns nil for non-existent token" do
       fake_id = Ecto.UUID.generate()
       assert TelephoneTokens.get_token(fake_id) == nil
+    end
+  end
+
+  describe "edge cases" do
+    setup do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "edgecase-mount",
+          user_id: user.id
+        })
+
+      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+
+      %{user: user, path: path}
+    end
+
+    test "refresh_token/1 works for token about to expire", %{user: user, path: path} do
+      # Generate token
+      {:ok, _jwt, token_record} =
+        TelephoneTokens.generate_token(path, user, "about-to-expire")
+
+      # Manually update the token to be expiring soon (within 1 second)
+      soon = DateTime.add(DateTime.utc_now(), 1, :second) |> DateTime.truncate(:second)
+
+      token_record
+      |> Ecto.Changeset.change(expires_at: soon)
+      |> Repo.update!()
+
+      # Refresh should still work even though token is about to expire
+      assert {:ok, new_jwt, expires_in} = TelephoneTokens.refresh_token(token_record.id)
+      assert is_binary(new_jwt)
+      assert expires_in > 0
+    end
+
+    test "list_tokens_for_path/1 with invalid path_id returns empty list" do
+      fake_path_id = Ecto.UUID.generate()
+      assert TelephoneTokens.list_tokens_for_path(fake_path_id) == []
+    end
+
+    test "validate_jwt/1 handles token with edge case expiry times", %{user: user, path: path} do
+      # Generate token
+      {:ok, jwt, _token_record} =
+        TelephoneTokens.generate_token(path, user, "edge-expiry")
+
+      # Should validate successfully right after creation
+      assert {:ok, %{token: _token, path: validated_path, user_id: user_id}} =
+               TelephoneTokens.validate_jwt(jwt)
+
+      assert validated_path.id == path.id
+      assert user_id == user.id
     end
   end
 end

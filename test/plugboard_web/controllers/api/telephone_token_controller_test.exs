@@ -333,7 +333,11 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       assert json["error"] == "Token not found"
     end
 
-    test "revoking already revoked token succeeds (idempotent)", %{conn: conn, user: user, path: path} do
+    test "revoking already revoked token succeeds (idempotent)", %{
+      conn: conn,
+      user: user,
+      path: path
+    } do
       # Create and revoke token
       {:ok, _jwt, token} = TelephoneTokens.generate_token(path, user)
       {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
@@ -385,5 +389,4 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       assert json_response(conn, 200)
     end
   end
-
 end

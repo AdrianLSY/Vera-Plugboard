@@ -147,4 +147,36 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
       assert json_response(conn, 503)["error"] == "No telephone available for this path"
     end
   end
+
+  describe "edge cases" do
+    test "rejects path with multiple validation failures (stops at first)", %{conn: conn} do
+      # Create a path that violates multiple rules: has path traversal AND null byte
+      # Should fail on path traversal check (which comes first)
+      path = "/proxies/api/../etc#{<<0>>}malicious"
+      conn = get(conn, path)
+
+      assert json_response(conn, 400) == %{
+               "error" => "Invalid path",
+               "reason" => "Path traversal not allowed"
+             }
+    end
+
+    test "rejects null byte in middle of segment", %{conn: conn} do
+      # Test null byte specifically in the middle (not at start/end)
+      path = "/proxies/api/before#{<<0>>}after/segment"
+      conn = get(conn, path)
+
+      assert json_response(conn, 400) == %{
+               "error" => "Invalid path",
+               "reason" => "Null bytes not allowed in path"
+             }
+    end
+
+    test "allows multibyte unicode characters (emoji)", %{conn: conn} do
+      # Test that multibyte characters are properly handled
+      conn = get(conn, "/proxies/api/files/document-📄")
+      # Phase 3: Should pass validation but return 503 without telephone
+      assert json_response(conn, 503)["error"] == "No telephone available for this path"
+    end
+  end
 end

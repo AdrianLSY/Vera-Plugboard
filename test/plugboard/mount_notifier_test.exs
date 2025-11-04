@@ -319,6 +319,30 @@ defmodule Plugboard.MountNotifierTest do
     end
   end
 
+  describe "connection recovery" do
+    @tag :capture_log
+    test "MountNotifier survives PostgreSQL connection death" do
+      # Get initial state
+      initial_pid = Process.whereis(MountNotifier)
+      assert initial_pid != nil
+
+      initial_state = :sys.get_state(initial_pid)
+      pg_connection_pid = initial_state.pid
+
+      # Kill the PostgreSQL connection if it exists
+      if pg_connection_pid && Process.alive?(pg_connection_pid) do
+        Process.exit(pg_connection_pid, :kill)
+
+        # Wait for reconnection attempt
+        :timer.sleep(2000)
+
+        # MountNotifier should still be alive
+        assert Process.whereis(MountNotifier) != nil
+        assert Process.alive?(Process.whereis(MountNotifier))
+      end
+    end
+  end
+
   describe "process health" do
     @tag :capture_log
     test "MountNotifier restarts on crash via supervisor" do

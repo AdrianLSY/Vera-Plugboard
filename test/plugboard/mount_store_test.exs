@@ -325,4 +325,134 @@ defmodule Plugboard.MountStoreTest do
       assert Enum.any?(mounts, fn {full_path, _} -> full_path == "/listtest" end)
     end
   end
+
+  describe "telemetry events" do
+    test "emits telemetry on successful match" do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "telemetry-test",
+          user_id: user.id
+        })
+
+      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+
+      # Reload to ensure ETS is updated
+      MountStore.reload_all()
+
+      # Attach telemetry handler
+      test_pid = self()
+
+      :telemetry.attach(
+        "test-mount-store-match",
+        [:plugboard, :mount_store, :match],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry_event, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      # Perform match
+      assert {:ok, {"/telemetry-test", "/", _}} = MountStore.match("/telemetry-test")
+
+      # Verify telemetry event was emitted
+      assert_receive {:telemetry_event, [:plugboard, :mount_store, :match], measurements,
+                      metadata}
+
+      assert is_integer(measurements.duration)
+      assert measurements.duration > 0
+      assert metadata.result == :ok
+      assert metadata.path == "/telemetry-test"
+
+      # Clean up
+      :telemetry.detach("test-mount-store-match")
+    end
+
+    test "emits telemetry on failed match" do
+      # Attach telemetry handler
+      test_pid = self()
+
+      :telemetry.attach(
+        "test-mount-store-match-fail",
+        [:plugboard, :mount_store, :match],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry_event, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      # Attempt to match non-existent path
+      assert {:error, :not_found} = MountStore.match("/nonexistent/path")
+
+      # Verify telemetry event was emitted with error result
+      assert_receive {:telemetry_event, [:plugboard, :mount_store, :match], measurements,
+                      metadata}
+
+      assert is_integer(measurements.duration)
+      assert measurements.duration > 0
+      assert metadata.result == :error
+      assert metadata.path == "/nonexistent/path"
+
+      # Clean up
+      :telemetry.detach("test-mount-store-match-fail")
+    end
+  end
+
+  describe "error handling and resilience" do
+    test "GenServer survives refresh_mount errors for non-existent paths" do
+      # Attempt to refresh a mount that doesn't exist
+      # This should not crash the GenServer
+      MountStore.refresh_mount("/definitely-does-not-exist-path-12345")
+
+      # Give it time to process
+      :timer.sleep(100)
+
+      # Verify GenServer is still alive and functional
+      assert Process.whereis(Plugboard.MountStore) != nil
+
+      # Verify it can still perform normal operations
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "still-works",
+          user_id: user.id
+        })
+
+      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      MountStore.reload_all()
+
+      assert {:ok, {"/still-works", "/", _}} = MountStore.match("/still-works")
+    end
+
+    test "handle_info :reconcile runs without crashing" do
+      # Get the MountStore process
+      mount_store_pid = Process.whereis(Plugboard.MountStore)
+      assert mount_store_pid != nil
+
+      # Send reconcile message directly
+      send(mount_store_pid, :reconcile)
+
+      # Give it time to process
+      :timer.sleep(100)
+
+      # Verify GenServer is still alive
+      assert Process.whereis(Plugboard.MountStore) == mount_store_pid
+
+      # Verify it's still functional
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "reconcile-test",
+          user_id: user.id
+        })
+
+      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      MountStore.reload_all()
+
+      assert {:ok, {"/reconcile-test", "/", _}} = MountStore.match("/reconcile-test")
+    end
+  end
 end

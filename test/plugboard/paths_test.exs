@@ -1420,6 +1420,273 @@ defmodule Plugboard.PathsTest do
     end
   end
 
+  describe "role management functions" do
+    setup do
+      user1 = user_fixture()
+      user2 = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "shared-project",
+          user_id: user1.id
+        })
+
+      %{user1: user1, user2: user2, path: path}
+    end
+
+    test "add_user_to_path/3 adds a viewer to a path", %{user2: user2, path: path} do
+      assert {:ok, user_path} = Paths.add_user_to_path(user2.id, path.id, "viewer")
+      assert user_path.user_id == user2.id
+      assert user_path.path_id == path.id
+      assert user_path.role == "viewer"
+    end
+
+    test "add_user_to_path/3 adds a maintainer to a path", %{user2: user2, path: path} do
+      assert {:ok, user_path} = Paths.add_user_to_path(user2.id, path.id, "maintainer")
+      assert user_path.role == "maintainer"
+    end
+
+    test "add_user_to_path/3 returns error when adding duplicate user-path association", %{
+      user2: user2,
+      path: path
+    } do
+      {:ok, _} = Paths.add_user_to_path(user2.id, path.id, "viewer")
+      assert {:error, changeset} = Paths.add_user_to_path(user2.id, path.id, "maintainer")
+      assert %{user_id: ["has already been taken"]} = errors_on(changeset)
+    end
+
+    test "add_user_to_path/3 returns error with invalid role", %{user2: user2, path: path} do
+      assert {:error, changeset} = Paths.add_user_to_path(user2.id, path.id, "invalid_role")
+      assert %{role: ["is invalid"]} = errors_on(changeset)
+    end
+
+    test "update_user_path_role/2 changes user role from viewer to maintainer", %{
+      user2: user2,
+      path: path
+    } do
+      {:ok, user_path} = Paths.add_user_to_path(user2.id, path.id, "viewer")
+      assert user_path.role == "viewer"
+
+      assert {:ok, updated} = Paths.update_user_path_role(user_path, "maintainer")
+      assert updated.role == "maintainer"
+      assert updated.id == user_path.id
+    end
+
+    test "update_user_path_role/2 changes user role from maintainer to owner", %{
+      user2: user2,
+      path: path
+    } do
+      {:ok, user_path} = Paths.add_user_to_path(user2.id, path.id, "maintainer")
+      assert {:ok, updated} = Paths.update_user_path_role(user_path, "owner")
+      assert updated.role == "owner"
+    end
+
+    test "update_user_path_role/2 returns error with invalid role", %{user2: user2, path: path} do
+      {:ok, user_path} = Paths.add_user_to_path(user2.id, path.id, "viewer")
+      assert {:error, changeset} = Paths.update_user_path_role(user_path, "admin")
+      assert %{role: ["is invalid"]} = errors_on(changeset)
+    end
+
+    test "remove_user_from_path/1 removes user association", %{user2: user2, path: path} do
+      {:ok, user_path} = Paths.add_user_to_path(user2.id, path.id, "viewer")
+      assert {:ok, deleted} = Paths.remove_user_from_path(user_path)
+      assert deleted.id == user_path.id
+
+      # Verify it's actually gone
+      assert Paths.get_user_path(user2.id, path.id) == nil
+    end
+
+    test "get_user_path/2 returns user_path when association exists", %{user2: user2, path: path} do
+      {:ok, user_path} = Paths.add_user_to_path(user2.id, path.id, "viewer")
+      retrieved = Paths.get_user_path(user2.id, path.id)
+      assert retrieved.id == user_path.id
+      assert retrieved.role == "viewer"
+    end
+
+    test "get_user_path/2 returns nil when no association exists", %{user2: user2, path: path} do
+      assert Paths.get_user_path(user2.id, path.id) == nil
+    end
+
+    test "get_user_role/2 returns role string when association exists", %{
+      user2: user2,
+      path: path
+    } do
+      {:ok, _} = Paths.add_user_to_path(user2.id, path.id, "maintainer")
+      assert Paths.get_user_role(user2.id, path.id) == "maintainer"
+    end
+
+    test "get_user_role/2 returns nil when no association exists", %{user2: user2, path: path} do
+      assert Paths.get_user_role(user2.id, path.id) == nil
+    end
+
+    test "list_path_users/1 returns all users for a path", %{
+      user1: user1,
+      user2: user2,
+      path: path
+    } do
+      user3 = user_fixture()
+      {:ok, _} = Paths.add_user_to_path(user2.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user3.id, path.id, "maintainer")
+
+      users = Paths.list_path_users(path.id)
+      user_ids = Enum.map(users, & &1.user_id) |> Enum.sort()
+
+      # Should include owner (user1) + user2 + user3
+      assert length(users) == 3
+      assert user1.id in user_ids
+      assert user2.id in user_ids
+      assert user3.id in user_ids
+    end
+
+    test "list_path_users/1 returns empty list when path has no associations", %{user1: user1} do
+      {:ok, path} = Paths.create_path(%{path: "isolated", user_id: user1.id})
+      # Delete the owner association
+      user_path = Paths.get_user_path(user1.id, path.id)
+      Paths.remove_user_from_path(user_path)
+
+      assert Paths.list_path_users(path.id) == []
+    end
+
+    test "has_role?/3 returns true when user has exact role", %{user2: user2, path: path} do
+      {:ok, _} = Paths.add_user_to_path(user2.id, path.id, "viewer")
+      assert Paths.has_role?(user2.id, path.id, "viewer") == true
+    end
+
+    test "has_role?/3 returns false when user has different role", %{user2: user2, path: path} do
+      {:ok, _} = Paths.add_user_to_path(user2.id, path.id, "viewer")
+      assert Paths.has_role?(user2.id, path.id, "owner") == false
+      assert Paths.has_role?(user2.id, path.id, "maintainer") == false
+    end
+
+    test "has_role?/3 returns false when user has no association", %{user2: user2, path: path} do
+      assert Paths.has_role?(user2.id, path.id, "viewer") == false
+    end
+  end
+
+  describe "edge cases for get_descendants and cascades" do
+    setup do
+      user = user_fixture()
+      %{user: user}
+    end
+
+    test "get_descendants/1 handles very deep hierarchy (15 levels)", %{user: user} do
+      # Create a 15-level deep hierarchy
+      {:ok, root} = Paths.create_path(%{path: "root", user_id: user.id})
+
+      # Build a 15-level deep hierarchy
+      Enum.reduce(1..15, root, fn i, parent_path ->
+        {:ok, child} =
+          Paths.create_path(%{
+            path: "level#{i}",
+            parent_id: parent_path.id,
+            user_id: user.id
+          })
+
+        child
+      end)
+
+      descendants = Paths.get_descendants(root)
+      assert length(descendants) == 15
+    end
+
+    test "delete_path/1 cascade soft-deletes deep hierarchy efficiently", %{user: user} do
+      # Create a 10-level hierarchy
+      {:ok, root} = Paths.create_path(%{path: "root", user_id: user.id})
+
+      # Build a 10-level deep hierarchy
+      Enum.reduce(1..10, root, fn i, parent_path ->
+        {:ok, child} =
+          Paths.create_path(%{
+            path: "level#{i}",
+            parent_id: parent_path.id,
+            user_id: user.id
+          })
+
+        child
+      end)
+
+      # Delete root should cascade to all 10 descendants
+      assert {:ok, deleted} = Paths.delete_path(root)
+      assert deleted.id == root.id
+
+      # Verify all are soft-deleted
+      descendants = Paths.get_descendants(root)
+      assert descendants == []
+    end
+
+    test "delete_path/1 with wide tree (many siblings)", %{user: user} do
+      {:ok, root} = Paths.create_path(%{path: "root", user_id: user.id})
+
+      # Create 20 children under root
+      for i <- 1..20 do
+        {:ok, _child} =
+          Paths.create_path(%{
+            path: "child#{i}",
+            parent_id: root.id,
+            user_id: user.id
+          })
+      end
+
+      # Delete root should cascade to all 20 children
+      assert {:ok, _deleted} = Paths.delete_path(root)
+
+      # Verify all are soft-deleted
+      descendants = Paths.get_descendants(root)
+      assert descendants == []
+    end
+
+    test "get_descendants/1 does not return soft-deleted descendants", %{user: user} do
+      {:ok, root} = Paths.create_path(%{path: "root", user_id: user.id})
+      {:ok, child1} = Paths.create_path(%{path: "child1", parent_id: root.id, user_id: user.id})
+      {:ok, child2} = Paths.create_path(%{path: "child2", parent_id: root.id, user_id: user.id})
+
+      {:ok, _grandchild} =
+        Paths.create_path(%{path: "grandchild", parent_id: child1.id, user_id: user.id})
+
+      # Soft-delete child1 (and its grandchild)
+      Paths.delete_path(child1)
+
+      # get_descendants should only return child2
+      descendants = Paths.get_descendants(root)
+      assert length(descendants) == 1
+      assert hd(descendants).id == child2.id
+    end
+  end
+
+  describe "edge cases for can_add_child and can_mark_as_mount" do
+    setup do
+      user = user_fixture()
+      %{user: user}
+    end
+
+    test "can_add_child?/1 returns error for mount point", %{user: user} do
+      {:ok, mount} = Paths.create_path(%{path: "mount", user_id: user.id})
+      {:ok, mount} = Paths.update_path(mount, %{mount_point: true})
+
+      assert {:error, message} = Paths.can_add_child?(mount)
+      assert message =~ "mount point"
+    end
+
+    test "can_add_child?/1 returns ok for regular path", %{user: user} do
+      {:ok, path} = Paths.create_path(%{path: "regular", user_id: user.id})
+
+      assert {:ok, true} = Paths.can_add_child?(path)
+    end
+
+    test "can_mark_as_mount?/1 returns false when path has children", %{user: user} do
+      {:ok, parent} = Paths.create_path(%{path: "parent", user_id: user.id})
+      {:ok, _child} = Paths.create_path(%{path: "child", parent_id: parent.id, user_id: user.id})
+
+      assert Paths.can_mark_as_mount?(parent) == false
+    end
+
+    test "can_mark_as_mount?/1 returns true when path has no children", %{user: user} do
+      {:ok, path} = Paths.create_path(%{path: "lonely", user_id: user.id})
+
+      assert Paths.can_mark_as_mount?(path) == true
+    end
+  end
+
   # Helper function to create a user fixture
   defp user_fixture(attrs \\ %{}) do
     unique_email = "user#{System.unique_integer([:positive])}@example.com"

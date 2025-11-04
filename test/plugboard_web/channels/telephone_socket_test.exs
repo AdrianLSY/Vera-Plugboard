@@ -153,9 +153,7 @@ defmodule PlugboardWeb.TelephoneSocketTest do
       {:ok, jwt, _token} = TelephoneTokens.generate_token(temp_mount, user)
 
       # Hard delete the path (cascade deletes token)
-      Plugboard.Repo.delete_all(
-        from p in Plugboard.Paths.Path, where: p.id == ^temp_path.id
-      )
+      Plugboard.Repo.delete_all(from p in Plugboard.Paths.Path, where: p.id == ^temp_path.id)
 
       assert :error = connect(TelephoneSocket, %{"token" => jwt})
     end
