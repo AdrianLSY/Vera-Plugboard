@@ -413,9 +413,36 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 * ✅ Token refresh updates expiry and returns new JWT.
 * ✅ All 434 tests passing, mix precommit passing.
 
-**See:** `PHASE_3_QA_FIXES.md` for detailed QA review and critical fixes applied.
+### **Phase 4: Token Vending Machine & Service Accounts (Deliverable: Auto-scaling support & UI)**
 
-### **Phase 4: Timeouts & Error Handling (Deliverable: Robust proxy semantics)**
+**Objectives**
+
+* Implement Service Accounts for programmatic token generation.
+* Create Token Vending Machine API for auto-scaling clusters.
+* Build frontend UI for token and service account management.
+
+**Tasks**
+
+* Create `service_accounts` table and migration.
+* Implement `ServiceAccounts` context with CRUD operations.
+* Implement Service Account API key generation and validation.
+* Create Token Vending Machine API endpoint (`POST /api/token-vending/generate`).
+* Implement Service Account management API endpoints (create, list, revoke).
+* Build LiveView UI for telephone token management (list, create, revoke tokens).
+* Build LiveView UI for service account management.
+* Add automatic token cleanup on service shutdown (optional).
+* Update router with new API routes.
+
+**Tests / Acceptance**
+
+* Service account can be created with API key.
+* Token Vending Machine generates tokens using service account credentials.
+* Service account API key validation works correctly.
+* Frontend UI allows users to create/list/revoke telephone tokens.
+* Frontend UI allows users to create/list/revoke service accounts.
+* Service accounts can only generate tokens for paths they have access to.
+
+### **Phase 5: Timeouts & Error Handling (Deliverable: Robust proxy semantics)**
 
 **Objectives**
 
@@ -434,7 +461,7 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 * Streaming errors handled and logged.
 * Timeouts enforced and surfaced to client.
 
-### **Phase 5: HA & Multi-Node Behavior (Deliverable: Clustered operations)**
+### **Phase 6: HA & Multi-Node Behavior (Deliverable: Clustered operations)**
 
 **Objectives**
 
@@ -454,7 +481,7 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 * Node crash: telephone reconnects to other node and resumes serving traffic.
 * Reconcilation recovers missed NOTIFY updates.
 
-### **Phase 6: Hardening & Documentation (Deliverable: Production-ready)**
+### **Phase 7: Hardening & Documentation (Deliverable: Production-ready)**
 
 **Objectives**
 
