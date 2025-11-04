@@ -188,13 +188,10 @@ defmodule Plugboard.TelephoneRegistry do
         index = rem(counter, length(telephones))
         telephone_pid = Enum.at(telephones, index)
 
-        # Increment counter for next request
-        :ets.update_counter(
-          @table_name,
-          {:counter, path_id},
-          {2, 1},
-          {{:counter, path_id}, 0}
-        )
+        # Increment counter with wrapping to prevent overflow (CRITICAL-1 fix)
+        # Reset counter to 0 when it reaches 1 billion to prevent overflow
+        new_counter = rem(counter + 1, 1_000_000_000)
+        :ets.insert(@table_name, {{:counter, path_id}, new_counter})
 
         {:reply, {:ok, telephone_pid}, state}
 

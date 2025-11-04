@@ -84,11 +84,15 @@ defmodule PlugboardWeb.ProxyController do
   defp forward_request_to_telephone(conn, telephone_pid, path, forwarded_path) do
     timeout = path.request_timeout_ms
 
+    # Generate unique request ID for correlation
+    request_id = Ecto.UUID.generate()
+
     # Read request body
     {:ok, body, conn} = Plug.Conn.read_body(conn)
 
-    # Build request payload for telephone
+    # Build request payload for telephone with correlation ID
     request_payload = %{
+      "request_id" => request_id,
       "method" => conn.method,
       "path" => forwarded_path,
       "headers" => build_headers_map(conn),
@@ -99,10 +103,10 @@ defmodule PlugboardWeb.ProxyController do
     # Record start time for telemetry
     start_time = System.monotonic_time()
 
-    # Send request to telephone and wait for response
+    # Send request to telephone and wait for response with correlation ID
     task =
       Task.async(fn ->
-        send_to_telephone_and_wait(telephone_pid, request_payload, timeout)
+        send_to_telephone_and_wait(telephone_pid, request_id, request_payload, timeout)
       end)
 
     case Task.await(task, timeout + 1000) do
@@ -151,17 +155,24 @@ defmodule PlugboardWeb.ProxyController do
     end
   end
 
-  defp send_to_telephone_and_wait(telephone_pid, request_payload, timeout) do
-    # Send the request to the telephone channel process
-    send(telephone_pid, {:proxy_request, self(), request_payload})
+  defp send_to_telephone_and_wait(telephone_pid, request_id, request_payload, timeout) do
+    # Check if process is alive before sending (CRITICAL-5 fix)
+    if Process.alive?(telephone_pid) do
+      # Send the request to the telephone channel process with correlation ID
+      send(telephone_pid, {:proxy_request, self(), request_id, request_payload})
 
-    # Wait for response
-    receive do
-      {:proxy_res, response} ->
-        {:ok, response}
-    after
-      timeout ->
-        {:error, :timeout}
+      # Wait for response matching the request ID
+      receive do
+        {:proxy_res, ^request_id, response} ->
+          {:ok, response}
+      after
+        timeout ->
+          {:error, :timeout}
+      end
+    else
+      # Process died between lookup and send
+      Logger.warning("Telephone process #{inspect(telephone_pid)} is not alive")
+      {:error, :telephone_unavailable}
     end
   end
 

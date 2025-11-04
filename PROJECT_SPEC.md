@@ -215,12 +215,12 @@ HEARTBEAT_ACK { "ts": 1730000000 }
 REFRESH_TOKEN {}
 REFRESH_TOKEN_ACK { "token": "new_jwt_string", "expires_in": 3600 }
 
-PROXY_REQ { "method": "GET", "path": "/items", "headers": {...}, "body": "..." }
-PROXY_RES { "status": 200, "headers": {...}, "body": "..." }
-PROXY_ERR { "code": 502, "message": "Backend error" }
+PROXY_REQ { "request_id": "uuid", "method": "GET", "path": "/items", "headers": {...}, "body": "..." }
+PROXY_RES { "request_id": "uuid", "status": 200, "headers": {...}, "body": "..." }
+PROXY_ERR { "request_id": "uuid", "code": 502, "message": "Backend error" }
 ```
 
-**Note:** No correlation IDs - one request at a time per telephone connection (simple synchronous model for MVP).
+**Note:** Each proxy request includes a unique `request_id` (UUID) for correlation. This enables concurrent request handling - multiple requests can be in-flight simultaneously on the same telephone connection. The telephone must include the same `request_id` in its response to ensure the response is matched to the correct waiting HTTP client.
 
 ### 4.4 Security
 
@@ -372,51 +372,54 @@ Each phase below includes tasks, tests, and acceptance criteria. Time estimates 
 
 **See:** `PHASE_2_QA_FIXES.md` for implementation details and QA review responses.
 
-### **Phase 3: WebSocket Telephone System (Deliverable: Telephone connectivity & proxying)**
+### **Phase 3: WebSocket Telephone System (Deliverable: Telephone connectivity & proxying)** ✅ **COMPLETE**
+
+**Completion Date:** November 2, 2024 (QA Review & Fixes: November 3, 2024)
 
 **Objectives**
 
-* Implement `telephone_tokens` table and JWT token management.
-* Add timeout configuration fields to `paths` table.
-* Implement Phoenix Channel handler for telephone WebSocket connections at `/telephone`.
-* Implement JWT authentication and validation for telephone connections.
-* Implement basic synchronous request/response proxying (no streaming).
-* Implement round-robin load balancing for multiple telephones on same path.
-* Configure token expiry and refresh via environment variables.
+* ✅ Implement `telephone_tokens` table and JWT token management.
+* ✅ Add timeout configuration fields to `paths` table.
+* ✅ Implement Phoenix Channel handler for telephone WebSocket connections at `/telephone`.
+* ✅ Implement request/response proxying with correlation IDs (supports concurrent requests).
+* ✅ Implement round-robin load balancing for multiple telephones on same path.
+* ✅ Implement heartbeat enforcement for dead connection detection.
 
 **Tasks**
 
-* Create migration for `telephone_tokens` table with path_id, user_id, token_hash, expires_at, revoked_at.
-* Create migration to add `request_timeout_ms` and `connect_timeout_ms` to `paths` table.
-* Implement `TelephoneToken` schema and context functions (generate, validate, revoke, refresh).
-* Add JWT config to `runtime.exs` (TELEPHONE_TOKEN_EXPIRY, TELEPHONE_TOKEN_REFRESH_INTERVAL).
-* Implement `TelephoneSocket` at `/telephone` with JWT authentication in `connect/3`.
-* Implement `TelephoneChannel` with message handlers: `REGISTER`, `HEARTBEAT`, `PROXY_REQ`, `PROXY_RES`, `REFRESH_TOKEN`.
-* Create `TelephoneRegistry` GenServer with ETS backing to track connected telephones per path.
-* Update `ProxyController` to look up telephone via registry and forward requests with Task.async.
-* Implement round-robin selection when multiple telephones registered to same path.
-* Add telemetry events for telephone connections, disconnections, and proxy requests.
-* Token creation API endpoint (POST /api/paths/:path_id/tokens) with owner/maintainer role check.
+* ✅ Create migration for `telephone_tokens` table and add timeout fields to `paths`.
+* ✅ Implement `TelephoneToken` schema and context functions (generate, validate, revoke, refresh).
+* ✅ Implement `TelephoneSocket` at `/telephone` with JWT authentication.
+* ✅ Implement `TelephoneChannel` with message handlers: `REGISTER`, `HEARTBEAT`, `PROXY_REQ`, `PROXY_RES`, `REFRESH_TOKEN`.
+* ✅ Create `TelephoneRegistry` GenServer with ETS backing to track connected telephones.
+* ✅ Update `ProxyController` to forward requests via WebSocket with `request_id` correlation.
+* ✅ Implement round-robin selection with overflow protection for multiple telephones.
+* ✅ Implement transactional token validation to prevent race conditions.
+* ✅ Add JWT secret validation on application startup.
+* ✅ Token creation API endpoint (POST /api/paths/:path_id/tokens) with role check.
+* ✅ Implement `TokenCleanup` GenServer for automatic deletion of expired tokens.
 
 **Tests / Acceptance**
 
-* Token creation requires owner or maintainer role on path.
-* Token validation checks signature, expiry, revocation status, and path mount point.
-* Telephone connects with valid JWT and registers successfully.
-* Telephone with invalid/expired/revoked JWT is rejected.
-* HTTP request to `/proxies/...` forwarded to registered telephone via WebSocket.
-* Telephone response relayed back to HTTP client correctly.
-* Multiple telephones on same path receive requests in round-robin order.
-* Request timeout returns 504 Gateway Timeout when telephone doesn't respond in time.
-* No telephone available for path returns 503 Service Unavailable.
-* Token refresh updates expiry and returns new JWT.
-* All tests passing with Phase 3 additions.
+* ✅ Token creation requires owner or maintainer role on path.
+* ✅ Token validation checks signature, expiry, revocation, and is transactional.
+* ✅ Telephone connects with valid JWT and registers successfully.
+* ✅ Telephone with invalid/expired/revoked JWT is rejected.
+* ✅ Application fails to start if JWT secret is invalid.
+* ✅ HTTP request to `/proxies/...` forwarded to telephone with unique `request_id`.
+* ✅ Multiple concurrent requests handled correctly (no response mix-up).
+* ✅ Multiple telephones on same path receive requests in round-robin order.
+* ✅ Heartbeat timeout (60 seconds) disconnects dead connections.
+* ✅ Token refresh updates expiry and returns new JWT.
+* ✅ All 434 tests passing, mix precommit passing.
+
+**See:** `PHASE_3_QA_FIXES.md` for detailed QA review and critical fixes applied.
 
 ### **Phase 4: Timeouts & Error Handling (Deliverable: Robust proxy semantics)**
 
 **Objectives**
 
-* Implement timeouts and proper error codes for agent failures.
+* Implement timeouts and proper error codes for telephone failures.
 * Ensure graceful error handling across proxy boundaries.
 
 **Tasks**

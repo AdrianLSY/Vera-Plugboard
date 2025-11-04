@@ -54,7 +54,7 @@ defmodule Plugboard.TelephoneTokens.TelephoneToken do
   def refresh_changeset(token, new_expires_at, new_token_hash) do
     token
     |> change()
-    |> put_change(:expires_at, new_expires_at)
+    |> put_change(:expires_at, DateTime.truncate(new_expires_at, :second))
     |> put_change(:token_hash, new_token_hash)
   end
 end

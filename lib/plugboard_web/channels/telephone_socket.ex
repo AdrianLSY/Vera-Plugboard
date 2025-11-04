@@ -17,7 +17,8 @@ defmodule PlugboardWeb.TelephoneSocket do
 
   @impl true
   def connect(%{"token" => jwt_token}, socket, _connect_info) do
-    case TelephoneTokens.validate_jwt(jwt_token) do
+    # Use validate_and_mark_used to prevent race condition (BLOCKER-1 fix)
+    case TelephoneTokens.validate_and_mark_used(jwt_token) do
       {:ok, %{token: token, path: path, user_id: user_id}} ->
         socket =
           socket

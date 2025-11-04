@@ -70,6 +70,13 @@ defmodule Plugboard.TelephoneTokens do
 
         case create_token(attrs) do
           {:ok, token} ->
+            # Emit telemetry for token creation
+            :telemetry.execute(
+              [:plugboard, :telephone_token, :created],
+              %{count: 1},
+              %{path_id: path.id, user_id: user.id}
+            )
+
             {:ok, jwt, token}
 
           {:error, changeset} ->
@@ -106,6 +113,51 @@ defmodule Plugboard.TelephoneTokens do
   def validate_jwt(_), do: {:error, "Invalid token format"}
 
   @doc """
+  Validates a JWT token and marks it as used in a single transaction.
+
+  This prevents race conditions where a token could be revoked between
+  validation and marking as used.
+
+  ## Parameters
+    - jwt_string: The JWT to validate
+
+  ## Returns
+    - {:ok, %{token: token, path: path, user_id: user_id}} on success
+    - {:error, reason} on failure
+  """
+  def validate_and_mark_used(jwt_string) when is_binary(jwt_string) do
+    Repo.transaction(fn ->
+      with {:ok, claims} <- verify_jwt(jwt_string),
+           token_hash <- hash_token(jwt_string),
+           {:ok, token} <- get_token_by_hash(token_hash),
+           :ok <- validate_token_active(token),
+           {:ok, path} <- validate_path(claims["path_id"]),
+           {:ok, _updated_token} <- mark_token_used(token.id) do
+        # Emit telemetry for successful validation
+        :telemetry.execute(
+          [:plugboard, :telephone_token, :validated],
+          %{count: 1},
+          %{path_id: claims["path_id"], user_id: claims["sub"]}
+        )
+
+        %{token: token, path: path, user_id: claims["sub"]}
+      else
+        {:error, reason} ->
+          # Emit telemetry for validation failure
+          :telemetry.execute(
+            [:plugboard, :telephone_token, :validation_failed],
+            %{count: 1},
+            %{reason: reason}
+          )
+
+          Repo.rollback(reason)
+      end
+    end)
+  end
+
+  def validate_and_mark_used(_), do: {:error, "Invalid token format"}
+
+  @doc """
   Revokes a token, preventing it from being used for future connections.
   """
   def revoke_token(token_id) do
@@ -114,9 +166,25 @@ defmodule Plugboard.TelephoneTokens do
         {:error, :not_found}
 
       token ->
-        token
-        |> TelephoneToken.revoke_changeset()
-        |> Repo.update()
+        result =
+          token
+          |> TelephoneToken.revoke_changeset()
+          |> Repo.update()
+
+        case result do
+          {:ok, revoked_token} ->
+            # Emit telemetry for token revocation
+            :telemetry.execute(
+              [:plugboard, :telephone_token, :revoked],
+              %{count: 1},
+              %{token_id: token_id, path_id: token.path_id}
+            )
+
+            {:ok, revoked_token}
+
+          error ->
+            error
+        end
     end
   end
 
@@ -160,6 +228,13 @@ defmodule Plugboard.TelephoneTokens do
               |> Repo.update()
               |> case do
                 {:ok, _updated_token} ->
+                  # Emit telemetry for token refresh
+                  :telemetry.execute(
+                    [:plugboard, :telephone_token, :refreshed],
+                    %{count: 1},
+                    %{token_id: token_id, path_id: token.path_id}
+                  )
+
                   {:ok, new_jwt, expiry_seconds}
 
                 {:error, changeset} ->
@@ -175,6 +250,8 @@ defmodule Plugboard.TelephoneTokens do
 
   @doc """
   Updates the last_used_at timestamp for a token.
+
+  This function can be called standalone or within a transaction.
   """
   def mark_token_used(token_id) do
     case get_token(token_id) do
@@ -221,6 +298,13 @@ defmodule Plugboard.TelephoneTokens do
       TelephoneToken
       |> where([t], t.expires_at < ^now)
       |> Repo.delete_all()
+
+    # Emit telemetry for cleanup
+    :telemetry.execute(
+      [:plugboard, :telephone_token, :cleanup],
+      %{count: count},
+      %{}
+    )
 
     Logger.info("Deleted #{count} expired telephone tokens")
     {:ok, count}
@@ -284,10 +368,9 @@ defmodule Plugboard.TelephoneTokens do
 
   defp generate_jwt(claims) do
     secret = get_jwt_secret()
+    signer = Joken.Signer.create("HS256", secret)
 
-    token =
-      claims
-      |> Joken.generate_and_sign!(Joken.Signer.create("HS256", secret))
+    token = Joken.generate_and_sign!(%{}, claims, signer)
 
     {:ok, token}
   rescue
