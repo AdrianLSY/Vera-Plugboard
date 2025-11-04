@@ -134,3 +134,8 @@ config :plugboard, :telephone,
   token_expiry: System.get_env("TELEPHONE_TOKEN_EXPIRY", "3600") |> String.to_integer(),
   token_refresh_interval:
     System.get_env("TELEPHONE_TOKEN_REFRESH_INTERVAL", "1800") |> String.to_integer()
+
+# Request body size limit (in bytes) - default 10MB
+config :plugboard,
+       :max_request_body_length,
+       System.get_env("MAX_REQUEST_BODY_SIZE", "10485760") |> String.to_integer()

@@ -657,7 +657,10 @@ end
 **Complexity:** MEDIUM  
 
 **Description:**  
-Implement per-user and per-path rate limiting to prevent abuse.
+Implement per-user and per-path rate limiting to prevent abuse and ensure fair usage.
+
+**Current State:**  
+Global request body size limit is configured via `MAX_REQUEST_BODY_SIZE` environment variable (default 10MB).
 
 **Planned Implementation:**
 
@@ -693,7 +696,59 @@ defmodule PlugboardWeb.RateLimiter do
 end
 ```
 
-**Status:** Planned for Phase 7 ✅
+---
+
+### 2.4 Per-Path Request Body Size Limits
+
+**Complexity:** LOW  
+
+**Description:**  
+Allow configuring maximum request body size on a per-path basis, overriding the global default set in `MAX_REQUEST_BODY_SIZE`.
+
+**Current State:**  
+Global limit configured via environment variable applies to all paths.
+
+**Proposed Schema:**
+
+```sql
+ALTER TABLE paths
+ADD COLUMN max_body_size_bytes INTEGER;
+-- NULL means use global default from MAX_REQUEST_BODY_SIZE
+```
+
+**Implementation:**
+
+```elixir
+# In ProxyController, check path-specific limit before forwarding
+def proxy(conn, params) do
+  path = get_path_from_registry(params)
+  max_size = path.max_body_size_bytes || Application.get_env(:plugboard, :max_request_body_length)
+  
+  # Validate content-length header against limit
+  case Plug.Conn.get_req_header(conn, "content-length") do
+    [size_str] ->
+      size = String.to_integer(size_str)
+      if size > max_size do
+        send_resp(conn, 413, "Request body too large")
+      else
+        forward_to_telephone(conn, path)
+      end
+    _ ->
+      forward_to_telephone(conn, path)
+  end
+end
+```
+
+**Use Cases:**
+- **File upload services:** Allow larger bodies (100MB+) for file upload paths
+- **API endpoints:** Keep smaller limits (1-5MB) for typical JSON APIs
+- **Webhook receivers:** Configure based on webhook provider limits
+- **Media services:** Allow very large uploads for video/audio processing
+
+**Benefits:**
+- Fine-grained control over resource usage per service
+- Prevent individual services from consuming excessive memory
+- Better multi-tenant isolation
 
 ---
 
@@ -868,11 +923,15 @@ Build a real-time dashboard showing active telephones, request rates, and system
 **Description:**  
 Stream large request bodies (file uploads, video uploads, data imports) to telephones instead of buffering entire body in memory. This enables support for large file transfers and real-time data streaming scenarios.
 
+**Current State:**  
+Plugboard currently has a configurable request body size limit (default 10MB, set via `MAX_REQUEST_BODY_SIZE` in `.env`). Requests are buffered entirely in memory before being forwarded. This works well for typical API requests but is inefficient for large file uploads.
+
 **Current Limitation:**
 
 ```elixir
 # lib/plugboard_web/controllers/proxy_controller.ex:157
-{:ok, body, conn} = Plug.Conn.read_body(conn)  # Buffers entire body!
+{:ok, body, conn} = Plug.Conn.read_body(conn)  # Buffers entire body in memory!
+# Current limit: configurable via MAX_REQUEST_BODY_SIZE (default 10MB)
 ```
 
 **Proposed Implementation:**
@@ -898,10 +957,11 @@ end
 ```
 
 **Benefits:**
-- Support large file uploads (GB+) without memory exhaustion
+- Support large file uploads (GB+) beyond current memory-based limits
 - Reduced memory usage and improved scalability
 - Lower latency (start processing before entire upload completes)
 - Enable real-time streaming scenarios (video uploads, live data feeds)
+- Remove the need for artificially low size limits
 
 **Use Cases:**
 - **File Uploads:** Large file uploads (images, videos, documents, backups)
@@ -1282,7 +1342,8 @@ This document outlines planned features and enhancements for Plugboard beyond MV
 - Geographic/multi-region routing
 
 **Security & Authentication:**
-- Rate limiting and request size limits
+- Rate limiting (per-user and per-path)
+- Per-path request body size limits (global limit already implemented)
 - mTLS telephone authentication
 - IP whitelisting/allowlisting
 
