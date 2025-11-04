@@ -129,4 +129,66 @@ defmodule Plugboard.AsyncHelpers do
       timeout: timeout
     )
   end
+
+  @doc """
+  Spawns a mock telephone process that registers itself with Horde.
+
+  This is necessary because Horde.Registry.register() can only register
+  the calling process (self()), not arbitrary PIDs. The spawned process
+  will register itself and then wait indefinitely.
+
+  ## Parameters
+    - path_id: The path ID to register for
+
+  ## Returns
+    - pid: The PID of the spawned telephone process
+
+  ## Examples
+
+      path_id = Ecto.UUID.generate()
+      telephone_pid = spawn_mock_telephone(path_id)
+
+      # Verify it's registered
+      assert {:ok, ^telephone_pid} = TelephoneRegistry.get_telephone(path_id)
+
+      # Cleanup
+      Process.exit(telephone_pid, :kill)
+  """
+  def spawn_mock_telephone(path_id) do
+    parent = self()
+
+    pid =
+      spawn(fn ->
+        # Register this process for the path
+        :ok = Plugboard.TelephoneRegistry.register(path_id, self())
+
+        # Signal parent that registration is complete
+        send(parent, {:registered, self()})
+
+        # Wait indefinitely
+        Process.sleep(:infinity)
+      end)
+
+    # Wait for registration to complete
+    receive do
+      {:registered, ^pid} -> pid
+    after
+      5000 -> raise "Mock telephone failed to register within 5 seconds"
+    end
+  end
+
+  @doc """
+  Spawns multiple mock telephone processes for the same path.
+
+  ## Examples
+
+      path_id = Ecto.UUID.generate()
+      [pid1, pid2, pid3] = spawn_mock_telephones(path_id, 3)
+
+      # Verify all are registered
+      assert TelephoneRegistry.count_telephones(path_id) == 3
+  """
+  def spawn_mock_telephones(path_id, count) when is_integer(count) and count > 0 do
+    Enum.map(1..count, fn _ -> spawn_mock_telephone(path_id) end)
+  end
 end

@@ -19,8 +19,12 @@ defmodule Plugboard.Application do
       Plugboard.MountStore,
       # Start the MountNotifier to listen for PostgreSQL NOTIFY events
       Plugboard.MountNotifier,
-      # Start the TelephoneRegistry to track connected telephones
-      Plugboard.TelephoneRegistry,
+      # Start the DistributedRegistry (Horde) for cluster-wide telephone tracking
+      Plugboard.DistributedRegistry,
+      # Start the ClusterConnector to sync libcluster events with Horde
+      Plugboard.ClusterConnector,
+      # TelephoneRegistry is now a compatibility shim - no process to start
+      # It delegates all calls to DistributedRegistry
       # Start the TokenCleanup to periodically remove expired tokens
       Plugboard.TelephoneTokens.TokenCleanup,
       # Start a worker by calling: Plugboard.Worker.start_link(arg)

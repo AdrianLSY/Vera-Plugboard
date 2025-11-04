@@ -1,243 +1,180 @@
 defmodule Plugboard.TelephoneRegistry do
   @moduledoc """
-  Registry for tracking connected telephone processes.
+  Registry for tracking connected telephone processes across cluster nodes.
 
-  Maintains an ETS table mapping path_ids to lists of telephone channel PIDs.
-  Implements round-robin load balancing for multiple telephones on the same path.
+  This module provides a backwards-compatible API while delegating to
+  DistributedRegistry (Horde-based) for cluster-wide telephone tracking.
+
+  In Phase 5, this used local ETS tables. In Phase 6, it uses Horde.Registry
+  for distributed operation, enabling requests to route to telephones on any
+  node in the cluster.
+
+  ## Cluster Operation
+
+  With Horde.Registry:
+  - Telephones can connect to any node
+  - Requests on any node can reach any telephone
+  - Automatic failover when nodes leave cluster
+  - CRDT-based eventual consistency
+
+  ## Migration Notes
+
+  The API remains unchanged from Phase 5, ensuring backward compatibility.
+  All calls are now delegated to DistributedRegistry which handles cluster
+  coordination.
   """
 
-  use GenServer
+  alias Plugboard.DistributedRegistry
+
   require Logger
 
-  @table_name :telephone_registry
-
-  ## Public API
-
   @doc """
-  Starts the TelephoneRegistry GenServer.
+  Starts the TelephoneRegistry.
+
+  This is a no-op in Phase 6 since DistributedRegistry handles the actual
+  registration. Kept for backwards compatibility with existing supervision tree.
   """
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  def start_link(_opts) do
+    # No-op: DistributedRegistry is started separately
+    # Return :ignore to tell supervisor this child doesn't need to be started
+    Logger.info("TelephoneRegistry: Using DistributedRegistry for cluster-wide operation")
+    :ignore
   end
 
   @doc """
   Registers a telephone channel for a given path.
 
+  Delegates to DistributedRegistry for cluster-wide registration.
+
   ## Parameters
     - path_id: The path ID this telephone serves
     - telephone_pid: The PID of the telephone channel process
+
+  ## Returns
+    - :ok on success
+    - {:error, reason} on failure
   """
   def register(path_id, telephone_pid) when is_binary(path_id) and is_pid(telephone_pid) do
-    GenServer.call(__MODULE__, {:register, path_id, telephone_pid})
+    case DistributedRegistry.register(path_id, telephone_pid) do
+      {:ok, _pid} -> :ok
+      error -> error
+    end
   end
 
   @doc """
   Unregisters a telephone channel from a path.
+
+  Delegates to DistributedRegistry.
+
+  ## Parameters
+    - path_id: The path ID to unregister from
+    - telephone_pid: The PID of the telephone channel process
   """
   def unregister(path_id, telephone_pid) when is_binary(path_id) and is_pid(telephone_pid) do
-    GenServer.call(__MODULE__, {:unregister, path_id, telephone_pid})
+    DistributedRegistry.unregister(path_id, telephone_pid)
   end
 
   @doc """
   Gets the next available telephone for a path using round-robin.
 
-  Returns {:ok, pid} if a telephone is available, {:error, :no_telephone} otherwise.
+  Delegates to DistributedRegistry which handles load balancing across
+  all registered telephones, regardless of which node they're on.
+
+  ## Parameters
+    - path_id: The path ID to look up
+
+  ## Returns
+    - {:ok, pid} if a telephone is available
+    - {:error, :no_telephone} if no telephones are registered
   """
   def get_telephone(path_id) when is_binary(path_id) do
-    GenServer.call(__MODULE__, {:get_telephone, path_id})
+    DistributedRegistry.get_telephone(path_id)
   end
 
   @doc """
   Lists all telephones registered to a path.
+
+  Returns PIDs from all nodes in the cluster.
+
+  ## Parameters
+    - path_id: The path ID to query
+
+  ## Returns
+    - List of PIDs registered for the path
   """
   def list_telephones(path_id) when is_binary(path_id) do
-    case :ets.lookup(@table_name, {:telephones, path_id}) do
-      [{_, telephones}] -> telephones
-      [] -> []
-    end
+    path_id
+    |> DistributedRegistry.lookup()
+    |> Enum.map(fn {pid, _value} -> pid end)
   end
 
   @doc """
   Counts the number of telephones registered to a path.
+
+  Includes telephones from all nodes in the cluster.
+
+  ## Parameters
+    - path_id: The path ID to count
+
+  ## Returns
+    - Integer count of registered telephones
   """
   def count_telephones(path_id) when is_binary(path_id) do
-    length(list_telephones(path_id))
+    DistributedRegistry.count_telephones(path_id)
   end
 
   @doc """
   Lists all paths that have at least one telephone registered.
+
+  Scans the distributed registry across all cluster nodes.
+
+  Note: This is an expensive operation. Use sparingly.
+
+  ## Returns
+    - List of path_id strings
   """
   def list_active_paths do
-    @table_name
-    |> :ets.match({{:telephones, :"$1"}, :_})
-    |> List.flatten()
+    DistributedRegistry.list_active_paths()
   end
 
   @doc """
-  Gets statistics about the registry.
+  Gets statistics about the registry across all cluster nodes.
+
+  ## Returns
+    Map with:
+    - :active_paths - Number of unique paths with telephones
+    - :total_telephones - Total number of registered telephones across cluster
+    - :nodes - Number of nodes in cluster
+    - :this_node - Current node name
+
+  ## Examples
+
+      iex> TelephoneRegistry.stats()
+      %{
+        active_paths: 10,
+        total_telephones: 25,
+        nodes: 3,
+        this_node: :"plugboard@127.0.0.1"
+      }
   """
   def stats do
-    paths = list_active_paths()
-
-    total_telephones =
-      Enum.reduce(paths, 0, fn path_id, acc ->
-        acc + count_telephones(path_id)
-      end)
-
-    %{
-      active_paths: length(paths),
-      total_telephones: total_telephones
-    }
+    DistributedRegistry.stats()
   end
 
-  ## GenServer Callbacks
+  @doc """
+  Returns the list of Horde cluster members.
 
-  @impl true
-  def init(_opts) do
-    # Create ETS table with public read access for efficient lookups
-    table =
-      :ets.new(@table_name, [
-        :set,
-        :named_table,
-        :public,
-        read_concurrency: true
-      ])
+  Useful for monitoring and debugging cluster state.
 
-    Logger.info("TelephoneRegistry started")
+  ## Examples
 
-    {:ok, %{table: table}}
-  end
-
-  @impl true
-  def handle_call({:register, path_id, telephone_pid}, _from, state) do
-    # Monitor the telephone process so we can clean up when it dies
-    Process.monitor(telephone_pid)
-
-    # Get current list of telephones for this path
-    telephones = list_telephones(path_id)
-
-    # Add the new telephone if not already present
-    updated_telephones =
-      if telephone_pid in telephones do
-        telephones
-      else
-        telephones ++ [telephone_pid]
-      end
-
-    # Update ETS table
-    :ets.insert(@table_name, {{:telephones, path_id}, updated_telephones})
-
-    # Initialize counter if it doesn't exist
-    unless :ets.member(@table_name, {:counter, path_id}) do
-      :ets.insert(@table_name, {{:counter, path_id}, 0})
-    end
-
-    # Emit telemetry
-    :telemetry.execute(
-      [:plugboard, :telephone, :registered],
-      %{count: 1},
-      %{path_id: path_id, total: length(updated_telephones)}
-    )
-
-    Logger.debug("Registered telephone #{inspect(telephone_pid)} for path #{path_id}")
-
-    {:reply, :ok, state}
-  end
-
-  @impl true
-  def handle_call({:unregister, path_id, telephone_pid}, _from, state) do
-    # Get current list of telephones
-    telephones = list_telephones(path_id)
-
-    # Remove the telephone
-    updated_telephones = List.delete(telephones, telephone_pid)
-
-    # Update ETS table
-    if updated_telephones == [] do
-      # No more telephones for this path, remove entries
-      :ets.delete(@table_name, {:telephones, path_id})
-      :ets.delete(@table_name, {:counter, path_id})
-    else
-      :ets.insert(@table_name, {{:telephones, path_id}, updated_telephones})
-    end
-
-    # Emit telemetry
-    :telemetry.execute(
-      [:plugboard, :telephone, :unregistered],
-      %{count: 1},
-      %{path_id: path_id, remaining: length(updated_telephones)}
-    )
-
-    Logger.debug("Unregistered telephone #{inspect(telephone_pid)} from path #{path_id}")
-
-    {:reply, :ok, state}
-  end
-
-  @impl true
-  def handle_call({:get_telephone, path_id}, _from, state) do
-    case :ets.lookup(@table_name, {:telephones, path_id}) do
-      [{_, telephones}] when telephones != [] ->
-        # Get current counter
-        counter =
-          case :ets.lookup(@table_name, {:counter, path_id}) do
-            [{{:counter, ^path_id}, count}] -> count
-            [] -> 0
-          end
-
-        # Calculate round-robin index
-        index = rem(counter, length(telephones))
-        telephone_pid = Enum.at(telephones, index)
-
-        # Increment counter with wrapping to prevent overflow (CRITICAL-1 fix)
-        # Reset counter to 0 when it reaches 1 billion to prevent overflow
-        new_counter = rem(counter + 1, 1_000_000_000)
-        :ets.insert(@table_name, {{:counter, path_id}, new_counter})
-
-        {:reply, {:ok, telephone_pid}, state}
-
-      _ ->
-        {:reply, {:error, :no_telephone}, state}
-    end
-  end
-
-  @impl true
-  def handle_info({:DOWN, _ref, :process, pid, reason}, state) do
-    # A telephone process died, clean it up from all paths
-    cleanup_dead_telephone(pid, reason)
-    {:noreply, state}
-  end
-
-  ## Private Functions
-
-  defp cleanup_dead_telephone(pid, reason) do
-    # Find all paths this telephone was registered to
-    paths = list_active_paths()
-
-    Enum.each(paths, fn path_id ->
-      telephones = list_telephones(path_id)
-
-      if pid in telephones do
-        # Remove the dead process
-        updated_telephones = List.delete(telephones, pid)
-
-        if updated_telephones == [] do
-          :ets.delete(@table_name, {:telephones, path_id})
-          :ets.delete(@table_name, {:counter, path_id})
-        else
-          :ets.insert(@table_name, {{:telephones, path_id}, updated_telephones})
-        end
-
-        Logger.info(
-          "Cleaned up dead telephone #{inspect(pid)} from path #{path_id}, reason: #{inspect(reason)}"
-        )
-
-        # Emit telemetry
-        :telemetry.execute(
-          [:plugboard, :telephone, :disconnected],
-          %{count: 1},
-          %{path_id: path_id, reason: reason}
-        )
-      end
-    end)
+      iex> TelephoneRegistry.members()
+      [
+        {Plugboard.DistributedRegistry, :"plugboard@10.0.1.1"},
+        {Plugboard.DistributedRegistry, :"plugboard@10.0.1.2"}
+      ]
+  """
+  def members do
+    DistributedRegistry.members()
   end
 end
