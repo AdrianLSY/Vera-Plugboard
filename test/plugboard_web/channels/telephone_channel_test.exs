@@ -2,6 +2,7 @@ defmodule PlugboardWeb.TelephoneChannelTest do
   use PlugboardWeb.ChannelCase, async: false
 
   import Plugboard.AccountsFixtures
+  import ExUnit.CaptureLog
   alias PlugboardWeb.TelephoneSocket
   alias Plugboard.Paths
   alias Plugboard.TelephoneTokens
@@ -54,7 +55,10 @@ defmodule PlugboardWeb.TelephoneChannelTest do
     test "rejects join with mismatched path_id", %{socket: socket} do
       wrong_path_id = Ecto.UUID.generate()
 
-      assert {:error, %{reason: "path_id_mismatch"}} = join(socket, "telephone:#{wrong_path_id}")
+      assert capture_log(fn ->
+               assert {:error, %{reason: "path_id_mismatch"}} =
+                        join(socket, "telephone:#{wrong_path_id}")
+             end) =~ "Path ID mismatch"
     end
 
     test "multiple telephones can join same path", %{user: user, path: path} do
@@ -213,9 +217,23 @@ defmodule PlugboardWeb.TelephoneChannelTest do
       assert_push "proxy_req", %{"path" => "/test3"}
 
       # Send responses out of order (3, 1, 2)
-      push(socket, "proxy_res", %{"request_id" => request_id3, "status" => 203, "body" => "response3"})
-      push(socket, "proxy_res", %{"request_id" => request_id1, "status" => 201, "body" => "response1"})
-      push(socket, "proxy_res", %{"request_id" => request_id2, "status" => 202, "body" => "response2"})
+      push(socket, "proxy_res", %{
+        "request_id" => request_id3,
+        "status" => 203,
+        "body" => "response3"
+      })
+
+      push(socket, "proxy_res", %{
+        "request_id" => request_id1,
+        "status" => 201,
+        "body" => "response1"
+      })
+
+      push(socket, "proxy_res", %{
+        "request_id" => request_id2,
+        "status" => 202,
+        "body" => "response2"
+      })
 
       # Verify each response is matched correctly
       assert_receive {:proxy_res, ^request_id3, response3}
@@ -388,11 +406,15 @@ defmodule PlugboardWeb.TelephoneChannelTest do
         request_id = Ecto.UUID.generate()
         caller_pid = self()
 
-        send(socket.channel_pid, {:proxy_request, caller_pid, request_id, %{
-          "request_id" => request_id,
-          "method" => method,
-          "path" => "/test"
-        }})
+        send(
+          socket.channel_pid,
+          {:proxy_request, caller_pid, request_id,
+           %{
+             "request_id" => request_id,
+             "method" => method,
+             "path" => "/test"
+           }}
+        )
 
         assert_push "proxy_req", %{"method" => ^method}
 
@@ -407,17 +429,26 @@ defmodule PlugboardWeb.TelephoneChannelTest do
 
       large_body = String.duplicate("a", 10_000)
 
-      send(socket.channel_pid, {:proxy_request, caller_pid, request_id, %{
-        "request_id" => request_id,
-        "method" => "POST",
-        "path" => "/upload",
-        "body" => large_body
-      }})
+      send(
+        socket.channel_pid,
+        {:proxy_request, caller_pid, request_id,
+         %{
+           "request_id" => request_id,
+           "method" => "POST",
+           "path" => "/upload",
+           "body" => large_body
+         }}
+      )
 
       assert_push "proxy_req", %{"body" => ^large_body}
 
       large_response = String.duplicate("b", 10_000)
-      push(socket, "proxy_res", %{"request_id" => request_id, "status" => 200, "body" => large_response})
+
+      push(socket, "proxy_res", %{
+        "request_id" => request_id,
+        "status" => 200,
+        "body" => large_response
+      })
 
       assert_receive {:proxy_res, ^request_id, %{"body" => ^large_response}}
     end
@@ -457,14 +488,21 @@ defmodule PlugboardWeb.TelephoneChannelTest do
       caller_pid = self()
 
       # Send 50 concurrent requests
-      request_ids = for i <- 1..50 do
-        request_id = "request-#{i}-#{Ecto.UUID.generate()}"
-        send(socket.channel_pid, {:proxy_request, caller_pid, request_id, %{
-          "request_id" => request_id,
-          "path" => "/test-#{i}"
-        }})
-        request_id
-      end
+      request_ids =
+        for i <- 1..50 do
+          request_id = "request-#{i}-#{Ecto.UUID.generate()}"
+
+          send(
+            socket.channel_pid,
+            {:proxy_request, caller_pid, request_id,
+             %{
+               "request_id" => request_id,
+               "path" => "/test-#{i}"
+             }}
+          )
+
+          request_id
+        end
 
       # Should receive all proxy_req pushes
       for _ <- 1..50 do
