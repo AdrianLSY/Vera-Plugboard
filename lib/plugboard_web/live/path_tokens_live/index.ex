@@ -23,7 +23,9 @@ defmodule PlugboardWeb.PathTokensLive.Index do
           </:subtitle>
           <:actions>
             <.link
-              navigate={~p"/paths?parent=#{@path.parent_id}"}
+              navigate={
+                if @path.parent_id, do: ~p"/paths?parent=#{@path.parent_id}", else: ~p"/paths"
+              }
               class="text-sm ui-text-secondary hover:ui-text-primary"
             >
               ← Back to Paths

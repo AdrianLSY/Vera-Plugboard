@@ -77,11 +77,9 @@ defmodule PlugboardWeb.TelephoneChannel do
   def handle_in("refresh_token", _payload, socket) do
     case TelephoneTokens.refresh_token(socket.assigns.token_id) do
       {:ok, new_jwt, expires_in} ->
-        push(socket, "refresh_token_ack", %{token: new_jwt, expires_in: expires_in})
-
         Logger.debug("Token refreshed for path #{socket.assigns.path.full_path}")
 
-        {:noreply, socket}
+        {:reply, {:ok, %{token: new_jwt, expires_in: expires_in}}, socket}
 
       {:error, reason} ->
         Logger.error("Token refresh failed: #{inspect(reason)}")

@@ -134,10 +134,10 @@ defmodule PlugboardWeb.TelephoneChannelTest do
     end
 
     test "refreshes token successfully", %{socket: socket} do
-      push(socket, "refresh_token", %{})
+      ref = push(socket, "refresh_token", %{})
 
-      # Should receive refresh_token_ack with new token
-      assert_push "refresh_token_ack", %{token: new_jwt, expires_in: expires_in}
+      # Should receive phx_reply with new token
+      assert_reply ref, :ok, %{token: new_jwt, expires_in: expires_in}
       assert is_binary(new_jwt)
       assert is_integer(expires_in)
 
@@ -149,11 +149,16 @@ defmodule PlugboardWeb.TelephoneChannelTest do
       # Revoke the token
       {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
 
-      push(socket, "refresh_token", %{})
+      # Capture expected error log
+      log =
+        capture_log(fn ->
+          ref = push(socket, "refresh_token", %{})
 
-      # Channel will log error but doesn't send error reply for refresh
-      # Just verify channel is still alive
-      assert Process.alive?(socket.channel_pid)
+          # Should receive error reply for refresh failure
+          assert_reply ref, :error, %{reason: _reason}
+        end)
+
+      assert log =~ "Token refresh failed"
     end
   end
 
