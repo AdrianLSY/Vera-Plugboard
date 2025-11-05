@@ -1,129 +1,221 @@
 # Plugboard
 
-**A dynamic, database-driven reverse proxy built with Phoenix and WebSockets**
+**The dynamic reverse proxy component of Vera-Stack**
 
-[![Elixir](https://img.shields.io/badge/elixir-1.17-purple.svg)](https://elixir-lang.org)
-[![Phoenix](https://img.shields.io/badge/phoenix-1.7-orange.svg)](https://phoenixframework.org)
 [![Tests](https://img.shields.io/badge/tests-685%20passing-success.svg)](test/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ---
 
 ## Overview
 
-Plugboard is an opinionated reverse proxy that replaces static configuration files with **dynamic, application-driven routing** via persistent WebSocket connections. Applications register themselves through lightweight **"telephone" sidecars**, which establish secure tunnels to Plugboard. This eliminates the need for config files, restarts, or manual port forwarding.
+Plugboard is the reverse proxy server component that handles incoming HTTP requests and routes them through WebSocket tunnels to registered Telephone sidecars. It maintains a distributed registry of active connections and uses in-memory caching for high-performance path matching.
 
-### Highlights
-
-* **Zero-configuration routing** - backends register dynamically at runtime
-* **NAT/firewall traversal** - route to hosts behind private networks
-* **Database-driven** - all routes managed through UI or API
-* **Cluster-ready** - distributed consensus via CRDTs for resilience
-* **Auto-scaling aware** - services register/deregister automatically
-
-### Typical Use Cases
-
-* Exposing local servers in development
-* Dynamic tenant routing in multi-tenant SaaS
-* Auto-scaling environments in the cloud
-* Edge or IoT devices behind NAT
-* Centralized routing for microservice environments
+**Key Responsibilities:**
+* Accept incoming HTTP requests from clients
+* Perform O(1) path lookup for route matching
+* Maintain WebSocket connections with Telephone sidecars
+* Proxy requests through tunnels to backend services
+* Manage route registration and persistence
+* Provide cluster-wide service discovery
 
 ---
 
 ## Architecture
 
-### System Overview
+### Core Components
+
+#### ProxyController
+* Entry point for all incoming HTTP requests
+* Performs path matching against registered mount points
+* Delegates requests to the appropriate Telephone connection
+* Streams responses back to clients
+
+#### TelephoneChannel
+* Manages WebSocket connections from Telephone sidecars
+* Handles bidirectional communication for proxied requests
+* Implements request correlation with UUIDs
+* Manages connection lifecycle and reconnection
+
+#### MountStore
+* Database-backed storage for route configurations
+* Enforces terminal mount point constraint
+* Provides soft-delete functionality
+* Synchronizes state across cluster nodes
+
+#### Distributed Registry (Horde)
+* CRDT-based process registry for Telephone connections
+* Automatic failover and rebalancing
+* Cluster-wide service discovery
+* Consistent hashing for load distribution
+
+### Data Flow
 
 ```
-┌─────────────┐
-│   Client    │
-└──────┬──────┘
-       │ HTTP Request: GET /api/users
-       ▼
-┌───────────────────────────────────┐
-│         Plugboard Cluster         │
-│  ┌────────────────────────────┐   │
-│  │   ProxyController          │   │
-│  │   1. Match /api in ETS     │   │
-│  │   2. Find telephone in     │   │
-│  │      distributed registry  │   │
-│  └────────────────────────────┘   │
-│               │                   │
-│               │ WebSocket Tunnel  │
-│               ▼                   │
-│  ┌────────────────────────────┐   │
-│  │   TelephoneChannel         │   │
-│  │   (WebSocket connection)   │   │
-│  └────────────────────────────┘   │
-└────────┬──────────────────────────┘
-         │ Proxy Request over WebSocket
-         ▼
-┌──────────────────────────────┐
-│   Container / Pod            │
-│  ┌────────────────────────┐  │
-│  │  Telephone (Sidecar)   │  │
-│  │  - Maintains WebSocket │  │
-│  │  - Intercepts traffic  │  │
-│  └────────┬───────────────┘  │
-│           │ localhost:PORT   │
-│           ▼                  │
-│  ┌────────────────────────┐  │
-│  │ Your Web Server        │  │
-│  │ (Rails, Express,       │  │
-│  │  Django, Spring, etc.) │  │
-│  └────────────────────────┘  │
-└──────────────────────────────┘
+Client Request
+      ↓
+ProxyController
+      ↓
+ETS Path Lookup (O(1))
+      ↓
+Horde Registry Lookup
+      ↓
+TelephoneChannel (WebSocket)
+      ↓
+Telephone Sidecar
+      ↓
+Backend Service
 ```
 
 ---
 
-## Technology Stack
+## Internal Architecture
 
-* **Phoenix Framework 1.7** - web and WebSocket layer
-* **Elixir 1.17** - concurrent and fault-tolerant runtime
-* **PostgreSQL 14+** - canonical data store for routes
-* **ETS** - in-memory cache for O(1) path lookup
-* **Horde** - distributed registry with CRDT-based consistency
-* **libcluster** - automatic cluster formation and recovery
-* **Phoenix Channels** - bidirectional WebSocket communication
-* **Joken** - JWT authentication for sidecar telephones
+### Path Matching Algorithm
+
+Plugboard uses a **terminal mount point** strategy:
+
+1. Routes are stored in ETS with normalized paths (trailing slashes removed)
+2. Incoming requests are matched using prefix matching
+3. Only terminal routes (those without children) can handle requests
+4. Longest matching prefix wins
+
+**Example:**
+
+```elixir
+# Valid configuration
+/api          -> Service A
+/api/v2       -> Service B
+
+# Invalid configuration (conflict)
+/api          -> Service A
+/api/users    -> Service B  # Cannot have both - /api is terminal
+```
+
+### Request Correlation
+
+Each proxied request receives a unique correlation ID:
+
+```elixir
+%{
+  correlation_id: UUID.uuid4(),
+  method: "GET",
+  path: "/api/users",
+  headers: [...],
+  body: <<...>>
+}
+```
+
+This allows multiple concurrent requests over a single WebSocket connection.
+
+### Database Schema
+
+#### mount_points table
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `path` | String | Mount path (e.g., `/api`) |
+| `telephone_id` | String | Identifier for the Telephone sidecar |
+| `backend_port` | Integer | Port on the backend service |
+| `metadata` | JSONB | Additional configuration |
+| `inserted_at` | Timestamp | Creation time |
+| `updated_at` | Timestamp | Last modification |
+| `deleted_at` | Timestamp | Soft delete timestamp |
+
+### Clustering
+
+Plugboard uses **libcluster** for automatic cluster formation:
+
+* DNS-based discovery in Kubernetes
+* Gossip protocol for membership
+* Automatic partition healing
+* CRDT-based state synchronization via Horde
+
+**Configuration:**
+
+```elixir
+config :libcluster,
+  topologies: [
+    dns_poll: [
+      strategy: Cluster.Strategy.DNSPoll,
+      config: [
+        query: System.get_env("DNS_CLUSTER_QUERY"),
+        interval: 5_000
+      ]
+    ]
+  ]
+```
 
 ---
 
-## Design Principles
+## Development
 
-1. **Terminal Mount Points** - mount paths cannot have children, ensuring deterministic lookups.
-2. **CRDT-Based Clustering** - eventual consistency without coordination overhead.
-3. **Database as Source of Truth** - ETS and Horde caches are ephemeral and rebuildable.
-4. **Request Correlation** - UUID-based tracking for concurrent requests over a single tunnel.
-5. **Soft Deletes** - `deleted_at` timestamps preserve historical path data.
-6. **Behavioral Testing** - tests validate observable behavior, not internal implementation.
+### Prerequisites
 
----
+* Elixir 1.17+
+* Erlang/OTP 26+
+* PostgreSQL 14+
 
-## Request Lifecycle
+### Setup
 
-1. Client sends a request to Plugboard (e.g., `GET /api/users`).
-2. `ProxyController` performs an O(1) path lookup in ETS.
-3. Distributed registry locates the corresponding telephone process.
-4. The request is sent over the WebSocket via `TelephoneChannel`.
-5. The telephone forwards it to the local backend (e.g., `localhost:3000`).
-6. The backend processes the request and responds.
-7. The telephone returns the response over the same WebSocket.
-8. Plugboard streams the response back to the original client.
+```bash
+# Install dependencies
+mix deps.get
+
+# Setup database
+mix ecto.setup
+
+# Run migrations
+mix ecto.migrate
+
+# Start the server
+mix phx.server
+
+# Run tests
+mix test
+
+# Run with coverage
+mix test --cover
+```
+
+### Running Locally
+
+```bash
+# Start PostgreSQL (if not running)
+docker run -d \
+  --name plugboard-db \
+  -e POSTGRES_USER=plugboard \
+  -e POSTGRES_PASSWORD=plugboard \
+  -e POSTGRES_DB=plugboard \
+  -p 6432:5432 \
+  postgres:14
+
+# Start Plugboard
+iex -S mix phx.server
+```
+
+### Testing Strategy
+
+Plugboard follows a **behavioral testing** approach:
+
+* Tests validate observable behavior, not implementation details
+* Focus on contract testing for interfaces
+* Use integration tests for critical paths
+* Mock external dependencies (database in some cases)
+
+See [TESTING_GUIDELINES.md](TESTING_GUIDELINES.md) for detailed testing patterns.
 
 ---
 
 ## Configuration
-
-### Environment Variables
 
 Plugboard uses environment variables for configuration. Copy the `.env` file and customize values for your environment:
 
 ```bash
 cp .env .env.local  # For local overrides (add to .gitignore)
 ```
+
+### Environment Variables
 
 #### Phoenix Server
 
@@ -215,39 +307,155 @@ DNS_CLUSTER_QUERY=
 
 ---
 
+## API Reference
+
+### Mount Point Management
+
+#### Create Mount Point
+
+```http
+POST /api/mounts
+Content-Type: application/json
+
+{
+  "path": "/api",
+  "telephone_id": "service-a",
+  "backend_port": 3000,
+  "metadata": {}
+}
+```
+
+#### List Mount Points
+
+```http
+GET /api/mounts
+```
+
+#### Delete Mount Point
+
+```http
+DELETE /api/mounts/:id
+```
+
+---
+
+## Monitoring & Observability
+
+### Health Checks
+
+```http
+GET /health
+```
+
+Returns `200 OK` if the server is healthy.
+
+### Metrics (Planned)
+
+* Request latency histograms
+* Active WebSocket connections
+* Route hit rates
+* Error rates by status code
+
+---
+
+## Deployment
+
+### Docker
+
+```dockerfile
+FROM hexpm/elixir:1.17.0-erlang-26.0.0-alpine-3.18.0 AS build
+
+WORKDIR /app
+
+# Install dependencies
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+COPY mix.exs mix.lock ./
+COPY config config
+RUN mix deps.get --only prod
+RUN mix deps.compile
+
+# Build release
+COPY lib lib
+COPY priv priv
+RUN mix compile
+RUN mix release
+
+# Runtime image
+FROM alpine:3.18
+
+RUN apk add --no-cache openssl ncurses-libs
+
+WORKDIR /app
+
+COPY --from=build /app/_build/prod/rel/plugboard ./
+
+CMD ["bin/plugboard", "start"]
+```
+
+### Kubernetes
+
+See [deployment/kubernetes](deployment/kubernetes) for Helm charts and manifests.
+
+---
+
 ## Documentation
 
-* **[AGENTS.md](AGENTS.md)** - internal conventions and Phoenix guidelines
-* **[TESTING_GUIDELINES.md](TESTING_GUIDELINES.md)** - testing strategy and patterns
-* **[FUTURE_WORK.md](FUTURE_WORK.md)** - roadmap: load balancing, auth, observability, multi-domain routing
-* **[CONTRIBUTING.md](CONTRIBUTING.md)** - contribution workflow and standards
+* **[AGENTS.md](AGENTS.md)** - Development conventions and Phoenix guidelines
+* **[TESTING_GUIDELINES.md](TESTING_GUIDELINES.md)** - Testing strategy and patterns
+* **[FUTURE_WORK.md](FUTURE_WORK.md)** - Roadmap and planned features
+* **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution workflow and standards
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
+* Code style and conventions
+* Submitting pull requests
+* Running the test suite
+* Reporting bugs
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### Connection Refused
+
+```
+** (Postgrex.Error) connection not available and request was dropped from queue
+```
+
+**Solution:** Ensure PostgreSQL is running and accessible:
+
+```bash
+psql -h localhost -p 6432 -U plugboard -d plugboard
+```
+
+#### Port Already in Use
+
+```
+** (EXIT) an exception was raised: ** (RuntimeError) PORT 4000 already in use
+```
+
+**Solution:** Change the port or kill the existing process:
+
+```bash
+PHX_PORT=4001 mix phx.server
+```
+
+#### WebSocket Connection Failures
+
+Check that:
+1. Telephone has a valid JWT token
+2. Network allows WebSocket connections
+3. Firewall rules permit traffic on PHX_PORT
 
 ---
 
 ## License
 
-Licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
-
----
-
-## Acknowledgments
-
-### Built With
-
-* [Phoenix Framework](https://phoenixframework.org) - by Chris McCord and contributors
-* [Horde](https://github.com/derekkraan/horde) - distributed registry by Derek Kraan
-* [libcluster](https://github.com/bitwalker/libcluster) - clustering by Paul Schoenfelder
-
-### Inspired By
-
-* [HAProxy](https://www.haproxy.org/) - High-performance load balancing and proxying
-* [Nginx](https://nginx.org/) - Reverse proxy and web server architecture
-* [Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/) - Zero-trust networking and secure tunneling
-
-### Supported By
-
-* [Rooftop Energy](https://rooftop.my/) - Thanks to the team for allowing me to build out my crazy idea!
-
----
-
-**Made with Love, Robots & Elixir**
+Licensed under the **MIT License**. See [../LICENSE](../LICENSE) for details.
