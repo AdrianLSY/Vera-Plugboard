@@ -94,5 +94,10 @@ config :swoosh, :api_client, false
 # MountStore configuration - reconcile every 5 minutes by default
 # Override with MOUNT_STORE_RECONCILE_INTERVAL env var
 config :plugboard, Plugboard.MountStore,
-  reconcile_interval:
-    System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") |> String.to_integer()
+  reconcile_interval: System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") |> String.to_integer()
+
+# Request body size limit (in bytes)
+# Set via MAX_REQUEST_BODY_SIZE env var
+config :plugboard,
+       :max_request_body_length,
+       System.get_env("MAX_REQUEST_BODY_SIZE") |> String.to_integer()
