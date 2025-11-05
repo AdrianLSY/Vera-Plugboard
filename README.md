@@ -115,6 +115,106 @@ Plugboard is an opinionated reverse proxy that replaces static configuration fil
 
 ---
 
+## Configuration
+
+### Environment Variables
+
+Plugboard uses environment variables for configuration. Copy the `.env` file and customize values for your environment:
+
+```bash
+cp .env .env.local  # For local overrides (add to .gitignore)
+```
+
+#### Phoenix Server
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `SECRET_KEY_BASE` | Secret key for signing cookies/sessions (min 64 chars). Generate with `mix phx.gen.secret` | - | ✅ |
+| `PHX_SERVER` | Start Phoenix server on boot | `true` | ✅ |
+| `PHX_PORT` | HTTP port for the server | `4000` | ✅ |
+| `PHX_HOST` | Hostname for URL generation | `localhost` | ✅ |
+
+#### PostgreSQL Database
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `POSTGRES_USER` | Database username | `plugboard` | ✅ |
+| `POSTGRES_PASSWORD` | Database password | `plugboard` | ✅ |
+| `POSTGRES_DB` | Database name | `plugboard` | ✅ |
+| `POSTGRES_HOST` | Database host (localhost or container name) | `localhost` | ✅ |
+| `POSTGRES_PORT` | Database port | `6432` | ✅ |
+| `DB_POOL_SIZE` | Connection pool size | `10` | ✅ |
+| `DB_QUERY_TIMEOUT` | Max query time in milliseconds | `15000` | ✅ |
+| `DB_CONNECT_TIMEOUT` | Max connection time in milliseconds | `5000` | ✅ |
+| `ECTO_IPV6` | Enable IPv6 for database | `false` | ❌ |
+
+#### Application Settings
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `MAX_REQUEST_BODY_SIZE` | Max request body size in bytes | `10485760` (10MB) | ✅ |
+| `MOUNT_STORE_RECONCILE_INTERVAL` | Path reconciliation interval (ms) | `30000` (30s) | ✅ |
+
+#### Telephone (Sidecar) Tokens
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `TELEPHONE_TOKEN_EXPIRY` | Token expiry time in seconds | `3600` (1 hour) | ✅ |
+| `TELEPHONE_TOKEN_REFRESH_INTERVAL` | Token refresh interval in seconds | `1800` (30 min) | ✅ |
+
+#### Testing
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `MIX_TEST_PARTITION` | Test partition for CI parallel execution | - | ❌ |
+
+#### Production Only
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `DNS_CLUSTER_QUERY` | DNS query for cluster discovery (e.g., `plugboard.default.svc.cluster.local`) | - | ❌ |
+
+### Example .env Template
+
+```bash
+# =============================================================================
+# PLUGBOARD ENVIRONMENT CONFIGURATION
+# =============================================================================
+
+# Phoenix Server
+SECRET_KEY_BASE=your_secret_key_here_min_64_chars
+PHX_SERVER=true
+PHX_PORT=4000
+PHX_HOST=localhost
+
+# PostgreSQL Database
+POSTGRES_USER=plugboard
+POSTGRES_PASSWORD=plugboard
+POSTGRES_DB=plugboard
+POSTGRES_HOST=localhost
+POSTGRES_PORT=6432
+DB_POOL_SIZE=10
+DB_QUERY_TIMEOUT=15000
+DB_CONNECT_TIMEOUT=5000
+ECTO_IPV6=false
+
+# Testing
+MIX_TEST_PARTITION=
+
+# Application Settings
+MAX_REQUEST_BODY_SIZE=10485760
+MOUNT_STORE_RECONCILE_INTERVAL=30000
+
+# Telephone Token Configuration
+TELEPHONE_TOKEN_EXPIRY=3600
+TELEPHONE_TOKEN_REFRESH_INTERVAL=1800
+
+# Production Clustering
+DNS_CLUSTER_QUERY=
+```
+
+---
+
 ## Documentation
 
 * **[AGENTS.md](AGENTS.md)** - internal conventions and Phoenix guidelines

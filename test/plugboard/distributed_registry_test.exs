@@ -24,6 +24,9 @@ defmodule Plugboard.DistributedRegistryTest do
       assert {:ok, _} = DistributedRegistry.register(path_id1)
       assert {:ok, _} = DistributedRegistry.register(path_id2)
 
+      # Give Horde a moment to sync CRDT state
+      Process.sleep(50)
+
       # Both registrations should exist
       assert {:ok, _} = DistributedRegistry.get_telephone(path_id1)
       assert {:ok, _} = DistributedRegistry.get_telephone(path_id2)

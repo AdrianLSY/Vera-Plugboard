@@ -32,7 +32,7 @@ defmodule PlugboardWeb.Router do
   end
 
   # Proxy routes - must come after other routes to avoid conflicts
-  scope "/proxies", PlugboardWeb do
+  scope "/call", PlugboardWeb do
     pipe_through :proxy
 
     # Catch-all route for proxy requests

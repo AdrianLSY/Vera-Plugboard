@@ -22,21 +22,21 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
 
   describe "path validation" do
     test "allows valid paths", %{conn: conn} do
-      conn = get(conn, "/proxies/api/users/123")
+      conn = get(conn, "/call/api/users/123")
       # Phase 5: Should pass validation but return 503 without telephone (HTML response)
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
     end
 
     test "allows paths with hyphens and underscores", %{conn: conn} do
-      conn = get(conn, "/proxies/api/user-profile/test_123")
+      conn = get(conn, "/call/api/user-profile/test_123")
       # Phase 5: Should pass validation but return 503 without telephone (HTML response)
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
     end
 
     test "rejects path traversal with ../", %{conn: conn} do
-      conn = get(conn, "/proxies/api/../etc/passwd")
+      conn = get(conn, "/call/api/../etc/passwd")
 
       assert conn.status == 400
       assert html_response(conn, 400) =~ "400"
@@ -44,14 +44,14 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
     end
 
     test "rejects path traversal with ..", %{conn: conn} do
-      conn = get(conn, "/proxies/api/users/..")
+      conn = get(conn, "/call/api/users/..")
       assert conn.status == 400
       assert html_response(conn, 400) =~ "400"
     end
 
     test "rejects encoded path traversal", %{conn: conn} do
       # Note: Phoenix automatically decodes %2e%2e to .. before our plug sees it
-      conn = get(conn, "/proxies/api/%2e%2e/etc")
+      conn = get(conn, "/call/api/%2e%2e/etc")
       # So this will be caught as regular path traversal
       assert conn.status == 400
       assert html_response(conn, 400) =~ "400"
@@ -59,7 +59,7 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
 
     test "rejects null bytes", %{conn: conn} do
       # Construct path with null byte
-      path = "/proxies/api/test#{<<0>>}malicious"
+      path = "/call/api/test#{<<0>>}malicious"
       conn = get(conn, path)
 
       # Should be rejected
@@ -68,7 +68,7 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
 
     test "rejects encoded null bytes", %{conn: conn} do
       # Note: Phoenix automatically decodes %00 to null byte before our plug sees it
-      conn = get(conn, "/proxies/api/test%00malicious")
+      conn = get(conn, "/call/api/test%00malicious")
       # So this will be caught as regular null byte check
       assert conn.status == 400
       assert html_response(conn, 400) =~ "400"
@@ -77,7 +77,7 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
     test "rejects excessively long segments", %{conn: conn} do
       # Create a segment longer than 255 characters
       long_segment = String.duplicate("a", 256)
-      conn = get(conn, "/proxies/api/#{long_segment}")
+      conn = get(conn, "/call/api/#{long_segment}")
 
       assert conn.status == 400
       assert html_response(conn, 400) =~ "400"
@@ -86,7 +86,7 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
     test "rejects excessively deep paths", %{conn: conn} do
       # Create a path with 51 segments (exceeds max of 50)
       deep_path = Enum.map_join(1..51, "/", fn i -> "segment#{i}" end)
-      conn = get(conn, "/proxies/#{deep_path}")
+      conn = get(conn, "/call/#{deep_path}")
 
       assert conn.status == 400
       assert html_response(conn, 400) =~ "400"
@@ -95,7 +95,7 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
     test "allows path at exactly max depth", %{conn: conn} do
       # Create a path with exactly 50 segments
       deep_path = Enum.map_join(1..50, "/", fn i -> "s#{i}" end)
-      conn = get(conn, "/proxies/#{deep_path}")
+      conn = get(conn, "/call/#{deep_path}")
 
       # Should pass validation (will 404 because no mount exists)
       assert conn.status == 404
@@ -104,7 +104,7 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
     test "allows segment at exactly max length", %{conn: conn} do
       # Create a segment exactly 255 characters
       max_segment = String.duplicate("a", 255)
-      conn = get(conn, "/proxies/api/#{max_segment}")
+      conn = get(conn, "/call/api/#{max_segment}")
 
       # Phase 5: Should pass validation but return 503 without telephone (HTML response)
       assert conn.status == 503
@@ -114,14 +114,14 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
 
   describe "POST requests validation" do
     test "validates POST request paths", %{conn: conn} do
-      conn = post(conn, "/proxies/api/../malicious", %{data: "test"})
+      conn = post(conn, "/call/api/../malicious", %{data: "test"})
 
       assert conn.status == 400
       assert html_response(conn, 400) =~ "400"
     end
 
     test "allows valid POST requests", %{conn: conn} do
-      conn = post(conn, "/proxies/api/users", %{name: "Test"})
+      conn = post(conn, "/call/api/users", %{name: "Test"})
       # Phase 5: Should pass validation but return 503 without telephone (HTML response)
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
@@ -130,14 +130,14 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
 
   describe "special characters" do
     test "allows unicode characters in paths", %{conn: conn} do
-      conn = get(conn, "/proxies/api/users/josé")
+      conn = get(conn, "/call/api/users/josé")
       # Phase 5: Should pass validation but return 503 without telephone (HTML response)
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
     end
 
     test "allows URL-encoded characters (except dangerous ones)", %{conn: conn} do
-      conn = get(conn, "/proxies/api/files/my%20file")
+      conn = get(conn, "/call/api/files/my%20file")
       # Phase 5: Should pass validation but return 503 without telephone (HTML response)
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
@@ -148,7 +148,7 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
     test "rejects path with multiple validation failures (stops at first)", %{conn: conn} do
       # Create a path that violates multiple rules: has path traversal AND null byte
       # Should fail on path traversal check (which comes first)
-      path = "/proxies/api/../etc#{<<0>>}malicious"
+      path = "/call/api/../etc#{<<0>>}malicious"
       conn = get(conn, path)
 
       assert conn.status == 400
@@ -157,7 +157,7 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
 
     test "rejects null byte in middle of segment", %{conn: conn} do
       # Test null byte specifically in the middle (not at start/end)
-      path = "/proxies/api/before#{<<0>>}after/segment"
+      path = "/call/api/before#{<<0>>}after/segment"
       conn = get(conn, path)
 
       assert conn.status == 400
@@ -166,7 +166,7 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
 
     test "allows multibyte unicode characters (emoji)", %{conn: conn} do
       # Test that multibyte characters are properly handled
-      conn = get(conn, "/proxies/api/files/document-📄")
+      conn = get(conn, "/call/api/files/document-📄")
       # Phase 5: Should pass validation but return 503 without telephone (HTML response)
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"

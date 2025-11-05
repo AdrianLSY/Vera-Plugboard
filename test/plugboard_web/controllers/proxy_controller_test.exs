@@ -25,9 +25,9 @@ defmodule PlugboardWeb.ProxyControllerTest do
     :ok
   end
 
-  describe "GET /proxies/*path - basic routing" do
+  describe "GET /call/*path - basic routing" do
     test "returns 404 when no mount point exists", %{conn: conn} do
-      conn = get(conn, "/proxies/nonexistent/path")
+      conn = get(conn, "/call/nonexistent/path")
 
       assert conn.status == 404
       assert html_response(conn, 404) =~ "404"
@@ -48,7 +48,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
 
-      conn = get(conn, "/proxies/api")
+      conn = get(conn, "/call/api")
 
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
@@ -69,7 +69,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
 
-      conn = get(conn, "/proxies/services/users/123/profile")
+      conn = get(conn, "/call/services/users/123/profile")
 
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
@@ -97,7 +97,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
 
-      conn = get(conn, "/proxies/app/api/v1/users")
+      conn = get(conn, "/call/app/api/v1/users")
 
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
@@ -118,7 +118,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
 
-      conn = get(conn, "/proxies/service/")
+      conn = get(conn, "/call/service/")
 
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
@@ -126,7 +126,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
     end
   end
 
-  describe "POST /proxies/*path" do
+  describe "POST /call/*path" do
     test "accepts POST requests but returns 503 without telephone", %{conn: conn} do
       user = user_fixture()
 
@@ -141,7 +141,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
 
-      conn = post(conn, "/proxies/api/users", %{name: "Test"})
+      conn = post(conn, "/call/api/users", %{name: "Test"})
 
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
@@ -149,7 +149,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
     end
   end
 
-  describe "PUT /proxies/*path" do
+  describe "PUT /call/*path" do
     test "accepts PUT requests but returns 503 without telephone", %{conn: conn} do
       user = user_fixture()
 
@@ -164,7 +164,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
 
-      conn = put(conn, "/proxies/api/users/1", %{name: "Updated"})
+      conn = put(conn, "/call/api/users/1", %{name: "Updated"})
 
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
@@ -172,7 +172,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
     end
   end
 
-  describe "DELETE /proxies/*path" do
+  describe "DELETE /call/*path" do
     test "accepts DELETE requests but returns 503 without telephone", %{conn: conn} do
       user = user_fixture()
 
@@ -187,7 +187,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
 
-      conn = delete(conn, "/proxies/api/users/1")
+      conn = delete(conn, "/call/api/users/1")
 
       assert conn.status == 503
       assert html_response(conn, 503) =~ "503"
@@ -230,7 +230,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       :ok = TelephoneRegistry.register(path.id, telephone_pid)
 
       # Make request - should timeout
-      conn = get(conn, "/proxies/slow-api/test")
+      conn = get(conn, "/call/slow-api/test")
 
       # Should return 504 Gateway Timeout
       assert conn.status == 504
@@ -253,7 +253,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
   describe "error response format" do
     test "error responses include HTTP status images", %{conn: conn} do
       # Test 404 with no mount
-      conn = get(conn, "/proxies/nonexistent")
+      conn = get(conn, "/call/nonexistent")
 
       assert conn.status == 404
       assert response_body = html_response(conn, 404)
@@ -277,7 +277,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       MountStore.reload_all()
 
       # Make request with no telephone - should return 503
-      conn = get(conn, "/proxies/test-api/endpoint")
+      conn = get(conn, "/call/test-api/endpoint")
 
       assert conn.status == 503
       assert response_body = html_response(conn, 503)
@@ -288,7 +288,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
     end
 
     test "error responses are valid HTML", %{conn: conn} do
-      conn = get(conn, "/proxies/nonexistent")
+      conn = get(conn, "/call/nonexistent")
 
       assert conn.status == 404
       assert response_body = html_response(conn, 404)
@@ -336,7 +336,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       # Note: This is a long test, so we just verify it doesn't crash
       task =
         Task.async(fn ->
-          get(conn, "/proxies/invalid-timeout-api/test")
+          get(conn, "/call/invalid-timeout-api/test")
         end)
 
       # Wait a short time to ensure it's processing
@@ -392,7 +392,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       :ok = TelephoneRegistry.register(path.id, telephone_pid)
 
       # Make request that will timeout
-      _conn = get(build_conn(), "/proxies/telemetry-api/test")
+      _conn = get(build_conn(), "/call/telemetry-api/test")
 
       # Verify telemetry event was emitted
       assert_receive {[:plugboard, :telephone, :proxy_timeout], ^ref, %{count: 1}, metadata}, 3000
@@ -420,7 +420,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       MountStore.reload_all()
 
       # Try path traversal
-      conn = get(conn, "/proxies/secure-api/../../../etc/passwd")
+      conn = get(conn, "/call/secure-api/../../../etc/passwd")
 
       assert conn.status == 400
       assert response_body = html_response(conn, 400)
@@ -442,7 +442,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       # Create a very deep path (>50 segments)
       deep_path = Enum.map_join(1..60, "/", fn i -> "segment#{i}" end)
-      conn = get(conn, "/proxies/api/#{deep_path}")
+      conn = get(conn, "/call/api/#{deep_path}")
 
       assert conn.status == 400
       assert response_body = html_response(conn, 400)
@@ -491,7 +491,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       tasks =
         Enum.map(1..3, fn _i ->
           Task.async(fn ->
-            conn = get(build_conn(), "/proxies/concurrent-api/test")
+            conn = get(build_conn(), "/call/concurrent-api/test")
             conn.status
           end)
         end)
@@ -513,7 +513,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       user = user_fixture()
 
       # Initially no mount exists
-      conn1 = get(conn, "/proxies/newservice/test")
+      conn1 = get(conn, "/call/newservice/test")
       assert conn1.status == 404
 
       # Create and mark as mount
@@ -532,7 +532,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       MountStore.reload_all()
 
       # Now mount exists but returns 503 without telephone
-      conn2 = get(build_conn(), "/proxies/newservice/test")
+      conn2 = get(build_conn(), "/call/newservice/test")
       assert conn2.status == 503
       assert html_response(conn2, 503) =~ "503"
     end
@@ -552,7 +552,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       MountStore.reload_all()
 
       # Mount exists but no telephone, returns 503
-      conn1 = get(conn, "/proxies/tempservice/test")
+      conn1 = get(conn, "/call/tempservice/test")
       assert conn1.status == 503
 
       # Unmark as mount (use the mounted_path, not the original path)
@@ -562,7 +562,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       MountStore.reload_all()
 
       # Should no longer match (404, not 503)
-      conn2 = get(build_conn(), "/proxies/tempservice/test")
+      conn2 = get(build_conn(), "/call/tempservice/test")
       assert conn2.status == 404
     end
 
@@ -582,7 +582,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       MountStore.reload_all()
 
       # Mount exists but no telephone, returns 503
-      conn1 = get(conn, "/proxies/deleteservice/test")
+      conn1 = get(conn, "/call/deleteservice/test")
       assert conn1.status == 503
 
       # Delete path
@@ -594,7 +594,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       MountStore.reload_all()
 
       # Should no longer match (404, not 503)
-      conn2 = get(build_conn(), "/proxies/deleteservice/test")
+      conn2 = get(build_conn(), "/call/deleteservice/test")
       assert conn2.status == 404
     end
   end
@@ -615,7 +615,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       MountStore.reload_all()
 
       # Request with double slashes should still work after normalization
-      conn = get(conn, "/proxies/api")
+      conn = get(conn, "/call/api")
 
       # Returns 503 when no telephone is connected
       assert conn.status == 503
@@ -649,12 +649,12 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       # Both return 503 when no telephone is connected
       # /api-v2/users should match the /api-v2 mount
-      conn1 = get(build_conn(), "/proxies/api-v2/users")
+      conn1 = get(build_conn(), "/call/api-v2/users")
       assert conn1.status == 503
       assert html_response(conn1, 503) =~ "503"
 
       # /api/users should match the /api mount
-      conn2 = get(build_conn(), "/proxies/api/users")
+      conn2 = get(build_conn(), "/call/api/users")
       assert conn2.status == 503
       assert html_response(conn2, 503) =~ "503"
     end

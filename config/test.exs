@@ -48,4 +48,9 @@ config :phoenix_live_view,
 # Override with MOUNT_STORE_RECONCILE_INTERVAL env var
 config :plugboard, Plugboard.MountStore,
   reconcile_interval:
-    System.get_env("MOUNT_STORE_RECONCILE_INTERVAL", "30000") |> String.to_integer()
+    System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") |> String.to_integer()
+
+# Request body size limit (in bytes) - default 10MB
+config :plugboard,
+       :max_request_body_length,
+       System.get_env("MAX_REQUEST_BODY_SIZE") |> String.to_integer()

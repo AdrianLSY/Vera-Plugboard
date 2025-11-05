@@ -61,7 +61,7 @@ defmodule Plugboard.AsyncHelpers do
       wait_for_mount("/api")
 
       # Now can test routing
-      conn = get(conn, "/proxies/api/test")
+      conn = get(conn, "/call/api/test")
       assert json_response(conn, 200)
   """
   def wait_for_mount(full_path, opts \\ []) do

@@ -50,7 +50,7 @@ defmodule PlugboardWeb.Endpoint do
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
     json_decoder: Phoenix.json_library(),
-    length: Application.get_env(:plugboard, :max_request_body_length)
+    length: Application.compile_env(:plugboard, :max_request_body_length)
 
   plug Plug.MethodOverride
   plug Plug.Head

@@ -41,8 +41,8 @@ if config_env() == :prod do
     # pool_count: 4,
     socket_options: maybe_ipv6,
     # Query and connection timeouts for production
-    timeout: String.to_integer(System.get_env("DB_QUERY_TIMEOUT") || "15000"),
-    connect_timeout: String.to_integer(System.get_env("DB_CONNECT_TIMEOUT") || "5000")
+    timeout: String.to_integer(System.get_env("DB_QUERY_TIMEOUT")),
+    connect_timeout: String.to_integer(System.get_env("DB_CONNECT_TIMEOUT"))
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
@@ -127,15 +127,15 @@ end
 # MountStore configuration for all environments
 config :plugboard, Plugboard.MountStore,
   reconcile_interval:
-    System.get_env("MOUNT_STORE_RECONCILE_INTERVAL", "300000") |> String.to_integer()
+    System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") |> String.to_integer()
 
 # Telephone token configuration for all environments
 config :plugboard, :telephone,
-  token_expiry: System.get_env("TELEPHONE_TOKEN_EXPIRY", "3600") |> String.to_integer(),
+  token_expiry: System.get_env("TELEPHONE_TOKEN_EXPIRY") |> String.to_integer(),
   token_refresh_interval:
-    System.get_env("TELEPHONE_TOKEN_REFRESH_INTERVAL", "1800") |> String.to_integer()
+    System.get_env("TELEPHONE_TOKEN_REFRESH_INTERVAL") |> String.to_integer()
 
 # Request body size limit (in bytes) - default 10MB
 config :plugboard,
        :max_request_body_length,
-       System.get_env("MAX_REQUEST_BODY_SIZE", "10485760") |> String.to_integer()
+       System.get_env("MAX_REQUEST_BODY_SIZE") |> String.to_integer()

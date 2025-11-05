@@ -2,7 +2,7 @@ defmodule PlugboardWeb.ProxyController do
   @moduledoc """
   Controller for handling proxy requests to backend telephones.
 
-  This controller receives requests at `/proxies/*path` and routes them to
+  This controller receives requests at `/call/*path` and routes them to
   the appropriate backend telephone based on the mount point matching.
 
   ## Error Handling
@@ -80,17 +80,17 @@ defmodule PlugboardWeb.ProxyController do
   ## Examples
 
       # Normal request
-      GET /proxies/api/users/123
+      GET /call/api/users/123
       -> Routes to telephone mounted at /api
       -> Forwards /users/123 to telephone
 
       # Timeout scenario
-      GET /proxies/slow-api/endpoint
+      GET /call/slow-api/endpoint
       -> Telephone doesn't respond within timeout
       -> Returns 504 Gateway Timeout
 
       # No telephone available
-      GET /proxies/offline-api/data
+      GET /call/offline-api/data
       -> No telephone registered for path
       -> Returns 503 Service Unavailable
   """
@@ -106,7 +106,7 @@ defmodule PlugboardWeb.ProxyController do
   Handles all proxy requests.
 
   Routing logic:
-  1. Extract the request path after `/proxies/`
+  1. Extract the request path after `/call/`
   2. Use MountStore.match/1 to find a matching mount point
   3. If match found, proxy request to telephone via WebSocket
   4. If no match or no telephone available, return appropriate error
