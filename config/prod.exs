@@ -16,5 +16,14 @@ config :swoosh, local: false
 # Do not print debug messages in production
 config :logger, level: :info
 
+# Initialize plugs at runtime for configuration via environment variables
+config :phoenix, :plug_init_mode, :runtime
+
+# Compile-time configuration from environment variables
+# Must be set during Docker build
+config :plugboard,
+       :max_request_body_length,
+       System.get_env("MAX_REQUEST_BODY_SIZE") |> String.to_integer()
+
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
