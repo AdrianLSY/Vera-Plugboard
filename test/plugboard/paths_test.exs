@@ -983,10 +983,19 @@ defmodule Plugboard.PathsTest do
       {:ok, _child} = Paths.create_path(%{path: "child", parent_id: parent.id, user_id: user.id})
 
       # Hard delete should fail due to foreign key constraint (RESTRICT)
-      # Postgrex raises Postgrex.Error directly for constraint violations
-      assert_raise Postgrex.Error, ~r/restrict_violation|paths_parent_id_fkey/, fn ->
-        Repo.delete!(parent)
-      end
+      # The error type varies: Postgrex.Error (local) or Ecto.ConstraintError (CI)
+      # Both indicate the same constraint violation
+      error =
+        try do
+          Repo.delete!(parent)
+          flunk("Expected deletion to fail with constraint violation")
+        rescue
+          e in [Postgrex.Error, Ecto.ConstraintError] -> e
+        end
+
+      # Verify the constraint name appears in the error message
+      error_message = Exception.message(error)
+      assert error_message =~ "paths_parent_id_fkey"
     end
   end
 
