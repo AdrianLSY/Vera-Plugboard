@@ -2,9 +2,10 @@
 
 **WebSocket-based reverse proxy server for the Vera-Stack**
 
-[![Tests](https://img.shields.io/badge/tests-685%20passing-success.svg)](test/)
 [![Elixir](https://img.shields.io/badge/elixir-1.17-purple.svg)](https://elixir-lang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](../LICENSE)
+[![CI](https://github.com/AdrianLSY/Vera-Plugboard/actions/workflows/ci.yml/badge.svg)](https://github.com/AdrianLSY/Vera-Plugboard/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/AdrianLSY/Vera-Plugboard/branch/main/graph/badge.svg)](https://codecov.io/gh/AdrianLSY/Vera-Plugboard)
 
 ---
 
