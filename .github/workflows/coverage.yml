@@ -75,10 +75,7 @@ jobs:
       - name: Compile dependencies
         run: mix deps.compile
 
-      - name: Run tests with coverage
-        run: mix test --cover
-
-      - name: Generate coverage report
+      - name: Run tests and generate coverage report
         run: mix coveralls.json
 
       - name: Upload coverage to Codecov

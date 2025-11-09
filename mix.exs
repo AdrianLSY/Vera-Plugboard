@@ -13,12 +13,20 @@ defmodule Plugboard.MixProject do
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       test_coverage: [
+        tool: ExCoveralls,
         summary: [threshold: 75],
         ignore_modules: [
           Plugboard.Release,
           PlugboardWeb.PageHTML,
           PlugboardWeb.ErrorHTML
         ]
+      ],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test
       ]
     ]
   end
@@ -77,7 +85,8 @@ defmodule Plugboard.MixProject do
       {:bandit, "~> 1.5"},
       {:joken, "~> 2.6"},
       {:horde, "~> 0.9.0"},
-      {:libcluster, "~> 3.3"}
+      {:libcluster, "~> 3.3"},
+      {:excoveralls, "~> 0.18", only: :test}
     ]
   end
 
