@@ -1,0 +1,58 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [main new-direction]
+  pull_request:
+    branches: [main new-direction]
+  workflow_dispatch:
+
+env:
+  ELIXIR_VERSION: "1.19.1"
+  OTP_VERSION: "28.1.1"
+  MIX_ENV: test
+
+jobs:
+  coverage:
+    name: Generate Coverage Report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile dependencies
+        run: mix deps.compile
+
+      - name: Run tests with coverage
+        run: mix test --cover
+
+      - name: Generate coverage report
+        run: mix coveralls.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./cover/excoveralls.json
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          verbose: true
