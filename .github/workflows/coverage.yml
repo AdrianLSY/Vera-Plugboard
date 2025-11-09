@@ -2,9 +2,9 @@ name: Code Coverage
 
 on:
   push:
-    branches: [main new-direction]
+    branches: [main, new-direction]
   pull_request:
-    branches: [main new-direction]
+    branches: [main, new-direction]
   workflow_dispatch:
 
 env:
