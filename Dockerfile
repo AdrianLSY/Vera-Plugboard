@@ -22,18 +22,29 @@ FROM ${BUILDER_IMAGE} AS builder
 
 # install build dependencies
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends build-essential git \
-  && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends build-essential git \
+    && rm -rf /var/lib/apt/lists/*
 
 # prepare build dir
 WORKDIR /app
 
 # install hex + rebar
 RUN mix local.hex --force \
-  && mix local.rebar --force
+    && mix local.rebar --force
 
 # set build ENV
 ENV MIX_ENV="prod"
+
+# Build-time environment variables for compile-time configuration
+ARG MAX_REQUEST_BODY_SIZE=10485760
+ARG MOUNT_STORE_RECONCILE_INTERVAL=30000
+ARG TELEPHONE_TOKEN_EXPIRY=3600
+ARG TELEPHONE_TOKEN_REFRESH_INTERVAL=1800
+
+ENV MAX_REQUEST_BODY_SIZE=${MAX_REQUEST_BODY_SIZE}
+ENV MOUNT_STORE_RECONCILE_INTERVAL=${MOUNT_STORE_RECONCILE_INTERVAL}
+ENV TELEPHONE_TOKEN_EXPIRY=${TELEPHONE_TOKEN_EXPIRY}
+ENV TELEPHONE_TOKEN_REFRESH_INTERVAL=${TELEPHONE_TOKEN_REFRESH_INTERVAL}
 
 # install mix dependencies
 COPY mix.exs mix.lock ./
@@ -71,12 +82,12 @@ RUN mix release
 FROM ${RUNNER_IMAGE} AS final
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends libstdc++6 openssl libncurses5 locales ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends libstdc++6 openssl libncurses5 locales ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
-  && locale-gen
+    && locale-gen
 
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en

@@ -82,3 +82,10 @@ jobs:
             ${{ env.DOCKER_IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            ELIXIR_VERSION=${{ env.ELIXIR_VERSION }}
+            OTP_VERSION=${{ env.OTP_VERSION }}
+            MAX_REQUEST_BODY_SIZE=10485760
+            MOUNT_STORE_RECONCILE_INTERVAL=30000
+            TELEPHONE_TOKEN_EXPIRY=3600
+            TELEPHONE_TOKEN_REFRESH_INTERVAL=1800
