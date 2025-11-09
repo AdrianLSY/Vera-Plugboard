@@ -50,11 +50,16 @@ defmodule PlugboardWeb.Endpoint do
   plug(Plug.RequestId)
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])
 
+  # We use Application.fetch_env!/2 for runtime configuration.
+  # Phoenix's :plug_init_mode is set to :runtime in config to support this.
+  # The value is read at plug initialization (runtime), not compile time.
+  # This ensures MAX_REQUEST_BODY_SIZE environment variable is properly set.
+  # The compiler warning is expected and informative - we intentionally use runtime config.
   plug(Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
     json_decoder: Phoenix.json_library(),
-    length: Application.get_env(:plugboard, :max_request_body_length)
+    length: Application.fetch_env!(:plugboard, :max_request_body_length)
   )
 
   plug(Plug.MethodOverride)

@@ -983,8 +983,8 @@ defmodule Plugboard.PathsTest do
       {:ok, _child} = Paths.create_path(%{path: "child", parent_id: parent.id, user_id: user.id})
 
       # Hard delete should fail due to foreign key constraint (RESTRICT)
-      # This raises Postgrex.Error with RESTRICT violation
-      assert_raise Postgrex.Error, ~r/restrict_violation|foreign key constraint/, fn ->
+      # Postgrex raises Postgrex.Error directly for constraint violations
+      assert_raise Postgrex.Error, ~r/restrict_violation|paths_parent_id_fkey/, fn ->
         Repo.delete!(parent)
       end
     end
