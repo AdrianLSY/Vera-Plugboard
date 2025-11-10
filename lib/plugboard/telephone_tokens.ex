@@ -319,6 +319,30 @@ defmodule Plugboard.TelephoneTokens do
     Repo.get(TelephoneToken, token_id)
   end
 
+  @doc """
+  Updates a token's name and description.
+
+  ## Parameters
+    - token_id: The ID of the token to update
+    - attrs: Map with :name and/or :description keys
+
+  ## Returns
+    - {:ok, updated_token} on success
+    - {:error, changeset} on validation failure
+    - {:error, :not_found} if token doesn't exist
+  """
+  def update_token(token_id, attrs) do
+    case get_token(token_id) do
+      nil ->
+        {:error, :not_found}
+
+      token ->
+        token
+        |> TelephoneToken.update_changeset(attrs)
+        |> Repo.update()
+    end
+  end
+
   ## Private functions
 
   defp create_token(attrs) do

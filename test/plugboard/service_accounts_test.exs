@@ -204,6 +204,129 @@ defmodule Plugboard.ServiceAccountsTest do
     end
   end
 
+  describe "update_service_account/2" do
+    setup do
+      user = Plugboard.AccountsFixtures.user_fixture()
+      {:ok, path} = create_mount_point(user)
+
+      {:ok, _api_key, service_account} =
+        ServiceAccounts.generate_service_account(user, path.id, "original-name", "original desc")
+
+      %{user: user, path: path, service_account: service_account}
+    end
+
+    test "updates service account name and description", %{service_account: sa} do
+      attrs = %{name: "updated-name", description: "updated description"}
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+
+      assert updated_sa.name == "updated-name"
+      assert updated_sa.description == "updated description"
+      assert updated_sa.id == sa.id
+    end
+
+    test "updates only name", %{service_account: sa} do
+      attrs = %{name: "new-name"}
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+
+      assert updated_sa.name == "new-name"
+      assert updated_sa.description == "original desc"
+    end
+
+    test "updates only description", %{service_account: sa} do
+      attrs = %{description: "new description"}
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+
+      assert updated_sa.name == "original-name"
+      assert updated_sa.description == "new description"
+    end
+
+    test "allows setting description to nil", %{service_account: sa} do
+      attrs = %{description: nil}
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+
+      assert updated_sa.name == "original-name"
+      assert updated_sa.description == nil
+    end
+
+    test "validates name format", %{service_account: sa} do
+      # Invalid characters
+      attrs = %{name: "invalid name!"}
+      assert {:error, changeset} = ServiceAccounts.update_service_account(sa.id, attrs)
+
+      assert "must contain only letters, numbers, hyphens, and underscores" in errors_on(
+               changeset
+             ).name
+    end
+
+    test "validates name length minimum", %{service_account: sa} do
+      # Too short
+      attrs = %{name: "ab"}
+      assert {:error, changeset} = ServiceAccounts.update_service_account(sa.id, attrs)
+
+      assert "should be at least 3 character(s)" in errors_on(changeset).name
+    end
+
+    test "validates name length maximum", %{service_account: sa} do
+      # Too long (> 100 chars)
+      long_name = String.duplicate("a", 101)
+      attrs = %{name: long_name}
+
+      assert {:error, changeset} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert "should be at most 100 character(s)" in errors_on(changeset).name
+    end
+
+    test "validates description length", %{service_account: sa} do
+      # Description too long (> 500 chars)
+      long_desc = String.duplicate("a", 501)
+      attrs = %{description: long_desc}
+
+      assert {:error, changeset} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert "should be at most 500 character(s)" in errors_on(changeset).description
+    end
+
+    test "returns error for non-existent service account" do
+      fake_id = Ecto.UUID.generate()
+      attrs = %{name: "test"}
+
+      assert {:error, :not_found} = ServiceAccounts.update_service_account(fake_id, attrs)
+    end
+
+    test "enforces unique name per user", %{user: user, path: path, service_account: sa} do
+      # Create another service account with different name
+      {:ok, _, _sa2} = ServiceAccounts.generate_service_account(user, path.id, "other-name", nil)
+
+      # Try to update first SA to use the second SA's name
+      attrs = %{name: "other-name"}
+      assert {:error, changeset} = ServiceAccounts.update_service_account(sa.id, attrs)
+
+      errors = errors_on(changeset)
+      assert errors[:name] != nil or errors[:user_id] != nil
+    end
+
+    test "allows same name if updating the same service account", %{service_account: sa} do
+      # Updating with the same name should work
+      attrs = %{name: "original-name", description: "new desc"}
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+
+      assert updated_sa.name == "original-name"
+      assert updated_sa.description == "new desc"
+    end
+
+    test "does not modify other service account fields", %{service_account: sa} do
+      original_sa = Repo.get(ServiceAccounts.ServiceAccount, sa.id)
+
+      attrs = %{name: "updated-name"}
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+
+      # These should remain unchanged
+      assert updated_sa.api_key_hash == original_sa.api_key_hash
+      assert updated_sa.revoked_at == original_sa.revoked_at
+      assert updated_sa.last_used_at == original_sa.last_used_at
+      assert updated_sa.path_id == original_sa.path_id
+      assert updated_sa.user_id == original_sa.user_id
+    end
+  end
+
   describe "list_service_accounts_for_path/1" do
     setup do
       user = Plugboard.AccountsFixtures.user_fixture()

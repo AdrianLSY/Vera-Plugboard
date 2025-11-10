@@ -64,4 +64,21 @@ defmodule Plugboard.ServiceAccounts.ServiceAccount do
     |> change()
     |> put_change(:last_used_at, DateTime.utc_now() |> DateTime.truncate(:second))
   end
+
+  @doc """
+  Changeset for updating service account name and description.
+  """
+  def update_changeset(service_account, attrs) do
+    service_account
+    |> cast(attrs, [:name, :description])
+    |> validate_length(:name, min: 3, max: 100)
+    |> validate_length(:description, max: 500)
+    |> validate_format(:name, ~r/^[a-zA-Z0-9_-]+$/,
+      message: "must contain only letters, numbers, hyphens, and underscores"
+    )
+    |> unique_constraint([:user_id, :name],
+      name: :service_accounts_unique_name_per_user,
+      message: "name already exists for this user"
+    )
+  end
 end

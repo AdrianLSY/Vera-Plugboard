@@ -370,6 +370,104 @@ defmodule Plugboard.TelephoneTokensTest do
     end
   end
 
+  describe "update_token/2" do
+    setup do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "api",
+          user_id: user.id
+        })
+
+      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _jwt, token} = TelephoneTokens.generate_token(mount_path, user, "original", "desc")
+
+      %{user: user, path: mount_path, token: token}
+    end
+
+    test "updates token name and description", %{token: token} do
+      attrs = %{name: "updated-name", description: "updated description"}
+      assert {:ok, updated_token} = TelephoneTokens.update_token(token.id, attrs)
+
+      assert updated_token.name == "updated-name"
+      assert updated_token.description == "updated description"
+      assert updated_token.id == token.id
+    end
+
+    test "updates only name", %{token: token} do
+      attrs = %{name: "new-name"}
+      assert {:ok, updated_token} = TelephoneTokens.update_token(token.id, attrs)
+
+      assert updated_token.name == "new-name"
+      assert updated_token.description == "desc"
+    end
+
+    test "updates only description", %{token: token} do
+      attrs = %{description: "new description"}
+      assert {:ok, updated_token} = TelephoneTokens.update_token(token.id, attrs)
+
+      assert updated_token.name == "original"
+      assert updated_token.description == "new description"
+    end
+
+    test "allows setting name to nil", %{token: token} do
+      attrs = %{name: nil}
+      assert {:ok, updated_token} = TelephoneTokens.update_token(token.id, attrs)
+
+      assert updated_token.name == nil
+      assert updated_token.description == "desc"
+    end
+
+    test "allows setting description to nil", %{token: token} do
+      attrs = %{description: nil}
+      assert {:ok, updated_token} = TelephoneTokens.update_token(token.id, attrs)
+
+      assert updated_token.name == "original"
+      assert updated_token.description == nil
+    end
+
+    test "validates name length", %{token: token} do
+      # Name too long (> 255 chars)
+      long_name = String.duplicate("a", 256)
+      attrs = %{name: long_name}
+
+      assert {:error, changeset} = TelephoneTokens.update_token(token.id, attrs)
+      assert "should be at most 255 character(s)" in errors_on(changeset).name
+    end
+
+    test "validates description length", %{token: token} do
+      # Description too long (> 1000 chars)
+      long_desc = String.duplicate("a", 1001)
+      attrs = %{description: long_desc}
+
+      assert {:error, changeset} = TelephoneTokens.update_token(token.id, attrs)
+      assert "should be at most 1000 character(s)" in errors_on(changeset).description
+    end
+
+    test "returns error for non-existent token" do
+      fake_id = Ecto.UUID.generate()
+      attrs = %{name: "test"}
+
+      assert {:error, :not_found} = TelephoneTokens.update_token(fake_id, attrs)
+    end
+
+    test "does not modify other token fields", %{token: token} do
+      original_token = Repo.get(TelephoneToken, token.id)
+
+      attrs = %{name: "updated"}
+      assert {:ok, updated_token} = TelephoneTokens.update_token(token.id, attrs)
+
+      # These should remain unchanged
+      assert updated_token.token_hash == original_token.token_hash
+      assert updated_token.expires_at == original_token.expires_at
+      assert updated_token.revoked_at == original_token.revoked_at
+      assert updated_token.last_used_at == original_token.last_used_at
+      assert updated_token.path_id == original_token.path_id
+      assert updated_token.user_id == original_token.user_id
+    end
+  end
+
   describe "refresh_token/1" do
     setup do
       user = user_fixture()

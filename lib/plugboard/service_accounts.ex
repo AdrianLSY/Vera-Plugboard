@@ -201,6 +201,30 @@ defmodule Plugboard.ServiceAccounts do
     Repo.get(ServiceAccount, service_account_id)
   end
 
+  @doc """
+  Updates a service account's name and description.
+
+  ## Parameters
+    - service_account_id: The ID of the service account to update
+    - attrs: Map with :name and/or :description keys
+
+  ## Returns
+    - {:ok, updated_service_account} on success
+    - {:error, changeset} on validation failure
+    - {:error, :not_found} if service account doesn't exist
+  """
+  def update_service_account(service_account_id, attrs) do
+    case get_service_account(service_account_id) do
+      nil ->
+        {:error, :not_found}
+
+      service_account ->
+        service_account
+        |> ServiceAccount.update_changeset(attrs)
+        |> Repo.update()
+    end
+  end
+
   ## Private functions
 
   defp create_service_account(attrs) do

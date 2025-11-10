@@ -209,6 +209,16 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                               >
                                 <.icon name="hero-trash" class="icon-button-icon" />
                               </button>
+                              <button
+                                type="button"
+                                class="interactive-button-base icon-button flex-shrink-0"
+                                phx-click="open_edit_token"
+                                phx-value-id={token.id}
+                                data-test="edit-token-button"
+                                title="Edit"
+                              >
+                                <.icon name="hero-pencil" class="icon-button-icon" />
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -220,6 +230,40 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             <% end %>
           </div>
         </div>
+        
+    <!-- Edit Token Modal -->
+        <.pop_up_form
+          :if={@editing_token}
+          id="edit-token-modal"
+          title="Edit Token"
+          title_align="left"
+          on_cancel={JS.push("close_edit_token")}
+        >
+          <:form>
+            <.form for={@edit_token_form} phx-submit="save_edit_token">
+              <div class="space-y-4">
+                <.input
+                  field={@edit_token_form[:name]}
+                  type="text"
+                  label="Token Name"
+                  placeholder="Enter token name (optional)"
+                  phx-mounted={JS.focus()}
+                  class="w-full input ui-foreground focus:outline-none focus:border-ui-text-primary rounded-full ui-text-primary"
+                />
+                <.input
+                  field={@edit_token_form[:description]}
+                  type="text"
+                  label="Description"
+                  placeholder="Enter description (optional)"
+                  class="w-full input ui-foreground focus:outline-none focus:border-ui-text-primary rounded-full ui-text-primary"
+                />
+              </div>
+              <.button type="submit" phx-disable-with="Saving...">
+                ● Save Changes
+              </.button>
+            </.form>
+          </:form>
+        </.pop_up_form>
         
     <!-- Service Accounts Tab -->
         <div :if={@active_tab == "service_accounts"} class="mt-8">
@@ -345,6 +389,16 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                               >
                                 <.icon name="hero-trash" class="icon-button-icon" />
                               </button>
+                              <button
+                                type="button"
+                                class="interactive-button-base icon-button flex-shrink-0"
+                                phx-click="open_edit_service_account"
+                                phx-value-id={sa.id}
+                                data-test="edit-service-account-button"
+                                title="Edit"
+                              >
+                                <.icon name="hero-pencil" class="icon-button-icon" />
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -356,6 +410,40 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             <% end %>
           </div>
         </div>
+        
+    <!-- Edit Service Account Modal -->
+        <.pop_up_form
+          :if={@editing_service_account}
+          id="edit-service-account-modal"
+          title="Edit Service Account"
+          title_align="left"
+          on_cancel={JS.push("close_edit_service_account")}
+        >
+          <:form>
+            <.form for={@edit_service_account_form} phx-submit="save_edit_service_account">
+              <div class="space-y-4">
+                <.input
+                  field={@edit_service_account_form[:name]}
+                  type="text"
+                  label="Service Account Name"
+                  placeholder="Enter service account name"
+                  phx-mounted={JS.focus()}
+                  class="w-full input ui-foreground focus:outline-none focus:border-ui-text-primary rounded-full ui-text-primary"
+                />
+                <.input
+                  field={@edit_service_account_form[:description]}
+                  type="text"
+                  label="Description"
+                  placeholder="Enter description (optional)"
+                  class="w-full input ui-foreground focus:outline-none focus:border-ui-text-primary rounded-full ui-text-primary"
+                />
+              </div>
+              <.button type="submit" phx-disable-with="Saving...">
+                ● Save Changes
+              </.button>
+            </.form>
+          </:form>
+        </.pop_up_form>
       </div>
     </Layouts.app>
     """
@@ -401,7 +489,11 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                token_form: to_form(%{}, as: "token"),
                sa_form: to_form(%{}, as: "service_account"),
                created_token: nil,
-               created_api_key: nil
+               created_api_key: nil,
+               editing_token: nil,
+               edit_token_form: nil,
+               editing_service_account: nil,
+               edit_service_account_form: nil
              )}
         end
     end
@@ -473,6 +565,63 @@ defmodule PlugboardWeb.PathTokensLive.Index do
   end
 
   @impl true
+  def handle_event("open_edit_token", %{"id" => token_id}, socket) do
+    case TelephoneTokens.get_token(token_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Token not found")}
+
+      token ->
+        edit_form =
+          to_form(
+            %{"name" => token.name || "", "description" => token.description || ""},
+            as: "edit_token"
+          )
+
+        {:noreply, assign(socket, editing_token: token, edit_token_form: edit_form)}
+    end
+  end
+
+  @impl true
+  def handle_event("close_edit_token", _params, socket) do
+    {:noreply, assign(socket, editing_token: nil, edit_token_form: nil)}
+  end
+
+  @impl true
+  def handle_event("save_edit_token", %{"edit_token" => token_params}, socket) do
+    token = socket.assigns.editing_token
+
+    if socket.assigns.user_role in ["owner", "maintainer"] do
+      attrs = %{
+        name: if(token_params["name"] == "", do: nil, else: token_params["name"]),
+        description:
+          if(token_params["description"] == "", do: nil, else: token_params["description"])
+      }
+
+      case TelephoneTokens.update_token(token.id, attrs) do
+        {:ok, _updated_token} ->
+          # Reload tokens
+          tokens = TelephoneTokens.list_tokens_for_path(socket.assigns.path.id)
+
+          {:noreply,
+           socket
+           |> assign(tokens: tokens, editing_token: nil, edit_token_form: nil)
+           |> put_flash(:info, "Token updated successfully")}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:noreply,
+           socket
+           |> assign(edit_token_form: to_form(changeset, as: "edit_token"))
+           |> put_flash(:error, "Failed to update token")}
+
+        {:error, :not_found} ->
+          {:noreply, put_flash(socket, :error, "Token not found")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+    end
+  end
+
+  @impl true
   def handle_event("create_service_account", params, socket) do
     user = socket.assigns.current_scope.user
     path = socket.assigns.path
@@ -526,6 +675,74 @@ defmodule PlugboardWeb.PathTokensLive.Index do
 
         {:error, _reason} ->
           {:noreply, put_flash(socket, :error, "Failed to revoke service account")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+    end
+  end
+
+  @impl true
+  def handle_event("open_edit_service_account", %{"id" => sa_id}, socket) do
+    case ServiceAccounts.get_service_account(sa_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Service account not found")}
+
+      service_account ->
+        edit_form =
+          to_form(
+            %{
+              "name" => service_account.name,
+              "description" => service_account.description || ""
+            },
+            as: "edit_service_account"
+          )
+
+        {:noreply,
+         assign(socket,
+           editing_service_account: service_account,
+           edit_service_account_form: edit_form
+         )}
+    end
+  end
+
+  @impl true
+  def handle_event("close_edit_service_account", _params, socket) do
+    {:noreply, assign(socket, editing_service_account: nil, edit_service_account_form: nil)}
+  end
+
+  @impl true
+  def handle_event("save_edit_service_account", %{"edit_service_account" => sa_params}, socket) do
+    service_account = socket.assigns.editing_service_account
+
+    if socket.assigns.user_role in ["owner", "maintainer"] do
+      attrs = %{
+        name: sa_params["name"],
+        description: if(sa_params["description"] == "", do: nil, else: sa_params["description"])
+      }
+
+      case ServiceAccounts.update_service_account(service_account.id, attrs) do
+        {:ok, _updated_sa} ->
+          # Reload service accounts
+          service_accounts =
+            ServiceAccounts.list_service_accounts_for_path(socket.assigns.path.id)
+
+          {:noreply,
+           socket
+           |> assign(
+             service_accounts: service_accounts,
+             editing_service_account: nil,
+             edit_service_account_form: nil
+           )
+           |> put_flash(:info, "Service account updated successfully")}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:noreply,
+           socket
+           |> assign(edit_service_account_form: to_form(changeset, as: "edit_service_account"))
+           |> put_flash(:error, "Failed to update service account")}
+
+        {:error, :not_found} ->
+          {:noreply, put_flash(socket, :error, "Service account not found")}
       end
     else
       {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}

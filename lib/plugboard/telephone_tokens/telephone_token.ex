@@ -58,4 +58,14 @@ defmodule Plugboard.TelephoneTokens.TelephoneToken do
     |> put_change(:expires_at, DateTime.truncate(new_expires_at, :second))
     |> put_change(:token_hash, new_token_hash)
   end
+
+  @doc """
+  Changeset for updating token name and description.
+  """
+  def update_changeset(token, attrs) do
+    token
+    |> cast(attrs, [:name, :description])
+    |> validate_length(:name, max: 255)
+    |> validate_length(:description, max: 1000)
+  end
 end
