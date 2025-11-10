@@ -53,7 +53,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
         </div>
         
     <!-- Tab Navigation -->
-        <div class="mt-8 border-b border-ui-border">
+        <div class="mt-8">
           <div class="flex gap-4">
             <button
               phx-click="switch_tab"
