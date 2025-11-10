@@ -7,6 +7,7 @@ defmodule Plugboard.TelephoneTokens.TelephoneToken do
 
   schema "telephone_tokens" do
     field :token_hash, :string
+    field :name, :string
     field :description, :string
     field :expires_at, :utc_datetime
     field :revoked_at, :utc_datetime
@@ -23,7 +24,7 @@ defmodule Plugboard.TelephoneTokens.TelephoneToken do
   """
   def create_changeset(token, attrs) do
     token
-    |> cast(attrs, [:path_id, :user_id, :token_hash, :description, :expires_at])
+    |> cast(attrs, [:path_id, :user_id, :token_hash, :name, :description, :expires_at])
     |> validate_required([:path_id, :user_id, :token_hash, :expires_at])
     |> foreign_key_constraint(:path_id)
     |> foreign_key_constraint(:user_id)

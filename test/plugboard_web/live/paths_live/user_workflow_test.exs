@@ -130,9 +130,9 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
       assert length(root_paths) == 3
 
       # Step 6: Navigate into "api" path to create nested paths
-      # Click the button that navigates to the path's children
+      # Click the row that navigates to the path's children
       lv
-      |> element("button[phx-click*='navigate'][phx-click*='#{api_path.id}']")
+      |> element("tr#paths-list-#{api_path.id}")
       |> render_click()
 
       # Should navigate to api children view
@@ -181,7 +181,7 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
 
       # Step 9: Navigate into "users" to create a deeper nested path
       lv
-      |> element("button[phx-click*='navigate'][phx-click*='#{users_path.id}']")
+      |> element("tr#paths-list-#{users_path.id}")
       |> render_click()
 
       assert_redirect(lv, ~p"/paths?parent=#{users_path.id}")

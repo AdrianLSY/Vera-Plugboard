@@ -20,13 +20,14 @@ defmodule Plugboard.TelephoneTokens do
   ## Parameters
     - path: The path this token grants access to (must be a mount point)
     - user: The user creating the token (must have owner or maintainer role)
+    - name: Optional name for the token
     - description: Optional description for the token
 
   ## Returns
     - {:ok, jwt_string, token} on success
     - {:error, reason} on failure
   """
-  def generate_token(%Path{} = path, user, description \\ nil) do
+  def generate_token(%Path{} = path, user, name \\ nil, description \\ nil) do
     # Validate path is a mount point
     cond do
       not path.mount_point ->
@@ -36,11 +37,11 @@ defmodule Plugboard.TelephoneTokens do
         {:error, "Path is deleted"}
 
       true ->
-        do_generate_token(path, user, description)
+        do_generate_token(path, user, name, description)
     end
   end
 
-  defp do_generate_token(path, user, description) do
+  defp do_generate_token(path, user, name, description) do
     # Get token expiry from config
     expiry_seconds = Application.get_env(:plugboard, :telephone)[:token_expiry] || 3600
     expires_at = DateTime.utc_now() |> DateTime.add(expiry_seconds, :second)
@@ -64,6 +65,7 @@ defmodule Plugboard.TelephoneTokens do
           path_id: path.id,
           user_id: user.id,
           token_hash: token_hash,
+          name: name,
           description: description,
           expires_at: expires_at
         }

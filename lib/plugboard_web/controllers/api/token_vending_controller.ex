@@ -67,20 +67,27 @@ defmodule PlugboardWeb.Api.TokenVendingController do
             requested_path_id: path_id
           })
         else
-          # Generate description with instance_id if provided
-          final_description =
+          # Generate name and description
+          {token_name, token_description} =
             case {description, instance_id} do
-              {nil, nil} -> "Auto-generated for #{sa.name}"
-              {desc, nil} -> desc
-              {nil, inst_id} -> "#{sa.name} - #{inst_id}"
-              {desc, inst_id} -> "#{desc} (#{inst_id})"
+              {nil, nil} ->
+                {"Auto-generated for #{sa.name}", nil}
+
+              {desc, nil} ->
+                {desc, nil}
+
+              {nil, inst_id} ->
+                {"#{sa.name} - #{inst_id}", nil}
+
+              {desc, inst_id} ->
+                {"#{inst_id}", desc}
             end
 
           # Get user record for token generation
           user = Plugboard.Accounts.get_user!(user_id)
 
           # Generate token
-          case TelephoneTokens.generate_token(path, user, final_description) do
+          case TelephoneTokens.generate_token(path, user, token_name, token_description) do
             {:ok, jwt, token} ->
               expiry_seconds =
                 Application.get_env(:plugboard, :telephone)[:token_expiry] || 3600

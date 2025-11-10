@@ -43,7 +43,7 @@ defmodule PlugboardWeb.Api.TokenVendingControllerTest do
       assert token_record.path_id == path.id
     end
 
-    test "generates token with instance_id in description", %{conn: conn, api_key: api_key} do
+    test "generates token with instance_id in name", %{conn: conn, api_key: api_key} do
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{api_key}")
@@ -52,12 +52,12 @@ defmodule PlugboardWeb.Api.TokenVendingControllerTest do
 
       assert %{"token_id" => token_id} = json_response(conn, 201)
 
-      # Check description includes instance ID
+      # Check name includes instance ID
       token = TelephoneTokens.get_token(token_id)
-      assert token.description =~ "pod-12345"
+      assert token.name =~ "pod-12345"
     end
 
-    test "generates token with custom description", %{conn: conn, api_key: api_key} do
+    test "generates token with custom description as name", %{conn: conn, api_key: api_key} do
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{api_key}")
@@ -67,7 +67,7 @@ defmodule PlugboardWeb.Api.TokenVendingControllerTest do
       assert %{"token_id" => token_id} = json_response(conn, 201)
 
       token = TelephoneTokens.get_token(token_id)
-      assert token.description == "Custom desc"
+      assert token.name == "Custom desc"
     end
 
     test "accepts lowercase 'bearer' in authorization header", %{conn: conn, api_key: api_key} do

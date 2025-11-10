@@ -152,8 +152,8 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
   describe "GET /api/paths/:path_id/tokens" do
     test "lists all tokens for owner", %{conn: conn, user: user, path: path} do
       # Create multiple tokens
-      {:ok, _jwt1, _token1} = TelephoneTokens.generate_token(path, user, "Token 1")
-      {:ok, _jwt2, _token2} = TelephoneTokens.generate_token(path, user, "Token 2")
+      {:ok, _jwt1, _token1} = TelephoneTokens.generate_token(path, user, "Token 1", nil)
+      {:ok, _jwt2, _token2} = TelephoneTokens.generate_token(path, user, "Token 2", nil)
 
       conn = get(conn, ~p"/api/paths/#{path.id}/tokens")
 
@@ -163,7 +163,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       # Check token structure
       token = hd(json["tokens"])
       assert token["id"] != nil
-      assert token["description"] != nil
+      assert token["name"] != nil
       assert token["expires_at"] != nil
       assert token["created_at"] != nil
 
@@ -174,7 +174,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
 
     test "lists tokens for maintainer", %{user: owner, path: path} do
       # Create tokens
-      {:ok, _jwt1, _token1} = TelephoneTokens.generate_token(path, owner, "Token 1")
+      {:ok, _jwt1, _token1} = TelephoneTokens.generate_token(path, owner, "Token 1", nil)
 
       # Create maintainer
       maintainer = user_fixture()
@@ -191,7 +191,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
 
     test "lists tokens for viewer", %{user: owner, path: path} do
       # Create tokens
-      {:ok, _jwt1, _token1} = TelephoneTokens.generate_token(path, owner, "Token 1")
+      {:ok, _jwt1, _token1} = TelephoneTokens.generate_token(path, owner, "Token 1", nil)
 
       # Create viewer
       viewer = user_fixture()
@@ -228,8 +228,8 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
 
     test "does not include revoked tokens", %{conn: conn, user: user, path: path} do
       # Create tokens
-      {:ok, _jwt1, token1} = TelephoneTokens.generate_token(path, user, "Active")
-      {:ok, _jwt2, token2} = TelephoneTokens.generate_token(path, user, "Will revoke")
+      {:ok, _jwt1, token1} = TelephoneTokens.generate_token(path, user, "Active", nil)
+      {:ok, _jwt2, token2} = TelephoneTokens.generate_token(path, user, "Will revoke", nil)
 
       # Revoke second token
       {:ok, _revoked} = TelephoneTokens.revoke_token(token2.id)
@@ -243,7 +243,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
 
     test "includes last_used_at when token has been used", %{conn: conn, user: user, path: path} do
       # Create token and mark as used
-      {:ok, _jwt, token} = TelephoneTokens.generate_token(path, user, "Used token")
+      {:ok, _jwt, token} = TelephoneTokens.generate_token(path, user, "Used token", nil)
       {:ok, _used} = TelephoneTokens.mark_token_used(token.id)
 
       conn = get(conn, ~p"/api/paths/#{path.id}/tokens")
@@ -257,7 +257,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
   describe "DELETE /api/tokens/:id" do
     test "revokes token with owner role", %{conn: conn, user: user, path: path} do
       # Create token
-      {:ok, jwt, token} = TelephoneTokens.generate_token(path, user, "To revoke")
+      {:ok, jwt, token} = TelephoneTokens.generate_token(path, user, "To revoke", nil)
 
       # Verify token is valid before revocation
       assert {:ok, _} = TelephoneTokens.validate_jwt(jwt)
@@ -273,7 +273,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
 
     test "revokes token with maintainer role", %{user: owner, path: path} do
       # Create token
-      {:ok, jwt, token} = TelephoneTokens.generate_token(path, owner)
+      {:ok, jwt, token} = TelephoneTokens.generate_token(path, owner, nil, nil)
 
       # Create maintainer
       maintainer = user_fixture()
@@ -293,7 +293,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
 
     test "rejects revocation with viewer role", %{user: owner, path: path} do
       # Create token
-      {:ok, _jwt, token} = TelephoneTokens.generate_token(path, owner)
+      {:ok, _jwt, token} = TelephoneTokens.generate_token(path, owner, nil, nil)
 
       # Create viewer
       viewer = user_fixture()
@@ -310,7 +310,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
 
     test "rejects revocation when user has no access to path", %{user: owner, path: path} do
       # Create token
-      {:ok, _jwt, token} = TelephoneTokens.generate_token(path, owner)
+      {:ok, _jwt, token} = TelephoneTokens.generate_token(path, owner, nil, nil)
 
       # Create another user with no access
       other_user = user_fixture()
@@ -339,7 +339,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       path: path
     } do
       # Create and revoke token
-      {:ok, _jwt, token} = TelephoneTokens.generate_token(path, user)
+      {:ok, _jwt, token} = TelephoneTokens.generate_token(path, user, nil, nil)
       {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
 
       # Revoke again via API

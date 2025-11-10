@@ -53,14 +53,17 @@ defmodule Plugboard.TelephoneTokensTest do
     end
 
     test "generates token with custom description", %{user: user, path: path} do
+      name = "Production Server"
       description = "Production API server"
 
-      assert {:ok, _jwt, token} = TelephoneTokens.generate_token(path, user, description)
+      assert {:ok, _jwt, token} = TelephoneTokens.generate_token(path, user, name, description)
+      assert token.name == name
       assert token.description == description
     end
 
     test "generates token with nil description", %{user: user, path: path} do
-      assert {:ok, _jwt, token} = TelephoneTokens.generate_token(path, user, nil)
+      assert {:ok, _jwt, token} = TelephoneTokens.generate_token(path, user, nil, nil)
+      assert token.name == nil
       assert token.description == nil
     end
 

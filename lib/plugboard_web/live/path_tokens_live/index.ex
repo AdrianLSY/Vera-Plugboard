@@ -15,23 +15,42 @@ defmodule PlugboardWeb.PathTokensLive.Index do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <div>
         <.header>
-          <p class="ui-text-primary">Manage Tokens for {[@path.full_path]}</p>
+          <p class="ui-text-primary">Tokens</p>
           <:subtitle>
             <span class="ui-text-secondary">
               Create telephone tokens and service accounts for auto-scaling
             </span>
           </:subtitle>
-          <:actions>
-            <.link
-              navigate={
-                if @path.parent_id, do: ~p"/paths?parent=#{@path.parent_id}", else: ~p"/paths"
-              }
-              class="text-sm ui-text-secondary hover:ui-text-primary"
-            >
-              ← Back to Paths
-            </.link>
-          </:actions>
         </.header>
+        
+    <!-- Breadcrumb Navigation -->
+        <div class="mt-8">
+          <div class="bg-[var(--ui-foreground)] rounded-full px-4 py-2 overflow-x-auto max-w-full inline-block">
+            <div class="flex items-center gap-2 text-sm ui-text-secondary whitespace-nowrap">
+              <.link
+                navigate={~p"/paths"}
+                class="hover:ui-text-primary transition-colors"
+                data-test="breadcrumb-root"
+              >
+                Root
+              </.link>
+              <%= for {breadcrumb, index} <- Enum.with_index(@breadcrumbs) do %>
+                <span>/</span>
+                <%= if index == length(@breadcrumbs) - 1 do %>
+                  <span class="ui-text-primary font-medium">{breadcrumb.path}</span>
+                <% else %>
+                  <.link
+                    navigate={~p"/paths?parent=#{breadcrumb.id}"}
+                    class="hover:ui-text-primary transition-colors"
+                    data-test={"breadcrumb-#{breadcrumb.path}"}
+                  >
+                    {breadcrumb.path}
+                  </.link>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        </div>
         
     <!-- Tab Navigation -->
         <div class="mt-8 border-b border-ui-border">
@@ -45,6 +64,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                 else
                   "border-transparent ui-text-secondary hover:ui-text-primary"
                 end}
+              data-test="tokens-tab"
             >
               Telephone Tokens
             </button>
@@ -57,6 +77,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                 else
                   "border-transparent ui-text-secondary hover:ui-text-primary"
                 end}
+              data-test="service-accounts-tab"
             >
               Service Accounts
             </button>
@@ -66,29 +87,40 @@ defmodule PlugboardWeb.PathTokensLive.Index do
     <!-- Telephone Tokens Tab -->
         <div :if={@active_tab == "tokens"} class="mt-8">
           <!-- Create Token Form -->
-          <div class="mb-8 p-6 bg-[var(--ui-foreground)] rounded-lg">
-            <h3 class="text-lg font-semibold ui-text-primary mb-4">Create New Token</h3>
-            <.form for={@token_form} phx-submit="create_token" class="flex gap-4 items-end">
-              <div class="flex-1">
-                <label class="block text-sm ui-text-secondary mb-2">
-                  Description (optional)
-                </label>
-                <input
-                  type="text"
-                  name="token[description]"
-                  placeholder="e.g., Production server, Development instance"
-                  class="w-full input ui-foreground focus:outline-none focus:border-ui-inverted-foreground rounded-full"
-                />
-              </div>
-              <.button
-                type="submit"
-                phx-disable-with="Creating..."
-                class="!w-auto px-6"
-              >
-                ● Create Token
-              </.button>
-            </.form>
-          </div>
+          <.form for={@token_form} phx-submit="create_token" class="flex gap-2 items-center">
+            <div class="flex-1">
+              <input
+                type="text"
+                name="token[name]"
+                id="token_name"
+                value=""
+                placeholder="Token name (optional)"
+                autocomplete="off"
+                data-test="token-name-input"
+                class="w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full"
+              />
+            </div>
+            <div class="flex-1">
+              <input
+                type="text"
+                name="token[description]"
+                id="token_description"
+                value=""
+                placeholder="Description (optional)"
+                autocomplete="off"
+                data-test="token-description-input"
+                class="w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full"
+              />
+            </div>
+            <.button
+              type="submit"
+              phx-disable-with="Creating..."
+              data-test="create-token-button"
+              class="!w-auto px-6"
+            >
+              ● Create Token
+            </.button>
+          </.form>
           
     <!-- Token Created Modal -->
           <.pop_up_form
@@ -109,56 +141,82 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                 <button
                   type="button"
                   phx-click={JS.dispatch("phx:copy", to: "#token-value")}
-                  class="interactive-button-base icon-button"
+                  class="interactive-button-base text-button text-button-text"
                 >
-                  <.icon name="hero-clipboard" class="icon-button-icon" /> Copy to Clipboard
+                  <.icon name="hero-clipboard" class="size-4 inline mr-2" /> Copy to Clipboard
                 </button>
-                <input
-                  id="token-value"
-                  type="hidden"
-                  value={@created_token}
-                  phx-hook="Copy"
-                />
+                <input id="token-value" type="hidden" value={@created_token} phx-hook="Copy" />
               </div>
             </:form>
           </.pop_up_form>
           
     <!-- Tokens List -->
-          <div class="space-y-4">
-            <h3 class="text-lg font-semibold ui-text-primary">Active Tokens</h3>
+          <div class="mt-8">
             <%= if @tokens == [] do %>
-              <p class="ui-text-secondary">No tokens found. Create one to get started.</p>
-            <% else %>
-              <div class="space-y-2">
-                <%= for token <- @tokens do %>
-                  <div class="p-4 bg-[var(--ui-foreground)] rounded-lg flex items-center justify-between">
-                    <div class="flex-1">
-                      <p class="ui-text-primary font-medium">
-                        {token.description || "Unnamed token"}
-                      </p>
-                      <div class="flex gap-4 text-sm ui-text-secondary mt-1">
-                        <span>Created: {format_datetime(token.inserted_at)}</span>
-                        <span>Expires: {format_datetime(token.expires_at)}</span>
-                        <%= if token.last_used_at do %>
-                          <span>Last used: {format_datetime(token.last_used_at)}</span>
-                        <% else %>
-                          <span>Never used</span>
-                        <% end %>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      phx-click="revoke_token"
-                      phx-value-id={token.id}
-                      data-confirm="Are you sure you want to revoke this token? This action cannot be undone."
-                      class="interactive-button-base icon-button"
-                      title="Revoke"
-                    >
-                      <.icon name="hero-trash" class="icon-button-icon" />
-                    </button>
-                  </div>
-                <% end %>
+              <div class="text-center py-8 ui-text-secondary">
+                No tokens found. Create one to get started.
               </div>
+            <% else %>
+              <table class="w-full border-separate border-spacing-y-1">
+                <tbody>
+                  <tr :for={token <- @tokens} class="group transition-colors">
+                    <td class="py-3 px-4 rounded-full group-hover:bg-[var(--ui-foreground)]">
+                      <div class="flex items-center justify-between gap-3">
+                        <!-- Icon -->
+                        <div class="flex-shrink-0">
+                          <.icon name="hero-key" class="size-5 ui-text-primary" />
+                        </div>
+                        <!-- Token info -->
+                        <div class="flex-1 min-w-0">
+                          <div class="ui-text-primary">
+                            <span class="font-medium">
+                              {token.name || "Unnamed token"}
+                            </span>
+                            <%= if token.description do %>
+                              <span class="ml-2 text-sm ui-text-secondary">
+                                — {token.description}
+                              </span>
+                            <% end %>
+                          </div>
+                          <div class="flex gap-4 text-xs ui-text-secondary mt-1">
+                            <span>Created: {format_datetime(token.inserted_at)}</span>
+                            <span>Expires: {format_datetime(token.expires_at)}</span>
+                            <%= if token.last_used_at do %>
+                              <span>Last used: {format_datetime(token.last_used_at)}</span>
+                            <% else %>
+                              <span>Never used</span>
+                            <% end %>
+                          </div>
+                        </div>
+                        <!-- Actions -->
+                        <div class="flex justify-end items-center gap-2 flex-shrink-0">
+                          <div class="group/actions relative inline-flex items-center gap-2">
+                            <!-- Settings icon (always visible) -->
+                            <div class="interactive-button-base icon-button flex items-center justify-center flex-shrink-0">
+                              <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
+                            </div>
+                            
+    <!-- Expandable actions (visible on hover) -->
+                            <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[14rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
+                              <button
+                                type="button"
+                                class="interactive-button-base icon-button flex-shrink-0"
+                                phx-click="revoke_token"
+                                phx-value-id={token.id}
+                                data-test="revoke-token-button"
+                                data-confirm="Are you sure you want to revoke this token? This action cannot be undone."
+                                title="Revoke"
+                              >
+                                <.icon name="hero-trash" class="icon-button-icon" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             <% end %>
           </div>
         </div>
@@ -166,44 +224,42 @@ defmodule PlugboardWeb.PathTokensLive.Index do
     <!-- Service Accounts Tab -->
         <div :if={@active_tab == "service_accounts"} class="mt-8">
           <!-- Create Service Account Form -->
-          <div class="mb-8 p-6 bg-[var(--ui-foreground)] rounded-lg">
-            <h3 class="text-lg font-semibold ui-text-primary mb-4">Create New Service Account</h3>
-            <.form for={@sa_form} phx-submit="create_service_account" class="space-y-4">
-              <div>
-                <label class="block text-sm ui-text-secondary mb-2">
-                  Name (required)
-                </label>
-                <input
-                  type="text"
-                  name="service_account[name]"
-                  placeholder="e.g., production-cluster, staging-env"
-                  required
-                  class="w-full input ui-foreground focus:outline-none focus:border-ui-inverted-foreground rounded-full"
-                />
-                <p class="text-xs ui-text-secondary mt-1">
-                  Use letters, numbers, hyphens, and underscores only
-                </p>
-              </div>
-              <div>
-                <label class="block text-sm ui-text-secondary mb-2">
-                  Description (optional)
-                </label>
-                <input
-                  type="text"
-                  name="service_account[description]"
-                  placeholder="e.g., Auto-scaling cluster for production workloads"
-                  class="w-full input ui-foreground focus:outline-none focus:border-ui-inverted-foreground rounded-full"
-                />
-              </div>
-              <.button
-                type="submit"
-                phx-disable-with="Creating..."
-                class="!w-auto px-6"
-              >
-                ● Create Service Account
-              </.button>
-            </.form>
-          </div>
+          <.form
+            for={@sa_form}
+            phx-submit="create_service_account"
+            class="flex gap-2 items-center"
+          >
+            <div class="flex-1">
+              <input
+                type="text"
+                name="service_account[name]"
+                id="service_account_name"
+                value=""
+                placeholder="Service account name"
+                autocomplete="off"
+                required
+                data-test="service-account-name-input"
+                class="w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full"
+              />
+            </div>
+            <div class="flex-1">
+              <input
+                type="text"
+                name="service_account[description]"
+                placeholder="Description (optional)"
+                data-test="service-account-description-input"
+                class="w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full"
+              />
+            </div>
+            <.button
+              type="submit"
+              phx-disable-with="Creating..."
+              data-test="create-service-account-button"
+              class="!w-auto px-6"
+            >
+              ● Create Account
+            </.button>
+          </.form>
           
     <!-- Service Account Created Modal -->
           <.pop_up_form
@@ -224,58 +280,79 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                 <button
                   type="button"
                   phx-click={JS.dispatch("phx:copy", to: "#api-key-value")}
-                  class="interactive-button-base icon-button"
+                  class="interactive-button-base text-button text-button-text"
                 >
-                  <.icon name="hero-clipboard" class="icon-button-icon" /> Copy to Clipboard
+                  <.icon name="hero-clipboard" class="size-4 inline mr-2" /> Copy to Clipboard
                 </button>
-                <input
-                  id="api-key-value"
-                  type="hidden"
-                  value={@created_api_key}
-                  phx-hook="Copy"
-                />
+                <input id="api-key-value" type="hidden" value={@created_api_key} phx-hook="Copy" />
               </div>
             </:form>
           </.pop_up_form>
           
     <!-- Service Accounts List -->
-          <div class="space-y-4">
-            <h3 class="text-lg font-semibold ui-text-primary">Active Service Accounts</h3>
+          <div class="mt-8">
             <%= if @service_accounts == [] do %>
-              <p class="ui-text-secondary">
+              <div class="text-center py-8 ui-text-secondary">
                 No service accounts found. Create one to enable auto-scaling.
-              </p>
-            <% else %>
-              <div class="space-y-2">
-                <%= for sa <- @service_accounts do %>
-                  <div class="p-4 bg-[var(--ui-foreground)] rounded-lg flex items-center justify-between">
-                    <div class="flex-1">
-                      <p class="ui-text-primary font-medium">{sa.name}</p>
-                      <%= if sa.description do %>
-                        <p class="text-sm ui-text-secondary mt-1">{sa.description}</p>
-                      <% end %>
-                      <div class="flex gap-4 text-sm ui-text-secondary mt-1">
-                        <span>Created: {format_datetime(sa.inserted_at)}</span>
-                        <%= if sa.last_used_at do %>
-                          <span>Last used: {format_datetime(sa.last_used_at)}</span>
-                        <% else %>
-                          <span>Never used</span>
-                        <% end %>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      phx-click="revoke_service_account"
-                      phx-value-id={sa.id}
-                      data-confirm="Are you sure you want to revoke this service account? This action cannot be undone."
-                      class="interactive-button-base icon-button"
-                      title="Revoke"
-                    >
-                      <.icon name="hero-trash" class="icon-button-icon" />
-                    </button>
-                  </div>
-                <% end %>
               </div>
+            <% else %>
+              <table class="w-full border-separate border-spacing-y-1">
+                <tbody>
+                  <tr :for={sa <- @service_accounts} class="group transition-colors">
+                    <td class="py-3 px-4 rounded-full group-hover:bg-[var(--ui-foreground)]">
+                      <div class="flex items-center justify-between gap-3">
+                        <!-- Icon -->
+                        <div class="flex-shrink-0">
+                          <.icon name="hero-user-circle" class="size-5 ui-text-primary" />
+                        </div>
+                        <!-- Service account info -->
+                        <div class="flex-1 min-w-0">
+                          <div class="ui-text-primary">
+                            <span class="font-medium">{sa.name}</span>
+                            <%= if sa.description do %>
+                              <span class="ml-2 text-sm ui-text-secondary">
+                                — {sa.description}
+                              </span>
+                            <% end %>
+                          </div>
+                          <div class="flex gap-4 text-xs ui-text-secondary mt-1">
+                            <span>Created: {format_datetime(sa.inserted_at)}</span>
+                            <%= if sa.last_used_at do %>
+                              <span>Last used: {format_datetime(sa.last_used_at)}</span>
+                            <% else %>
+                              <span>Never used</span>
+                            <% end %>
+                          </div>
+                        </div>
+                        <!-- Actions -->
+                        <div class="flex justify-end items-center gap-2 flex-shrink-0">
+                          <div class="group/actions relative inline-flex items-center gap-2">
+                            <!-- Settings icon (always visible) -->
+                            <div class="interactive-button-base icon-button flex items-center justify-center flex-shrink-0">
+                              <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
+                            </div>
+                            
+    <!-- Expandable actions (visible on hover) -->
+                            <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[14rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
+                              <button
+                                type="button"
+                                class="interactive-button-base icon-button flex-shrink-0"
+                                phx-click="revoke_service_account"
+                                phx-value-id={sa.id}
+                                data-test="revoke-service-account-button"
+                                data-confirm="Are you sure you want to revoke this service account? This action cannot be undone."
+                                title="Revoke"
+                              >
+                                <.icon name="hero-trash" class="icon-button-icon" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             <% end %>
           </div>
         </div>
@@ -310,6 +387,9 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             tokens = TelephoneTokens.list_tokens_for_path(path_id)
             service_accounts = ServiceAccounts.list_service_accounts_for_path(path_id)
 
+            # Build breadcrumbs
+            breadcrumbs = build_breadcrumbs(path)
+
             {:ok,
              assign(socket,
                path: path,
@@ -317,6 +397,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                active_tab: "tokens",
                tokens: tokens,
                service_accounts: service_accounts,
+               breadcrumbs: breadcrumbs,
                token_form: to_form(%{}, as: "token"),
                sa_form: to_form(%{}, as: "service_account"),
                created_token: nil,
@@ -332,15 +413,19 @@ defmodule PlugboardWeb.PathTokensLive.Index do
   end
 
   @impl true
-  def handle_event("create_token", %{"token" => %{"description" => description}}, socket) do
+  def handle_event("create_token", %{"token" => token_params}, socket) do
     user = socket.assigns.current_scope.user
     path = socket.assigns.path
 
+    name = Map.get(token_params, "name", "")
+    description = Map.get(token_params, "description", "")
+
     # Check if user has permission (owner or maintainer)
     if socket.assigns.user_role in ["owner", "maintainer"] do
+      token_name = if name == "", do: nil, else: name
       desc = if description == "", do: nil, else: description
 
-      case TelephoneTokens.generate_token(path, user, desc) do
+      case TelephoneTokens.generate_token(path, user, token_name, desc) do
         {:ok, jwt, _token} ->
           # Reload tokens
           tokens = TelephoneTokens.list_tokens_for_path(path.id)
@@ -451,5 +536,21 @@ defmodule PlugboardWeb.PathTokensLive.Index do
 
   defp format_datetime(datetime) do
     Calendar.strftime(datetime, "%Y-%m-%d %H:%M UTC")
+  end
+
+  # Builds a breadcrumb trail from root to the current path
+  defp build_breadcrumbs(nil), do: []
+
+  defp build_breadcrumbs(path) do
+    case path.parent_id do
+      nil ->
+        [path]
+
+      parent_id ->
+        case Paths.get_path(parent_id) do
+          nil -> [path]
+          parent -> build_breadcrumbs(parent) ++ [path]
+        end
+    end
   end
 end
