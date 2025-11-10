@@ -764,7 +764,8 @@ defmodule PlugboardWeb.CoreComponents do
             <tr
               :for={path <- @paths}
               id={"#{@id}-#{path.id}"}
-              class="group transition-colors"
+              class="group transition-colors cursor-pointer"
+              phx-click={@on_path_click && @on_path_click.(path)}
             >
               <td class="py-3 px-4 rounded-full group-hover:bg-[var(--ui-foreground)]">
                 <div class="flex items-center justify-between gap-3">
@@ -776,35 +777,23 @@ defmodule PlugboardWeb.CoreComponents do
                       <.icon name="hero-folder" class="size-5 ui-text-primary" />
                     <% end %>
                   </div>
-                  <!-- Path name (clickable if on_path_click provided and not a mount point) -->
+                  <!-- Path name -->
                   <div class="flex-1 min-w-0">
-                    <%= if @on_path_click && !path.mount_point do %>
-                      <button
-                        type="button"
-                        phx-click={@on_path_click.(path)}
-                        class="text-left w-full ui-text-primary hover:underline focus:outline-none"
-                      >
-                        <span class="font-medium">
-                          {if @show_full_path, do: path.full_path, else: path.path}
-                        </span>
-                        <%= if path.mount_point do %>
-                          <span class="ml-2 text-xs ui-text-secondary">(mounted)</span>
-                        <% end %>
-                      </button>
-                    <% else %>
-                      <div class="ui-text-primary">
-                        <span class="font-medium">
-                          {if @show_full_path, do: path.full_path, else: path.path}
-                        </span>
-                        <%= if path.mount_point do %>
-                          <span class="ml-2 text-xs ui-text-secondary">(mounted)</span>
-                        <% end %>
-                      </div>
-                    <% end %>
+                    <div class="ui-text-primary">
+                      <span class="font-medium">
+                        {if @show_full_path, do: path.full_path, else: path.path}
+                      </span>
+                      <%= if path.mount_point do %>
+                        <span class="ml-2 text-xs ui-text-secondary">(mounted)</span>
+                      <% end %>
+                    </div>
                   </div>
                   <!-- Actions integrated into path column -->
                   <%= if @action != [] do %>
-                    <div class="flex justify-end items-center gap-2 flex-shrink-0">
+                    <div
+                      class="flex justify-end items-center gap-2 flex-shrink-0"
+                      phx-click="stop_propagation"
+                    >
                       <%= for action <- @action do %>
                         {render_slot(action, path)}
                       <% end %>

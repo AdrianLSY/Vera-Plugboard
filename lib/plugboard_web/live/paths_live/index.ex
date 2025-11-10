@@ -73,7 +73,7 @@ defmodule PlugboardWeb.PathsLive.Index do
         
     <!-- Paths List -->
         <div class="mt-8">
-          <.paths_table id="paths-list" paths={@paths} on_path_click={&navigate_to_path/1}>
+          <.paths_table id="paths-list" paths={@paths} on_path_click={&handle_path_click/1}>
             <:action :let={path}>
               <div class="group/actions relative inline-flex items-center gap-2">
                 <!-- Settings icon (always visible) -->
@@ -117,16 +117,6 @@ defmodule PlugboardWeb.PathsLive.Index do
                       <.icon name="hero-link" class="icon-button-icon" />
                     <% end %>
                   </button>
-                  <%= if path.mount_point do %>
-                    <.link
-                      navigate={~p"/paths/#{path.id}/tokens"}
-                      class="interactive-button-base icon-button flex-shrink-0"
-                      title="Manage Tokens"
-                      data-test="tokens-button"
-                    >
-                      <.icon name="hero-key" class="icon-button-icon" />
-                    </.link>
-                  <% end %>
                 </div>
               </div>
             </:action>
@@ -427,8 +417,12 @@ defmodule PlugboardWeb.PathsLive.Index do
     end
   end
 
-  defp navigate_to_path(path) do
-    JS.navigate(~p"/paths?parent=#{path.id}")
+  defp handle_path_click(path) do
+    if path.mount_point do
+      JS.navigate(~p"/paths/#{path.id}/tokens")
+    else
+      JS.navigate(~p"/paths?parent=#{path.id}")
+    end
   end
 
   # Builds a breadcrumb trail from root to the current path
