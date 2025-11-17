@@ -513,7 +513,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                             <% end %>
                           </div>
                           <div class="text-xs ui-text-secondary mt-1">
-                            <span>Added: {format_datetime(da.inserted_at)}</span>
+                            <span>Created: {format_datetime(da.inserted_at)}</span>
                           </div>
                         </div>
                         <!-- Actions -->
