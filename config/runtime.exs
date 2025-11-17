@@ -126,8 +126,7 @@ end
 
 # MountStore configuration for all environments
 config :plugboard, Plugboard.MountStore,
-  reconcile_interval:
-    System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") |> String.to_integer()
+  reconcile_interval: System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") |> String.to_integer()
 
 # Telephone token configuration for all environments
 config :plugboard, :telephone,

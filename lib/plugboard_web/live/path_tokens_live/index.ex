@@ -8,6 +8,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
   alias Plugboard.Paths
   alias Plugboard.TelephoneTokens
   alias Plugboard.ServiceAccounts
+  alias Plugboard.DomainAffinities
 
   @impl true
   def render(assigns) do
@@ -22,7 +23,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             </span>
           </:subtitle>
         </.header>
-        
+
     <!-- Breadcrumb Navigation -->
         <div class="mt-8">
           <div class="bg-[var(--ui-foreground)] rounded-full px-4 py-2 overflow-x-auto max-w-full inline-block">
@@ -51,7 +52,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             </div>
           </div>
         </div>
-        
+
     <!-- Tab Navigation -->
         <div class="mt-8">
           <div class="flex gap-4">
@@ -81,9 +82,22 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             >
               Service Accounts
             </button>
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="domains"
+              class={"px-4 py-2 -mb-px border-b-2 transition-colors " <>
+                if @active_tab == "domains" do
+                  "border-ui-inverted-foreground ui-text-primary font-medium"
+                else
+                  "border-transparent ui-text-secondary hover:ui-text-primary"
+                end}
+              data-test="domains-tab"
+            >
+              Domain Affinities
+            </button>
           </div>
         </div>
-        
+
     <!-- Telephone Tokens Tab -->
         <div :if={@active_tab == "tokens"} class="mt-8">
           <!-- Create Token Form -->
@@ -121,7 +135,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               ● Create Token
             </.button>
           </.form>
-          
+
     <!-- Token Created Modal -->
           <.pop_up_form
             :if={@created_token}
@@ -149,7 +163,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               </div>
             </:form>
           </.pop_up_form>
-          
+
     <!-- Tokens List -->
           <div class="mt-8">
             <%= if @tokens == [] do %>
@@ -195,7 +209,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                             <div class="interactive-button-base icon-button flex items-center justify-center flex-shrink-0">
                               <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
                             </div>
-                            
+
     <!-- Expandable actions (visible on hover) -->
                             <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[14rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
                               <button
@@ -230,7 +244,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             <% end %>
           </div>
         </div>
-        
+
     <!-- Edit Token Modal -->
         <.pop_up_form
           :if={@editing_token}
@@ -264,7 +278,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             </.form>
           </:form>
         </.pop_up_form>
-        
+
     <!-- Service Accounts Tab -->
         <div :if={@active_tab == "service_accounts"} class="mt-8">
           <!-- Create Service Account Form -->
@@ -304,7 +318,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               ● Create Account
             </.button>
           </.form>
-          
+
     <!-- Service Account Created Modal -->
           <.pop_up_form
             :if={@created_api_key}
@@ -332,7 +346,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               </div>
             </:form>
           </.pop_up_form>
-          
+
     <!-- Service Accounts List -->
           <div class="mt-8">
             <%= if @service_accounts == [] do %>
@@ -375,7 +389,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                             <div class="interactive-button-base icon-button flex items-center justify-center flex-shrink-0">
                               <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
                             </div>
-                            
+
     <!-- Expandable actions (visible on hover) -->
                             <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[14rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
                               <button
@@ -410,7 +424,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             <% end %>
           </div>
         </div>
-        
+
     <!-- Edit Service Account Modal -->
         <.pop_up_form
           :if={@editing_service_account}
@@ -444,6 +458,96 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             </.form>
           </:form>
         </.pop_up_form>
+
+    <!-- Domain Affinities Tab -->
+        <div :if={@active_tab == "domains"} class="mt-8">
+          <!-- Create Domain Form -->
+          <.form for={@domain_form} phx-submit="create_domain" class="flex gap-2 items-center">
+            <div class="flex-1">
+              <input
+                type="text"
+                name="domain[domain]"
+                id="domain_domain"
+                value=""
+                placeholder="example.com or *.example.com"
+                autocomplete="off"
+                required
+                data-test="domain-input"
+                class="w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full"
+              />
+            </div>
+            <.button
+              type="submit"
+              phx-disable-with="Adding..."
+              data-test="create-domain-button"
+              class="!w-auto px-6"
+            >
+              ● Add Domain
+            </.button>
+          </.form>
+
+    <!-- Domain Affinities List -->
+          <div class="mt-8">
+            <%= if @domain_affinities == [] do %>
+              <div class="text-center py-8 ui-text-secondary">
+                No domain affinities configured. Add one to enable domain-based routing.
+              </div>
+            <% else %>
+              <table class="w-full border-separate border-spacing-y-1">
+                <tbody>
+                  <tr :for={da <- @domain_affinities} class="group transition-colors">
+                    <td class="py-3 px-4 rounded-full group-hover:bg-[var(--ui-foreground)]">
+                      <div class="flex items-center justify-between gap-3">
+                        <!-- Icon -->
+                        <div class="flex-shrink-0">
+                          <.icon name="hero-globe-alt" class="size-5 ui-text-primary" />
+                        </div>
+                        <!-- Domain info -->
+                        <div class="flex-1 min-w-0">
+                          <div class="ui-text-primary">
+                            <span class="font-medium font-mono">{da.domain}</span>
+                            <%= if String.starts_with?(da.domain, "*.") do %>
+                              <span class="ml-2 text-xs px-2 py-1 rounded-full bg-[var(--ui-background)] ui-text-secondary">
+                                wildcard
+                              </span>
+                            <% end %>
+                          </div>
+                          <div class="text-xs ui-text-secondary mt-1">
+                            <span>Added: {format_datetime(da.inserted_at)}</span>
+                          </div>
+                        </div>
+                        <!-- Actions -->
+                        <div class="flex justify-end items-center gap-2 flex-shrink-0">
+                          <div class="group/actions relative inline-flex items-center gap-2">
+                            <!-- Settings icon (always visible) -->
+                            <div class="interactive-button-base icon-button flex items-center justify-center flex-shrink-0">
+                              <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
+                            </div>
+
+    <!-- Expandable actions (visible on hover) -->
+                            <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[14rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
+                              <button
+                                type="button"
+                                class="interactive-button-base icon-button flex-shrink-0"
+                                phx-click="delete_domain"
+                                phx-value-id={da.id}
+                                data-test="delete-domain-button"
+                                data-confirm="Are you sure you want to delete this domain affinity? This action cannot be undone."
+                                title="Delete"
+                              >
+                                <.icon name="hero-trash" class="icon-button-icon" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            <% end %>
+          </div>
+        </div>
       </div>
     </Layouts.app>
     """
@@ -471,9 +575,10 @@ defmodule PlugboardWeb.PathTokensLive.Index do
              |> redirect(to: ~p"/paths")}
 
           role ->
-            # Load tokens and service accounts
+            # Load tokens, service accounts, and domain affinities
             tokens = TelephoneTokens.list_tokens_for_path(path_id)
             service_accounts = ServiceAccounts.list_service_accounts_for_path(path_id)
+            domain_affinities = DomainAffinities.list_domain_affinities_for_path(path_id)
 
             # Build breadcrumbs
             breadcrumbs = build_breadcrumbs(path)
@@ -485,9 +590,11 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                active_tab: "tokens",
                tokens: tokens,
                service_accounts: service_accounts,
+               domain_affinities: domain_affinities,
                breadcrumbs: breadcrumbs,
                token_form: to_form(%{}, as: "token"),
                sa_form: to_form(%{}, as: "service_account"),
+               domain_form: to_form(%{}, as: "domain"),
                created_token: nil,
                created_api_key: nil,
                editing_token: nil,
@@ -743,6 +850,67 @@ defmodule PlugboardWeb.PathTokensLive.Index do
 
         {:error, :not_found} ->
           {:noreply, put_flash(socket, :error, "Service account not found")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+    end
+  end
+
+  @impl true
+  def handle_event("create_domain", %{"domain" => domain_params}, socket) do
+    if socket.assigns.user_role in ["owner", "maintainer"] do
+      # Verify path is a mount point
+      if socket.assigns.path.mount_point do
+        attrs = %{
+          domain: domain_params["domain"],
+          path_id: socket.assigns.path.id
+        }
+
+        case DomainAffinities.create_domain_affinity(attrs) do
+          {:ok, _domain_affinity} ->
+            # Reload domain affinities
+            domain_affinities =
+              DomainAffinities.list_domain_affinities_for_path(socket.assigns.path.id)
+
+            {:noreply,
+             socket
+             |> assign(domain_affinities: domain_affinities)
+             |> put_flash(:info, "Domain affinity created successfully")}
+
+          {:error, changeset} ->
+            errors =
+              Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
+              |> Enum.map(fn {field, messages} ->
+                "#{field}: #{Enum.join(messages, ", ")}"
+              end)
+              |> Enum.join("; ")
+
+            {:noreply, put_flash(socket, :error, "Failed to create domain affinity: #{errors}")}
+        end
+      else
+        {:noreply, put_flash(socket, :error, "Path must be a mount point")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+    end
+  end
+
+  @impl true
+  def handle_event("delete_domain", %{"id" => domain_id}, socket) do
+    if socket.assigns.user_role in ["owner", "maintainer"] do
+      case DomainAffinities.delete_domain_affinity(domain_id) do
+        {:ok, _domain_affinity} ->
+          # Reload domain affinities
+          domain_affinities =
+            DomainAffinities.list_domain_affinities_for_path(socket.assigns.path.id)
+
+          {:noreply,
+           socket
+           |> assign(domain_affinities: domain_affinities)
+           |> put_flash(:info, "Domain affinity deleted successfully")}
+
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to delete domain affinity")}
       end
     else
       {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}

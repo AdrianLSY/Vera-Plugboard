@@ -293,7 +293,7 @@ defmodule Plugboard.MountStoreTest do
       {:ok, _path2} = Paths.update_path(path2, %{mount_point: true})
 
       # Force reload
-      {:ok, count} = MountStore.reload_all()
+      {:ok, count, _domain_count} = MountStore.reload_all()
 
       # Should have at least our 2 mounts (may have more from other tests)
       assert count >= 2
@@ -453,6 +453,202 @@ defmodule Plugboard.MountStoreTest do
       MountStore.reload_all()
 
       assert {:ok, {"/reconcile-test", "/", _}} = MountStore.match("/reconcile-test")
+    end
+  end
+
+  describe "match_by_domain/1" do
+    setup do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "api",
+          user_id: user.id
+        })
+
+      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+
+      %{path: path}
+    end
+
+    test "matches exact domain", %{path: path} do
+      {:ok, _da} =
+        Plugboard.DomainAffinities.create_domain_affinity(%{
+          domain: "api.example.com",
+          path_id: path.id
+        })
+
+      MountStore.reload_all()
+
+      assert {:ok, {_path_id, "/api"}} = MountStore.match_by_domain("api.example.com")
+    end
+
+    test "normalizes domain before matching", %{path: path} do
+      {:ok, _da} =
+        Plugboard.DomainAffinities.create_domain_affinity(%{
+          domain: "api.example.com",
+          path_id: path.id
+        })
+
+      MountStore.reload_all()
+
+      # Test with uppercase
+      assert {:ok, {_path_id, "/api"}} = MountStore.match_by_domain("API.EXAMPLE.COM")
+    end
+
+    test "strips port before matching", %{path: path} do
+      {:ok, _da} =
+        Plugboard.DomainAffinities.create_domain_affinity(%{
+          domain: "api.example.com",
+          path_id: path.id
+        })
+
+      MountStore.reload_all()
+
+      # Test with port
+      assert {:ok, {_path_id, "/api"}} = MountStore.match_by_domain("api.example.com:8080")
+    end
+
+    test "matches wildcard domain", %{path: path} do
+      {:ok, _da} =
+        Plugboard.DomainAffinities.create_domain_affinity(%{
+          domain: "*.api.example.com",
+          path_id: path.id
+        })
+
+      MountStore.reload_all()
+
+      # Should match any subdomain
+      assert {:ok, {_path_id, "/api"}} = MountStore.match_by_domain("v1.api.example.com")
+      assert {:ok, {_path_id, "/api"}} = MountStore.match_by_domain("v2.api.example.com")
+      assert {:ok, {_path_id, "/api"}} = MountStore.match_by_domain("foo.api.example.com")
+    end
+
+    test "wildcard does not match base domain", %{path: path} do
+      {:ok, _da} =
+        Plugboard.DomainAffinities.create_domain_affinity(%{
+          domain: "*.api.example.com",
+          path_id: path.id
+        })
+
+      MountStore.reload_all()
+
+      # Wildcard should not match the base domain itself
+      assert {:error, :not_found} = MountStore.match_by_domain("api.example.com")
+    end
+
+    test "exact match takes precedence over wildcard", %{path: path} do
+      user = user_fixture()
+
+      {:ok, other_path} =
+        Paths.create_path(%{
+          path: "users",
+          user_id: user.id
+        })
+
+      {:ok, other_path} = Paths.update_path(other_path, %{mount_point: true})
+
+      # Create wildcard that would match
+      {:ok, _da1} =
+        Plugboard.DomainAffinities.create_domain_affinity(%{
+          domain: "*.example.com",
+          path_id: path.id
+        })
+
+      # Create exact match
+      {:ok, _da2} =
+        Plugboard.DomainAffinities.create_domain_affinity(%{
+          domain: "users.example.com",
+          path_id: other_path.id
+        })
+
+      MountStore.reload_all()
+
+      # Should match exact, not wildcard
+      assert {:ok, {path_id, "/users"}} = MountStore.match_by_domain("users.example.com")
+      # path_id from ETS is binary, convert string UUID to binary for comparison
+      {:ok, expected_id} = Ecto.UUID.dump(other_path.id)
+      assert path_id == expected_id
+    end
+
+    test "most specific wildcard wins", %{path: path} do
+      user = user_fixture()
+
+      {:ok, other_path} =
+        Paths.create_path(%{
+          path: "users",
+          user_id: user.id
+        })
+
+      {:ok, other_path} = Paths.update_path(other_path, %{mount_point: true})
+
+      # Create broad wildcard
+      {:ok, _da1} =
+        Plugboard.DomainAffinities.create_domain_affinity(%{
+          domain: "*.example.com",
+          path_id: path.id
+        })
+
+      # Create more specific wildcard
+      {:ok, _da2} =
+        Plugboard.DomainAffinities.create_domain_affinity(%{
+          domain: "*.api.example.com",
+          path_id: other_path.id
+        })
+
+      MountStore.reload_all()
+
+      # Should match more specific wildcard
+      assert {:ok, {path_id, "/users"}} = MountStore.match_by_domain("v1.api.example.com")
+      # path_id from ETS is binary, convert string UUID to binary for comparison
+      {:ok, expected_id} = Ecto.UUID.dump(other_path.id)
+      assert path_id == expected_id
+
+      # Should match broad wildcard for other subdomains
+      assert {:ok, {path_id, "/api"}} = MountStore.match_by_domain("other.example.com")
+      {:ok, expected_id} = Ecto.UUID.dump(path.id)
+      assert path_id == expected_id
+    end
+
+    test "returns not_found for unknown domain" do
+      assert {:error, :not_found} = MountStore.match_by_domain("unknown.example.com")
+    end
+
+    test "returns not_found for domain with no affinity" do
+      assert {:error, :not_found} = MountStore.match_by_domain("noaffinity.example.com")
+    end
+  end
+
+  describe "list_domain_affinities/0" do
+    setup do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "api",
+          user_id: user.id
+        })
+
+      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+
+      %{path: path}
+    end
+
+    test "returns all domain affinities from ETS", %{path: path} do
+      {:ok, _da} =
+        Plugboard.DomainAffinities.create_domain_affinity(%{
+          domain: "api.example.com",
+          path_id: path.id
+        })
+
+      MountStore.reload_all()
+
+      affinities = MountStore.list_domain_affinities()
+
+      assert length(affinities) == 1
+      # path_id from ETS is binary
+      {:ok, expected_id} = Ecto.UUID.dump(path.id)
+      assert {"api.example.com", {expected_id, "/api"}} in affinities
     end
   end
 end

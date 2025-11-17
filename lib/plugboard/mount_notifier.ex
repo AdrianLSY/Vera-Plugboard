@@ -1,10 +1,13 @@
 defmodule Plugboard.MountNotifier do
   @moduledoc """
-  PostgreSQL LISTEN/NOTIFY listener for mount point changes.
+  PostgreSQL LISTEN/NOTIFY listener for mount point and domain affinity changes.
 
   This GenServer establishes a dedicated PostgreSQL connection to listen for
-  mount point changes via the `plugboard_mounts` notification channel.
-  When changes are received, it updates the MountStore ETS table accordingly.
+  changes via notification channels:
+  - `plugboard_mounts` - Mount point changes
+  - `plugboard_domain_affinities` - Domain affinity changes
+
+  When changes are received, it updates the MountStore ETS tables accordingly.
 
   ## Connection Recovery
 
@@ -15,7 +18,8 @@ defmodule Plugboard.MountNotifier do
   use GenServer
   require Logger
 
-  @channel "plugboard_mounts"
+  @mount_channel "plugboard_mounts"
+  @domain_channel "plugboard_domain_affinities"
   @max_backoff 30_000
   @initial_backoff 1_000
 
@@ -43,13 +47,28 @@ defmodule Plugboard.MountNotifier do
   end
 
   @impl true
-  def handle_info({:notification, _pid, _ref, @channel, payload}, state) do
+  def handle_info({:notification, _pid, _ref, @mount_channel, payload}, state) do
     case Jason.decode(payload) do
       {:ok, %{"action" => action, "full_path" => full_path}} ->
         handle_mount_notification(action, full_path)
 
       {:error, error} ->
-        Logger.error("MountNotifier: Failed to decode notification payload: #{inspect(error)}")
+        Logger.error("MountNotifier: Failed to decode mount notification: #{inspect(error)}")
+    end
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:notification, _pid, _ref, @domain_channel, payload}, state) do
+    case Jason.decode(payload) do
+      {:ok, data} ->
+        handle_domain_affinity_notification(data)
+
+      {:error, error} ->
+        Logger.error(
+          "MountNotifier: Failed to decode domain affinity notification: #{inspect(error)}"
+        )
     end
 
     {:noreply, state}
@@ -116,12 +135,16 @@ defmodule Plugboard.MountNotifier do
           # Monitor the connection so we get notified if it dies
           Process.monitor(pid)
 
-          # Listen to the plugboard_mounts channel
-          case Postgrex.Notifications.listen(pid, @channel) do
-            {:ok, ref} ->
-              Logger.info("MountNotifier: Listening on PostgreSQL channel '#{@channel}'")
-              {:ok, %{pid: pid, ref: ref, reconnect_attempts: 0}}
+          # Listen to both channels
+          with {:ok, mount_ref} <- Postgrex.Notifications.listen(pid, @mount_channel),
+               {:ok, domain_ref} <- Postgrex.Notifications.listen(pid, @domain_channel) do
+            Logger.info(
+              "MountNotifier: Listening on PostgreSQL channels '#{@mount_channel}' and '#{@domain_channel}'"
+            )
 
+            {:ok,
+             %{pid: pid, mount_ref: mount_ref, domain_ref: domain_ref, reconnect_attempts: 0}}
+          else
             {:error, reason} ->
               Logger.error("MountNotifier: Failed to listen on channel: #{inspect(reason)}")
               {:error, reason}
@@ -156,5 +179,29 @@ defmodule Plugboard.MountNotifier do
 
   defp handle_mount_notification(action, full_path) do
     Logger.warning("MountNotifier: Received unknown action '#{action}' for #{full_path}")
+  end
+
+  defp handle_domain_affinity_notification(%{
+         "action" => "domain_affinity_added",
+         "domain" => domain,
+         "path_id" => path_id,
+         "full_path" => full_path
+       }) do
+    Logger.debug("MountNotifier: Received domain_affinity_added for #{domain} → #{full_path}")
+    Plugboard.MountStore.refresh_domain_affinity(domain, path_id, full_path)
+  end
+
+  defp handle_domain_affinity_notification(%{
+         "action" => "domain_affinity_removed",
+         "domain" => domain
+       }) do
+    Logger.debug("MountNotifier: Received domain_affinity_removed for #{domain}")
+    Plugboard.MountStore.remove_domain_affinity(domain)
+  end
+
+  defp handle_domain_affinity_notification(data) do
+    Logger.warning(
+      "MountNotifier: Received unknown domain affinity notification: #{inspect(data)}"
+    )
   end
 end

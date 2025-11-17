@@ -136,6 +136,59 @@ defmodule PlugboardWeb.ProxyController do
     end
   end
 
+  @doc """
+  Handles proxy requests based on domain affinity.
+
+  This action is called when a request comes from a domain that has a
+  domain affinity mapping (e.g., users.example.com → /call/users).
+
+  Routing logic:
+  1. Check if domain affinity exists (plug should have already validated)
+  2. If :skip_domain_proxy flag is set, pass through (let normal routing handle it)
+  3. Match domain to mount point
+  4. Forward entire request path to the backend
+
+  ## Examples
+
+      # Request: users.example.com/profile/123
+      # Domain affinity: users.example.com → /call/users
+      # Forwards to backend: /profile/123
+  """
+  def proxy_domain(conn, _params) do
+    # Check if we should skip domain proxy (set by DomainAffinityRouter plug)
+    if conn.private[:skip_domain_proxy] do
+      # No domain affinity and no other route matched - return 404
+      HTTPError.send_error(conn, 404,
+        reason: "Not Found",
+        details: %{path: conn.request_path},
+        log: false
+      )
+    else
+      domain = conn.host
+      request_path = conn.request_path
+
+      Logger.debug("ProxyController: Handling domain-based request for #{domain}#{request_path}")
+
+      case Plugboard.MountStore.match_by_domain(domain) do
+        {:ok, {path_id, full_path}} ->
+          Logger.info(
+            "ProxyController: Domain #{domain} matched to mount #{full_path} (#{path_id}), forwarding: #{request_path}"
+          )
+
+          proxy_to_telephone(conn, path_id, request_path)
+
+        {:error, :not_found} ->
+          Logger.debug("ProxyController: No domain affinity found for: #{domain}")
+
+          HTTPError.send_error(conn, 404,
+            reason: "No backend configured for domain",
+            details: %{domain: domain},
+            log: false
+          )
+      end
+    end
+  end
+
   # Private helpers
 
   defp proxy_to_telephone(conn, path_id, forwarded_path) do
