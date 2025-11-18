@@ -23,7 +23,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             </span>
           </:subtitle>
         </.header>
-
+        
     <!-- Breadcrumb Navigation -->
         <div class="mt-8">
           <div class="bg-[var(--ui-foreground)] rounded-full px-4 py-2 overflow-x-auto max-w-full inline-block">
@@ -52,7 +52,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             </div>
           </div>
         </div>
-
+        
     <!-- Tab Navigation -->
         <div class="mt-8">
           <div class="flex gap-4">
@@ -97,7 +97,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             </button>
           </div>
         </div>
-
+        
     <!-- Telephone Tokens Tab -->
         <div :if={@active_tab == "tokens"} class="mt-8">
           <!-- Create Token Form -->
@@ -135,7 +135,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               ● Create Token
             </.button>
           </.form>
-
+          
     <!-- Token Created Modal -->
           <.pop_up_form
             :if={@created_token}
@@ -147,7 +147,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             <:form>
               <div class="space-y-4">
                 <p class="ui-text-secondary text-sm">
-                  ⚠️ Store this token securely. It cannot be retrieved again.
+                  Store this token securely. It cannot be retrieved again.
                 </p>
                 <div class="bg-[var(--ui-background)] p-4 rounded-lg">
                   <pre class="text-xs font-mono ui-text-primary overflow-x-auto whitespace-pre-wrap break-all">{@created_token}</pre>
@@ -163,7 +163,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               </div>
             </:form>
           </.pop_up_form>
-
+          
     <!-- Tokens List -->
           <div class="mt-8">
             <%= if @tokens == [] do %>
@@ -188,7 +188,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                             </span>
                             <%= if token.description do %>
                               <span class="ml-2 text-sm ui-text-secondary">
-                                — {token.description}
+                                {token.description}
                               </span>
                             <% end %>
                           </div>
@@ -209,7 +209,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                             <div class="interactive-button-base icon-button flex items-center justify-center flex-shrink-0">
                               <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
                             </div>
-
+                            
     <!-- Expandable actions (visible on hover) -->
                             <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[14rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
                               <button
@@ -244,7 +244,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             <% end %>
           </div>
         </div>
-
+        
     <!-- Edit Token Modal -->
         <.pop_up_form
           :if={@editing_token}
@@ -278,7 +278,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             </.form>
           </:form>
         </.pop_up_form>
-
+        
     <!-- Service Accounts Tab -->
         <div :if={@active_tab == "service_accounts"} class="mt-8">
           <!-- Create Service Account Form -->
@@ -318,7 +318,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               ● Create Account
             </.button>
           </.form>
-
+          
     <!-- Service Account Created Modal -->
           <.pop_up_form
             :if={@created_api_key}
@@ -346,7 +346,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               </div>
             </:form>
           </.pop_up_form>
-
+          
     <!-- Service Accounts List -->
           <div class="mt-8">
             <%= if @service_accounts == [] do %>
@@ -369,7 +369,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                             <span class="font-medium">{sa.name}</span>
                             <%= if sa.description do %>
                               <span class="ml-2 text-sm ui-text-secondary">
-                                — {sa.description}
+                                {sa.description}
                               </span>
                             <% end %>
                           </div>
@@ -389,7 +389,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                             <div class="interactive-button-base icon-button flex items-center justify-center flex-shrink-0">
                               <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
                             </div>
-
+                            
     <!-- Expandable actions (visible on hover) -->
                             <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[14rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
                               <button
@@ -424,7 +424,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             <% end %>
           </div>
         </div>
-
+        
     <!-- Edit Service Account Modal -->
         <.pop_up_form
           :if={@editing_service_account}
@@ -458,7 +458,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             </.form>
           </:form>
         </.pop_up_form>
-
+        
     <!-- Domain Affinities Tab -->
         <div :if={@active_tab == "domains"} class="mt-8">
           <!-- Create Domain Form -->
@@ -485,7 +485,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               ● Add Domain
             </.button>
           </.form>
-
+          
     <!-- Domain Affinities List -->
           <div class="mt-8">
             <%= if @domain_affinities == [] do %>
@@ -505,7 +505,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                         <!-- Domain info -->
                         <div class="flex-1 min-w-0">
                           <div class="ui-text-primary">
-                            <span class="font-medium font-mono">{da.domain}</span>
+                            <span class="font-medium">{da.domain}</span>
                             <%= if String.starts_with?(da.domain, "*.") do %>
                               <span class="ml-2 text-xs px-2 py-1 rounded-full bg-[var(--ui-background)] ui-text-secondary">
                                 wildcard
@@ -523,7 +523,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                             <div class="interactive-button-base icon-button flex items-center justify-center flex-shrink-0">
                               <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
                             </div>
-
+                            
     <!-- Expandable actions (visible on hover) -->
                             <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[14rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
                               <button
