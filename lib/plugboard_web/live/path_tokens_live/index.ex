@@ -9,6 +9,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
   alias Plugboard.TelephoneTokens
   alias Plugboard.ServiceAccounts
   alias Plugboard.DomainAffinities
+  alias Plugboard.Hooks
 
   @impl true
   def render(assigns) do
@@ -94,6 +95,19 @@ defmodule PlugboardWeb.PathTokensLive.Index do
               data-test="domains-tab"
             >
               Domain Affinities
+            </button>
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="hooks"
+              class={"px-4 py-2 -mb-px border-b-2 transition-colors " <>
+                if @active_tab == "hooks" do
+                  "border-ui-inverted-foreground ui-text-primary font-medium"
+                else
+                  "border-transparent ui-text-secondary hover:ui-text-primary"
+                end}
+              data-test="hooks-tab"
+            >
+              Hooks
             </button>
           </div>
         </div>
@@ -548,6 +562,263 @@ defmodule PlugboardWeb.PathTokensLive.Index do
             <% end %>
           </div>
         </div>
+        
+    <!-- Hooks Tab -->
+        <div :if={@active_tab == "hooks"} class="mt-8">
+          <!-- Create Hook Form -->
+          <.form for={@hook_form} phx-submit="create_hook" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <.input
+                field={@hook_form[:name]}
+                type="text"
+                label="Hook Name"
+                placeholder="Auth Hook"
+                required
+                class="w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full"
+              />
+              <.input
+                field={@hook_form[:execution_order]}
+                type="number"
+                label="Execution Order"
+                value="0"
+                min="0"
+                required
+                class="w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full"
+              />
+            </div>
+
+            <.input
+              field={@hook_form[:description]}
+              type="text"
+              label="Description"
+              placeholder="Verifies JWT tokens"
+              class="w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full"
+            />
+
+            <div>
+              <label class="block text-sm font-medium ui-text-primary mb-2">Target Type</label>
+              <div class="flex gap-4">
+                <label class="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="hook[target_type]"
+                    value="mount_point"
+                    checked
+                    class="ui-text-primary"
+                  />
+                  <span class="ui-text-primary">Mount Point (Internal)</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="hook[target_type]"
+                    value="http_url"
+                    class="ui-text-primary"
+                  />
+                  <span class="ui-text-primary">HTTP URL (External)</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="mount-point-target">
+              <label class="block text-sm font-medium ui-text-primary mb-2">
+                Target Mount Point
+              </label>
+              <select
+                name="hook[target_path_id]"
+                class="w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full"
+              >
+                <option value="">Select a mount point...</option>
+                <%= for mp <- @mount_points do %>
+                  <option value={mp.id}>{mp.full_path}</option>
+                <% end %>
+              </select>
+            </div>
+
+            <div id="http-url-target" style="display: none;">
+              <.input
+                field={@hook_form[:target_url]}
+                type="text"
+                label="Target URL"
+                placeholder="https://auth.example.com/verify"
+                class="w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full"
+              />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <.input
+                field={@hook_form[:timeout_ms]}
+                type="number"
+                label="Timeout (ms)"
+                value="5000"
+                min="1"
+                max="60000"
+                required
+                class="w-full input ui-foreground ui-text-primary focus:outline-none focus:border-ui-inverted-foreground rounded-full"
+              />
+              <div>
+                <label class="block text-sm font-medium ui-text-primary mb-2">
+                  Forward Query Params
+                </label>
+                <input
+                  type="checkbox"
+                  name="hook[forward_query_params]"
+                  value="true"
+                  class="ui-text-primary"
+                />
+              </div>
+            </div>
+
+            <.button
+              type="submit"
+              phx-disable-with="Creating..."
+              data-test="create-hook-button"
+              class="!w-auto px-6"
+            >
+              ● Create Hook
+            </.button>
+          </.form>
+          
+    <!-- Hooks List -->
+          <div class="mt-8">
+            <%= if @hooks == [] do %>
+              <div class="text-center py-8 ui-text-secondary">
+                No hooks configured. Hooks allow you to preprocess requests before they reach the backend.
+              </div>
+            <% else %>
+              <div class="mb-4 p-4 bg-[var(--ui-foreground)] rounded-lg ui-text-secondary text-sm">
+                <strong>Request Flow:</strong>
+                Client →
+                <%= for {hook, idx} <- Enum.with_index(@hooks) do %>
+                  Hook #{hook.execution_order} ({hook.name}) →
+                <% end %>
+                Backend
+              </div>
+
+              <table class="w-full border-separate border-spacing-y-1">
+                <tbody>
+                  <tr :for={hook <- @hooks} class="group transition-colors">
+                    <td class="py-3 px-4 rounded-full group-hover:bg-[var(--ui-foreground)]">
+                      <div class="flex items-center justify-between gap-3">
+                        <!-- Order badge -->
+                        <div class="flex-shrink-0">
+                          <div class="w-8 h-8 rounded-full bg-[var(--ui-inverted-foreground)] ui-text-inverted flex items-center justify-center font-bold">
+                            {hook.execution_order}
+                          </div>
+                        </div>
+                        <!-- Hook info -->
+                        <div class="flex-1 min-w-0">
+                          <div class="ui-text-primary">
+                            <span class="font-medium">{hook.name}</span>
+                            <%= if hook.description do %>
+                              <span class="ml-2 text-sm ui-text-secondary">
+                                {hook.description}
+                              </span>
+                            <% end %>
+                          </div>
+                          <div class="flex gap-4 text-xs ui-text-secondary mt-1">
+                            <span>
+                              Target:
+                              <%= if hook.target_type == "mount_point" do %>
+                                <span class="font-mono">
+                                  {if hook.target_path,
+                                    do: hook.target_path.full_path,
+                                    else: "Unknown"}
+                                </span>
+                              <% else %>
+                                <span class="font-mono">{hook.target_url}</span>
+                              <% end %>
+                            </span>
+                            <span>Timeout: {hook.timeout_ms}ms</span>
+                            <span>
+                              Status codes: [{Enum.join(hook.allowed_status_codes, ", ")}]
+                            </span>
+                          </div>
+                        </div>
+                        <!-- Actions -->
+                        <div class="flex justify-end items-center gap-2 flex-shrink-0">
+                          <div class="group/actions relative inline-flex items-center gap-2">
+                            <!-- Settings icon (always visible) -->
+                            <div class="interactive-button-base icon-button flex items-center justify-center flex-shrink-0">
+                              <.icon name="hero-cog-6-tooth" class="icon-button-icon" />
+                            </div>
+                            
+    <!-- Expandable actions (visible on hover) -->
+                            <div class="flex items-center gap-2 overflow-hidden max-w-0 opacity-0 group-hover/actions:max-w-[14rem] group-hover/actions:opacity-100 transition-all duration-300 ease-in-out">
+                              <button
+                                type="button"
+                                class="interactive-button-base icon-button flex-shrink-0"
+                                phx-click="delete_hook"
+                                phx-value-id={hook.id}
+                                data-test="delete-hook-button"
+                                data-confirm="Are you sure you want to delete this hook? This action cannot be undone."
+                                title="Delete"
+                              >
+                                <.icon name="hero-trash" class="icon-button-icon" />
+                              </button>
+                              <button
+                                type="button"
+                                class="interactive-button-base icon-button flex-shrink-0"
+                                phx-click="open_edit_hook"
+                                phx-value-id={hook.id}
+                                data-test="edit-hook-button"
+                                title="Edit"
+                              >
+                                <.icon name="hero-pencil" class="icon-button-icon" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            <% end %>
+          </div>
+        </div>
+        
+    <!-- Edit Hook Modal -->
+        <.pop_up_form
+          :if={@editing_hook}
+          id="edit-hook-modal"
+          title="Edit Hook"
+          title_align="left"
+          on_cancel={JS.push("close_edit_hook")}
+        >
+          <:form>
+            <.form for={@edit_hook_form} phx-submit="save_edit_hook">
+              <div class="space-y-4">
+                <.input
+                  field={@edit_hook_form[:name]}
+                  type="text"
+                  label="Hook Name"
+                  required
+                  phx-mounted={JS.focus()}
+                  class="w-full input ui-foreground focus:outline-none focus:border-ui-text-primary rounded-full ui-text-primary"
+                />
+                <.input
+                  field={@edit_hook_form[:description]}
+                  type="text"
+                  label="Description"
+                  class="w-full input ui-foreground focus:outline-none focus:border-ui-text-primary rounded-full ui-text-primary"
+                />
+                <.input
+                  field={@edit_hook_form[:timeout_ms]}
+                  type="number"
+                  label="Timeout (ms)"
+                  min="1"
+                  max="60000"
+                  required
+                  class="w-full input ui-foreground focus:outline-none focus:border-ui-text-primary rounded-full ui-text-primary"
+                />
+              </div>
+              <.button type="submit" phx-disable-with="Saving...">
+                ● Save Changes
+              </.button>
+            </.form>
+          </:form>
+        </.pop_up_form>
       </div>
     </Layouts.app>
     """
@@ -575,10 +846,12 @@ defmodule PlugboardWeb.PathTokensLive.Index do
              |> redirect(to: ~p"/paths")}
 
           role ->
-            # Load tokens, service accounts, and domain affinities
+            # Load tokens, service accounts, domain affinities, and hooks
             tokens = TelephoneTokens.list_tokens_for_path(path_id)
             service_accounts = ServiceAccounts.list_service_accounts_for_path(path_id)
             domain_affinities = DomainAffinities.list_domain_affinities_for_path(path_id)
+            hooks = Hooks.list_hooks_for_path(path_id)
+            mount_points = Paths.list_mount_points(user.id)
 
             # Build breadcrumbs
             breadcrumbs = build_breadcrumbs(path)
@@ -591,16 +864,21 @@ defmodule PlugboardWeb.PathTokensLive.Index do
                tokens: tokens,
                service_accounts: service_accounts,
                domain_affinities: domain_affinities,
+               hooks: hooks,
+               mount_points: mount_points,
                breadcrumbs: breadcrumbs,
                token_form: to_form(%{}, as: "token"),
                sa_form: to_form(%{}, as: "service_account"),
                domain_form: to_form(%{}, as: "domain"),
+               hook_form: to_form(%{}, as: "hook"),
                created_token: nil,
                created_api_key: nil,
                editing_token: nil,
                edit_token_form: nil,
                editing_service_account: nil,
-               edit_service_account_form: nil
+               edit_service_account_form: nil,
+               editing_hook: nil,
+               edit_hook_form: nil
              )}
         end
     end
@@ -911,6 +1189,147 @@ defmodule PlugboardWeb.PathTokensLive.Index do
 
         {:error, _reason} ->
           {:noreply, put_flash(socket, :error, "Failed to delete domain affinity")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+    end
+  end
+
+  @impl true
+  def handle_event("create_hook", %{"hook" => hook_params}, socket) do
+    user = socket.assigns.current_scope.user
+    path = socket.assigns.path
+
+    if socket.assigns.user_role in ["owner", "maintainer"] do
+      attrs = %{
+        path_id: path.id,
+        name: Map.get(hook_params, "name"),
+        description: Map.get(hook_params, "description"),
+        target_type: Map.get(hook_params, "target_type", "mount_point"),
+        target_path_id: Map.get(hook_params, "target_path_id"),
+        target_url: Map.get(hook_params, "target_url"),
+        execution_order: String.to_integer(Map.get(hook_params, "execution_order", "0")),
+        timeout_ms: String.to_integer(Map.get(hook_params, "timeout_ms", "5000")),
+        forward_query_params: Map.get(hook_params, "forward_query_params") == "true"
+      }
+
+      case Hooks.create_hook(user.id, attrs) do
+        {:ok, _hook} ->
+          # Reload hooks
+          hooks = Hooks.list_hooks_for_path(path.id)
+
+          {:noreply,
+           socket
+           |> assign(hooks: hooks)
+           |> put_flash(:info, "Hook created successfully")}
+
+        {:error, reason} when is_binary(reason) ->
+          {:noreply, put_flash(socket, :error, reason)}
+
+        {:error, changeset} ->
+          errors =
+            Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
+            |> Enum.map(fn {field, messages} ->
+              "#{field}: #{Enum.join(messages, ", ")}"
+            end)
+            |> Enum.join("; ")
+
+          {:noreply, put_flash(socket, :error, "Failed to create hook: #{errors}")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+    end
+  end
+
+  @impl true
+  def handle_event("delete_hook", %{"id" => hook_id}, socket) do
+    user = socket.assigns.current_scope.user
+
+    if socket.assigns.user_role in ["owner", "maintainer"] do
+      case Hooks.get_hook(hook_id) do
+        nil ->
+          {:noreply, put_flash(socket, :error, "Hook not found")}
+
+        hook ->
+          case Hooks.delete_hook(user.id, hook) do
+            {:ok, _deleted_hook} ->
+              # Reload hooks
+              hooks = Hooks.list_hooks_for_path(socket.assigns.path.id)
+
+              {:noreply,
+               socket
+               |> assign(hooks: hooks)
+               |> put_flash(:info, "Hook deleted successfully")}
+
+            {:error, reason} when is_binary(reason) ->
+              {:noreply, put_flash(socket, :error, reason)}
+
+            {:error, _changeset} ->
+              {:noreply, put_flash(socket, :error, "Failed to delete hook")}
+          end
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+    end
+  end
+
+  @impl true
+  def handle_event("open_edit_hook", %{"id" => hook_id}, socket) do
+    case Hooks.get_hook(hook_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Hook not found")}
+
+      hook ->
+        edit_form =
+          to_form(
+            %{
+              "name" => hook.name,
+              "description" => hook.description || "",
+              "timeout_ms" => hook.timeout_ms
+            },
+            as: "edit_hook"
+          )
+
+        {:noreply, assign(socket, editing_hook: hook, edit_hook_form: edit_form)}
+    end
+  end
+
+  @impl true
+  def handle_event("close_edit_hook", _params, socket) do
+    {:noreply, assign(socket, editing_hook: nil, edit_hook_form: nil)}
+  end
+
+  @impl true
+  def handle_event("save_edit_hook", %{"edit_hook" => hook_params}, socket) do
+    user = socket.assigns.current_scope.user
+    hook = socket.assigns.editing_hook
+
+    if socket.assigns.user_role in ["owner", "maintainer"] do
+      attrs = %{
+        name: hook_params["name"],
+        description:
+          if(hook_params["description"] == "", do: nil, else: hook_params["description"]),
+        timeout_ms: String.to_integer(hook_params["timeout_ms"])
+      }
+
+      case Hooks.update_hook(user.id, hook, attrs) do
+        {:ok, _updated_hook} ->
+          # Reload hooks
+          hooks = Hooks.list_hooks_for_path(socket.assigns.path.id)
+
+          {:noreply,
+           socket
+           |> assign(hooks: hooks, editing_hook: nil, edit_hook_form: nil)
+           |> put_flash(:info, "Hook updated successfully")}
+
+        {:error, reason} when is_binary(reason) ->
+          {:noreply, put_flash(socket, :error, reason)}
+
+        {:error, changeset} ->
+          {:noreply,
+           socket
+           |> assign(edit_hook_form: to_form(changeset, as: "edit_hook"))
+           |> put_flash(:error, "Failed to update hook")}
       end
     else
       {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}

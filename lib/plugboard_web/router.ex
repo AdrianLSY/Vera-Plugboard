@@ -65,6 +65,14 @@ defmodule PlugboardWeb.Router do
     post "/paths/:path_id/domain-affinities", DomainAffinityController, :create
     get "/paths/:path_id/domain-affinities", DomainAffinityController, :index
     delete "/domain-affinities/:id", DomainAffinityController, :delete
+
+    # Hook endpoints
+    post "/paths/:path_id/hooks", HookController, :create
+    get "/paths/:path_id/hooks", HookController, :index
+    get "/hooks/:id", HookController, :show
+    put "/hooks/:id", HookController, :update
+    delete "/hooks/:id", HookController, :delete
+    patch "/paths/:path_id/hooks/reorder", HookController, :reorder
   end
 
   # Token Vending Machine API (no user authentication required, uses service account API key)

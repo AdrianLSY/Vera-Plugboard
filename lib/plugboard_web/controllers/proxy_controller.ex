@@ -100,6 +100,7 @@ defmodule PlugboardWeb.ProxyController do
 
   alias Plugboard.TelephoneRegistry
   alias Plugboard.Paths
+  alias Plugboard.Hooks.Executor, as: HooksExecutor
   alias PlugboardWeb.HTTPError
 
   @doc """
@@ -203,18 +204,52 @@ defmodule PlugboardWeb.ProxyController do
         )
 
       path ->
-        # Get a telephone from the registry using round-robin
-        case TelephoneRegistry.get_telephone(path_id) do
-          {:ok, telephone_pid} ->
-            # Forward the request to the telephone
-            forward_request_to_telephone(conn, telephone_pid, path, forwarded_path)
+        # Execute hooks before forwarding to backend
+        case HooksExecutor.execute_hooks(conn, path_id) do
+          {:ok, modified_conn} ->
+            # Hooks passed - proceed with proxy
+            # Get a telephone from the registry using round-robin
+            case TelephoneRegistry.get_telephone(path_id) do
+              {:ok, telephone_pid} ->
+                # Forward the request to the telephone
+                forward_request_to_telephone(modified_conn, telephone_pid, path, forwarded_path)
 
-          {:error, :no_telephone} ->
-            Logger.warning("No telephone available for path #{path.full_path}")
+              {:error, :no_telephone} ->
+                Logger.warning("No telephone available for path #{path.full_path}")
+
+                HTTPError.send_error(conn, 503,
+                  reason: "No telephone available for this path",
+                  details: %{path: path.full_path},
+                  log: false
+                )
+            end
+
+          {:error, :hook_rejected, hook, response} ->
+            # Hook rejected request - return hook's response
+            send_hook_error_response(conn, hook, response)
+
+          {:error, :timeout, hook} ->
+            Logger.warning("Hook #{hook.name} timeout for path #{path.full_path}")
+
+            HTTPError.send_error(conn, 504,
+              reason: "Hook timeout",
+              details: %{
+                hook_name: hook.name,
+                timeout_ms: hook.timeout_ms,
+                path: path.full_path
+              },
+              log: false
+            )
+
+          {:error, :unavailable, hook} ->
+            Logger.error("Hook #{hook.name} unavailable for path #{path.full_path}")
 
             HTTPError.send_error(conn, 503,
-              reason: "No telephone available for this path",
-              details: %{path: path.full_path},
+              reason: "Hook unavailable",
+              details: %{
+                hook_name: hook.name,
+                path: path.full_path
+              },
               log: false
             )
         end
@@ -483,5 +518,14 @@ defmodule PlugboardWeb.ProxyController do
 
   defp build_request_path(_params) do
     "/"
+  end
+
+  defp send_hook_error_response(conn, hook, %{status: status, body: body}) do
+    Logger.info("Request rejected by hook #{hook.name} with status #{status}")
+
+    conn
+    |> put_status(status)
+    |> put_resp_content_type("application/json")
+    |> send_resp(status, body)
   end
 end

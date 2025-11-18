@@ -19,6 +19,10 @@ defmodule Plugboard.Application do
       Plugboard.MountStore,
       # Start the MountNotifier to listen for PostgreSQL NOTIFY events
       Plugboard.MountNotifier,
+      # Start the HookStore for in-memory hook caching
+      Plugboard.HookStore,
+      # Start the HookNotifier to listen for hook change notifications
+      Plugboard.HookNotifier,
       # Start the DistributedRegistry (Horde) for cluster-wide telephone tracking
       Plugboard.DistributedRegistry,
       # Start the ClusterConnector to sync libcluster events with Horde
