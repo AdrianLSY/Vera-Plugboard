@@ -88,26 +88,6 @@ docker run -d \
 iex -S mix phx.server
 ```
 
-### Test
-
-```bash
-# 1. Register as a user and log in at http://localhost:4000/users/register
-
-# 2. Create a path hierarchy via the web UI at http://localhost:4000/paths
-#    Example: Create path "api" at root level
-
-# 3. Mark the path as a mount point (toggle mount button in UI)
-
-# 4. Generate a telephone token for the mount point
-#    Navigate to the path in UI and create a token in the "Telephone Tokens" tab
-
-# 5. Connect a Telephone sidecar using the generated token
-#    See: https://github.com/AdrianLSY/Vera-Telephone
-
-# 6. Make a request through the proxy
-curl http://localhost:4000/call/api/users
-```
-
 ---
 
 ## How It Works
@@ -823,13 +803,95 @@ Plugboard/
 │   │   ├── telephone_channel.ex  # WebSocket channel handler
 │   │   └── proxy_controller.ex   # HTTP request handler
 │   └── plugboard_web/
-│       ├── channels/             # Phoenix channels
-│       ├── controllers/          # API controllers
-│       └── router.ex             # Route definitions
-├── priv/repo/migrations/         # Database migrations
-├── test/                         # Test suite
-├── config/                       # Configuration files
-└── mix.exs                       # Project dependencies
+│       ├── endpoint.ex                     # Phoenix endpoint (HTTP/WebSocket)
+│       ├── router.ex                       # Route definitions
+│       ├── telemetry.ex                    # Telemetry metrics
+│       ├── gettext.ex                      # I18n
+│       ├── user_auth.ex                    # Authentication plugs
+│       │
+│       ├── channels/                       # Phoenix Channels (WebSocket)
+│       │   ├── telephone_channel.ex        # Telephone WebSocket handler
+│       │   ├── telephone_socket.ex         # Telephone socket config
+│       │   └── user_socket.ex              # User socket config
+│       │
+│       ├── controllers/                    # HTTP controllers
+│       │   ├── page_controller.ex          # Home page
+│       │   ├── proxy_controller.ex         # Proxy request handler
+│       │   ├── user_session_controller.ex  # Login/logout
+│       │   ├── error_html.ex               # HTML error pages
+│       │   ├── error_json.ex               # JSON error responses
+│       │   └── api/                        # API endpoints
+│       │       ├── telephone_token_controller.ex
+│       │       ├── service_account_controller.ex
+│       │       ├── token_vending_controller.ex
+│       │       └── domain_affinity_controller.ex
+│       │
+│       ├── live/                           # LiveView pages
+│       │   ├── paths_live/
+│       │   │   └── index.ex                # Path hierarchy management UI
+│       │   ├── path_tokens_live/
+│       │   │   └── index.ex                # Token/service account/domain UI
+│       │   └── user_live/                  # User auth LiveViews
+│       │       ├── registration.ex
+│       │       ├── login.ex
+│       │       ├── confirmation.ex
+│       │       └── settings.ex
+│       │
+│       ├── components/                     # Reusable UI components
+│       │   ├── core_components.ex          # Base UI components
+│       │   └── layouts.ex                  # Page layouts
+│       │
+│       ├── plugs/                          # Custom plugs
+│       │   ├── validate_path.ex            # Path validation (traversal protection)
+│       │   └── domain_affinity_router.ex   # Domain-based routing plug
+│       │
+│       └── http_error.ex                   # Error response helper
+│
+├── priv/repo/
+│   ├── migrations/                         # Database migrations
+│   │   ├── *_create_users_auth_tables.exs
+│   │   ├── *_create_paths_table.exs
+│   │   ├── *_create_user_paths_table.exs
+│   │   ├── *_create_telephone_tokens_table.exs
+│   │   ├── *_create_service_accounts_table.exs
+│   │   ├── *_create_domain_affinities_table.exs
+│   │   └── *_add_mount_notify_trigger.exs
+│   └── seeds.exs                           # Seed data
+│
+├── test/                                   # Test suite
+│   ├── plugboard/                          # Context tests
+│   │   ├── accounts_test.exs
+│   │   ├── paths_test.exs
+│   │   ├── paths_concurrent_test.exs
+│   │   ├── telephone_tokens_test.exs
+│   │   ├── service_accounts_test.exs
+│   │   ├── domain_affinities_test.exs
+│   │   ├── mount_store_test.exs
+│   │   ├── mount_notifier_test.exs
+│   │   └── distributed_registry_test.exs
+│   ├── plugboard_web/                      # Web tests
+│   │   ├── controllers/
+│   │   │   ├── proxy_controller_test.exs
+│   │   │   └── api/
+│   │   ├── channels/
+│   │   │   └── telephone_channel_test.exs
+│   │   ├── live/
+│   │   │   ├── paths_live/index_test.exs
+│   │   │   └── path_tokens_live/index_test.exs
+│   │   └── plugs/
+│   └── support/                            # Test helpers
+│
+├── config/                                 # Configuration
+│   ├── config.exs                          # Base config
+│   ├── dev.exs                             # Development
+│   ├── test.exs                            # Test environment
+│   ├── prod.exs                            # Production
+│   └── runtime.exs                         # Runtime config (env vars)
+│
+├── assets/                                 # Frontend assets (if any)
+├── .formatter.exs                          # Code formatter config
+├── mix.exs                                 # Project dependencies
+└── mix.lock                                # Dependency lock file
 ```
 
 ### Running Tests
