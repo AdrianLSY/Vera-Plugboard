@@ -517,7 +517,7 @@ defmodule Plugboard.MountStoreTest do
         ])
 
       # Trigger reload
-      {:ok, _count} = MountStore.reload_all()
+      {:ok, _count, _domain_count} = MountStore.reload_all()
 
       # Verify reload telemetry was emitted
       assert_receive {[:plugboard, :mount_store, :reload], ^ref, %{duration: _, count: _},

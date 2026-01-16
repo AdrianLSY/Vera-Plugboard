@@ -430,8 +430,102 @@ defmodule Plugboard.MountNotifierTest do
       assert pid != nil
 
       state = :sys.get_state(pid)
-      # Should have a valid reference from listening
-      assert state.ref != nil
+      # Should have valid references from listening to both channels
+      assert state.mount_ref != nil
+      assert state.domain_ref != nil
+    end
+  end
+
+  describe "domain affinity notifications" do
+    setup do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "domain-affinity-test",
+          user_id: user.id,
+          mount_point: true
+        })
+
+      MountStore.reload_all()
+      %{user: user, path: path}
+    end
+
+    test "refresh_domain_affinity adds domain to ETS", %{path: path} do
+      # Test that refresh_domain_affinity works correctly
+      MountStore.refresh_domain_affinity(
+        "direct-add.example.com",
+        path.id,
+        "/domain-affinity-test"
+      )
+
+      # Should be in ETS - match_by_domain returns {:ok, {path_id, full_path}}
+      result = MountStore.match_by_domain("direct-add.example.com")
+      assert {:ok, {_path_id, "/domain-affinity-test"}} = result
+    end
+
+    test "remove_domain_affinity removes domain from ETS", %{path: path} do
+      # First add a domain affinity directly to ETS
+      MountStore.refresh_domain_affinity(
+        "direct-remove.example.com",
+        path.id,
+        "/domain-affinity-test"
+      )
+
+      # Verify it's there
+      assert {:ok, {_path_id, "/domain-affinity-test"}} =
+               MountStore.match_by_domain("direct-remove.example.com")
+
+      # Remove it
+      MountStore.remove_domain_affinity("direct-remove.example.com")
+
+      # Should be removed from ETS
+      assert {:error, :not_found} = MountStore.match_by_domain("direct-remove.example.com")
+    end
+
+    test "handles malformed domain affinity JSON payload gracefully" do
+      # Send malformed JSON via NOTIFY
+      Repo.query("SELECT pg_notify('plugboard_domain_affinities', 'invalid json}')", [])
+
+      :timer.sleep(100)
+
+      # MountNotifier should log error but not crash
+      assert Process.whereis(MountNotifier) != nil
+      assert Process.alive?(Process.whereis(MountNotifier))
+    end
+
+    test "handles unknown domain affinity action gracefully" do
+      # Send unknown action via NOTIFY
+      payload = Jason.encode!(%{"action" => "unknown_action", "domain" => "test.example.com"})
+      Repo.query("SELECT pg_notify('plugboard_domain_affinities', $1)", [payload])
+
+      :timer.sleep(100)
+
+      # MountNotifier should log warning but not crash
+      assert Process.whereis(MountNotifier) != nil
+      assert Process.alive?(Process.whereis(MountNotifier))
+    end
+
+    test "handles domain affinity notification with missing fields" do
+      # Send JSON without required fields
+      payload = Jason.encode!(%{"action" => "domain_affinity_added"})
+      Repo.query("SELECT pg_notify('plugboard_domain_affinities', $1)", [payload])
+
+      :timer.sleep(100)
+
+      # Should not crash
+      assert Process.whereis(MountNotifier) != nil
+      assert Process.alive?(Process.whereis(MountNotifier))
+    end
+
+    test "handles empty domain affinity NOTIFY payload" do
+      Repo.query("SELECT pg_notify('plugboard_domain_affinities', '')", [])
+
+      :timer.sleep(100)
+
+      # Should not crash
+      assert Process.whereis(MountNotifier) != nil
+      assert Process.alive?(Process.whereis(MountNotifier))
     end
   end
 

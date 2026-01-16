@@ -48,12 +48,20 @@ mix precommit                # compile --warnings-as-errors + deps.unlock --unus
 - **TelephoneRegistry** (`telephone_registry.ex`) - Compatibility shim delegating to DistributedRegistry.
 - **MountNotifier** (`mount_notifier.ex`) - PostgreSQL NOTIFY/LISTEN for real-time mount point updates.
 - **ClusterConnector** (`cluster_connector.ex`) - Syncs libcluster events with Horde for cluster membership.
+- **HookStore** (`hook_store.ex`) - ETS-backed cache for hooks with O(1) lookups by path_id.
+- **HookNotifier** (`hook_notifier.ex`) - PostgreSQL LISTEN/NOTIFY for real-time hook updates.
+- **Hooks** (`hooks.ex`) - Context for managing request hooks/middleware with role-based access.
+- **Hooks.Executor** (`hooks/executor.ex`) - Executes hooks sequentially, merges responses into request body.
+- **TokenCleanup** (`telephone_tokens/token_cleanup.ex`) - Periodic cleanup of expired telephone tokens (hourly).
 
 ### Web Layer (lib/plugboard_web/)
 
 - **ProxyController** (`controllers/proxy_controller.ex`) - Entry point for proxied HTTP requests. Routes `/call/*path` through WebSocket tunnels.
 - **TelephoneChannel** (`channels/telephone_channel.ex`) - Phoenix Channel handling WebSocket connections from Telephone sidecars.
 - **TelephoneSocket** (`channels/telephone_socket.ex`) - Socket handler with JWT authentication.
+- **Plugs.Parsers** (`plugs/parsers.ex`) - Custom Plug.Parsers wrapper that reads max body size from runtime config.
+- **Plugs.ValidatePath** (`plugs/validate_path.ex`) - Path validation with traversal protection.
+- **Plugs.DomainAffinityRouter** (`plugs/domain_affinity_router.ex`) - Domain-based routing plug for custom domain routing.
 
 ### Request Flow
 
@@ -71,12 +79,32 @@ Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneC
 
 ### Key Environment Variables
 
+**Required in Production:**
+| Variable | Description |
+|----------|-------------|
+| `SECRET_KEY_BASE` | Secret key for signing (min 64 chars) |
+| `PHX_PORT` | HTTP port |
+| `PHX_HOST` | Hostname for URL generation |
+| `POSTGRES_USER` | Database username |
+| `POSTGRES_PASSWORD` | Database password |
+| `POSTGRES_DB` | Database name |
+| `POSTGRES_HOST` | Database host |
+| `DB_POOL_SIZE` | Connection pool size |
+| `DB_QUERY_TIMEOUT` | Max query time (ms) |
+| `DB_CONNECT_TIMEOUT` | Max connection time (ms) |
+
+**Optional (with defaults):**
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `PHX_SERVER` | Start Phoenix server on boot | - |
+| `POSTGRES_PORT` | Database port | `5432` |
 | `MAX_REQUEST_BODY_SIZE` | Max request body (bytes) | `10485760` (10MB) |
 | `MOUNT_STORE_RECONCILE_INTERVAL` | Path reconciliation (ms) | `300000` (5 min) |
 | `TELEPHONE_TOKEN_EXPIRY` | Token expiry (seconds) | `3600` (1 hour) |
+| `TELEPHONE_TOKEN_REFRESH_INTERVAL` | Token refresh interval (seconds) | `1800` (30 min) |
 | `TELEPHONE_HEARTBEAT_TIMEOUT_MS` | Heartbeat timeout (ms) | `60000` (60 sec) |
+| `DNS_CLUSTER_QUERY` | DNS query for clustering | - |
+| `ECTO_IPV6` | Enable IPv6 for database | `false` |
 
 ## LiveView Patterns
 
@@ -94,10 +122,14 @@ Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneC
 
 ## Database Schema
 
-**mount_points** - Route configuration
-- `path` (string) - Mount path (e.g., `/api`)
-- `telephone_id` (string) - Identifier for Telephone sidecar
-- `backend_port` (integer) - Port on backend service
+**paths** - Route configuration
+- `id` (UUID) - Primary key
+- `parent_id` (UUID) - Reference to parent path
+- `path` (string) - Path segment (e.g., `api`)
+- `full_path` (string) - Complete path from root (e.g., `/call/api`) - auto-computed by trigger
+- `mount_point` (boolean) - Whether this path accepts telephone connections
+- `request_timeout_ms` (integer) - Max time to wait for telephone response (default: 60000)
+- `connect_timeout_ms` (integer) - Max time to wait for telephone connection (default: 5000)
 - `deleted_at` (timestamp) - Soft delete support
 
 ## Clustering

@@ -2,7 +2,7 @@
 
 **WebSocket-based reverse proxy server for the Vera-Stack**
 
-[![Elixir](https://img.shields.io/badge/elixir-1.17-purple.svg)](https://elixir-lang.org)
+[![Elixir](https://img.shields.io/badge/elixir-1.15+-purple.svg)](https://elixir-lang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](../LICENSE)
 [![CI](https://github.com/AdrianLSY/Vera-Plugboard/actions/workflows/ci.yml/badge.svg)](https://github.com/AdrianLSY/Vera-Plugboard/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/AdrianLSY/Vera-Plugboard/branch/main/graph/badge.svg)](https://codecov.io/gh/AdrianLSY/Vera-Plugboard)
@@ -18,6 +18,7 @@ Plugboard is a reverse proxy server that routes HTTP requests through WebSocket 
 - **WebSocket Tunnels** - Persistent connections to Telephone sidecars
 - **O(1) Path Matching** - ETS-backed route lookup with terminal mount strategy
 - **Domain Affinity** - Domain-based routing with exact and wildcard matching
+- **Request Hooks** - Middleware pipeline for pre-request processing
 - **Distributed Registry** - CRDT-based clustering via Horde
 - **Request Correlation** - UUID-based concurrent request handling
 - **Automatic Failover** - Cluster-wide rebalancing and partition healing
@@ -29,7 +30,7 @@ Plugboard is a reverse proxy server that routes HTTP requests through WebSocket 
 
 ### Prerequisites
 
-- Elixir 1.17+
+- Elixir 1.15+
 - Erlang/OTP 26+
 - PostgreSQL 14+
 
@@ -56,7 +57,7 @@ Create a `.env` file with required variables:
 ```bash
 # Phoenix Server
 SECRET_KEY_BASE=your_64_char_secret  # Generate with: mix phx.gen.secret
-PHX_SERVER=true
+PHX_SERVER=true                      # Optional: Start server on boot (required for releases)
 PHX_PORT=4000
 PHX_HOST=localhost
 
@@ -65,11 +66,23 @@ POSTGRES_USER=plugboard
 POSTGRES_PASSWORD=plugboard
 POSTGRES_DB=plugboard
 POSTGRES_HOST=localhost
-POSTGRES_PORT=6432
+POSTGRES_PORT=5432                   # Optional: defaults to 5432
+DB_POOL_SIZE=10
+DB_QUERY_TIMEOUT=15000
+DB_CONNECT_TIMEOUT=5000
+ECTO_IPV6=false                      # Optional: Enable IPv6 for database
 
 # Application Settings
-MAX_REQUEST_BODY_SIZE=10485760
-TELEPHONE_TOKEN_EXPIRY=3600
+MAX_REQUEST_BODY_SIZE=10485760       # Optional: Max request body (10MB default)
+MOUNT_STORE_RECONCILE_INTERVAL=300000  # Optional: Path reconciliation (5 min default)
+
+# Telephone Configuration
+TELEPHONE_TOKEN_EXPIRY=3600          # Optional: Token expiry (1 hour default)
+TELEPHONE_TOKEN_REFRESH_INTERVAL=1800  # Optional: Token refresh (30 min default)
+TELEPHONE_HEARTBEAT_TIMEOUT_MS=60000   # Optional: Heartbeat timeout (60 sec default)
+
+# Production Clustering (Optional)
+DNS_CLUSTER_QUERY=                   # DNS query for clustering in Kubernetes
 ```
 
 ### Run
@@ -164,6 +177,64 @@ iex -S mix phx.server
 └─────────────────────────────────────────────────────┘
 ```
 
+### Hooks Execution Flow (Request Middleware)
+
+```
+┌──────────────┐
+│    Client    │
+└──────┬───────┘
+       │ HTTP Request: POST /call/api/orders
+       │ Body: {"product_id": "123", "quantity": 2}
+       ▼
+┌─────────────────────────────────────────────────────┐
+│              Plugboard (:4000)                      │
+│                                                     │
+│  1. ProxyController receives request                │
+│  2. HookStore.get_hooks(path_id)                    │
+│     → Returns hooks ordered by execution_order      │
+│                                                     │
+│  3. Hooks.Executor processes each hook:             │
+│     ┌─────────────────────────────────────────┐     │
+│     │ Hook 1: "Auth Validator" (order: 0)     │     │
+│     │ Target: /call/auth/validate             │     │
+│     │ → Sends request to auth telephone       │     │
+│     │ → Response: {"user_id": "u123"}         │     │
+│     │ → Merged into body                      │     │
+│     └─────────────────────────────────────────┘     │
+│     ┌─────────────────────────────────────────┐     │
+│     │ Hook 2: "Inventory Check" (order: 1)    │     │
+│     │ Target: https://inventory.internal/check│     │
+│     │ → HTTP POST to external endpoint        │     │
+│     │ → Response: {"in_stock": true}          │     │
+│     │ → Merged into body                      │     │
+│     └─────────────────────────────────────────┘     │
+│                                                     │
+│  4. Final body after hooks:                         │
+│     {"product_id": "123", "quantity": 2,            │
+│      "user_id": "u123", "in_stock": true}           │
+│                                                     │
+│  5. Forward to target telephone                     │
+└────────────┬────────────────────────────────────────┘
+             │ WebSocket (Phoenix Channel)
+             ▼
+┌─────────────────────────────────────────────────────┐
+│           Telephone Sidecar (WebSocket)             │
+│           Receives enriched request body            │
+└─────────────────────────────────────────────────────┘
+```
+
+**Hook Rejection Flow:**
+
+If a hook returns a non-whitelisted status code, the request is rejected immediately:
+
+```
+Hook returns 403 (not in allowed_status_codes [200, 201, 202, 204])
+    → Request rejected
+    → Client receives hook's response (status + body)
+    → Subsequent hooks are NOT executed
+    → Target backend is NOT called
+```
+
 ---
 
 ## Architecture
@@ -234,6 +305,37 @@ iex -S mix phx.server
 - Domain normalization and validation
 - PostgreSQL NOTIFY triggers for real-time ETS updates
 - Soft-delete support
+
+**Hooks Context** (`lib/plugboard/hooks.ex`)
+- Middleware management for pre-request processing
+- Role-based access control (owner/maintainer required)
+- Circular dependency detection for mount point hooks
+- Soft-delete support with ordered execution
+
+**Hooks.Executor** (`lib/plugboard/hooks/executor.ex`)
+- Executes hooks sequentially by `execution_order`
+- Supports two target types: internal mount points and external HTTP URLs
+- Merges hook responses into request body at root level
+- Rejects requests when hooks return non-whitelisted status codes
+- Configurable timeout per hook (1ms - 60s)
+
+**HookStore** (`lib/plugboard/hook_store.ex`)
+- GenServer maintaining ETS table `:plugboard_hooks`
+- Loads hooks from PostgreSQL on startup
+- Provides O(1) lookups by `path_id`
+- Listens for PostgreSQL NOTIFY events for real-time cache updates
+- Periodic reconciliation with database
+
+**HookNotifier** (`lib/plugboard/hook_notifier.ex`)
+- PostgreSQL LISTEN/NOTIFY listener for hook changes
+- Establishes dedicated PostgreSQL connection
+- Automatic reconnection with exponential backoff (max 30s)
+- Updates HookStore ETS table on notifications
+
+**TokenCleanup** (`lib/plugboard/telephone_tokens/token_cleanup.ex`)
+- GenServer that periodically cleans up expired telephone tokens
+- Runs every hour to prevent unbounded table growth
+- Prevents accumulation of stale token records
 
 ### Terminal Mount Strategy
 
@@ -387,6 +489,34 @@ Each proxied request receives a unique correlation ID, allowing multiple concurr
 - Unique active domains (one domain can only map to one path)
 - Associated path must be a mount point
 
+**hooks table**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `path_id` | UUID | Reference to paths table (cascade delete) |
+| `name` | String | Hook name (required) |
+| `description` | Text | Optional description |
+| `target_type` | String | `mount_point` or `http_url` |
+| `target_path_id` | UUID | Reference to target path (for mount_point type) |
+| `target_url` | Text | External URL (for http_url type) |
+| `execution_order` | Integer | Order of execution (unique per path, default: 0) |
+| `timeout_ms` | Integer | Timeout in milliseconds (default: 5000, max: 60000) |
+| `allowed_status_codes` | JSONB | Status codes that allow request to proceed (default: [200, 201, 202, 204]) |
+| `forward_headers` | JSONB | List of headers to forward from original request |
+| `forward_query_params` | Boolean | Whether to forward query parameters (default: false) |
+| `deleted_at` | Timestamp | Soft delete timestamp |
+| `inserted_at` | Timestamp | Creation time |
+| `updated_at` | Timestamp | Last modification |
+
+**Constraints:**
+- `target_type` must be `mount_point` or `http_url`
+- If `target_type = mount_point`: `target_path_id` required, `target_url` must be null
+- If `target_type = http_url`: `target_url` required, `target_path_id` must be null
+- `timeout_ms` must be between 1 and 60000
+- `execution_order` must be >= 0 and unique per path
+- Circular dependencies are prevented at application level
+
 **user_paths table** (junction table)
 
 | Column | Type | Description |
@@ -443,19 +573,19 @@ docker run --rm -it \
 | Variable                                       | Description                           | Example Value                         | Required |
 |------------------------------------------------|---------------------------------------|---------------------------------------|----------|
 | `SECRET_KEY_BASE`                              | Secret key for signing (min 64 chars) | Generate with `mix phx.gen.secret`    | ✅       |
-| `PHX_SERVER`                                   | Start Phoenix server on boot          | `true`                                | ✅       |
 | `PHX_PORT`                                     | HTTP port                             | `4000`                                | ✅       |
 | `PHX_HOST`                                     | Hostname for URL generation           | `localhost`                           | ✅       |
 | `POSTGRES_USER`                                | Database username                     | `plugboard`                           | ✅       |
 | `POSTGRES_PASSWORD`                            | Database password                     | `plugboard`                           | ✅       |
 | `POSTGRES_DB`                                  | Database name                         | `plugboard`                           | ✅       |
 | `POSTGRES_HOST`                                | Database host                         | `localhost`                           | ✅       |
-| `POSTGRES_PORT`                                | Database port                         | `6432`                                | ✅       |
 | `DB_POOL_SIZE`                                 | Connection pool size                  | `10`                                  | ✅       |
 | `DB_QUERY_TIMEOUT`                             | Max query time (ms)                   | `15000`                               | ✅       |
 | `DB_CONNECT_TIMEOUT`                           | Max connection time (ms)              | `5000`                                | ✅       |
-| `MAX_REQUEST_BODY_SIZE`                        | Max request body (bytes)              | `10485760` (10MB)                     | ✅       |
-| `MOUNT_STORE_RECONCILE_INTERVAL`               | Path reconciliation interval (ms)     | `30000` (30s)                         | ✅       |
+| `PHX_SERVER`                                   | Start Phoenix server on boot          | `true`                                | ❌       |
+| `POSTGRES_PORT`                                | Database port                         | `5432`                                | ❌       |
+| `MAX_REQUEST_BODY_SIZE`                        | Max request body (bytes)              | `10485760` (10MB)                     | ❌       |
+| `MOUNT_STORE_RECONCILE_INTERVAL`               | Path reconciliation interval (ms)     | `300000` (5 min)                      | ❌       |
 | `TELEPHONE_TOKEN_EXPIRY`                       | Token expiry time (seconds)           | `3600` (1 hour)                       | ❌       |
 | `TELEPHONE_TOKEN_REFRESH_INTERVAL`             | Token refresh interval (seconds)      | `1800` (30 min)                       | ❌       |
 | `TELEPHONE_HEARTBEAT_TIMEOUT_MS`               | Heartbeat timeout (milliseconds)      | `60000` (60 sec)                      | ❌       |
@@ -474,7 +604,7 @@ Paths are managed through the **web UI** at `/paths`. There is no REST API for p
 
 **Web UI Routes:**
 - `GET /paths` - View and manage path hierarchy
-- `GET /paths/:path_id/tokens` - Manage tokens, service accounts, and domain affinities for a path
+- `GET /paths/:path_id/tokens` - Manage tokens, service accounts, domain affinities, and hooks for a path
 
 **Path Operations (UI only):**
 - Create child paths under a parent
@@ -692,6 +822,166 @@ Authorization: Bearer <session_token>
 - Path must be a mount point
 - Domain names are automatically normalized (lowercased, port stripped)
 
+### Hook Management
+
+Hooks are middleware that process requests before they reach the target backend. They execute sequentially and can enrich requests with additional data or reject requests based on validation.
+
+**Create Hook**
+
+```http
+POST /api/paths/:path_id/hooks
+Content-Type: application/json
+Authorization: Bearer <session_token>
+
+{
+  "name": "Auth Validator",
+  "description": "Validates user authentication",
+  "target_type": "mount_point",
+  "target_path_id": "uuid-of-auth-service",
+  "execution_order": 0,
+  "timeout_ms": 5000,
+  "allowed_status_codes": [200, 201],
+  "forward_headers": ["authorization", "x-request-id"],
+  "forward_query_params": false
+}
+```
+
+**Alternative: External HTTP Target**
+
+```json
+{
+  "name": "External Validator",
+  "target_type": "http_url",
+  "target_url": "https://validator.example.com/check",
+  "execution_order": 1,
+  "timeout_ms": 3000
+}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "name": "Auth Validator",
+  "description": "Validates user authentication",
+  "target_type": "mount_point",
+  "target_path_id": "uuid-of-auth-service",
+  "target_url": null,
+  "execution_order": 0,
+  "timeout_ms": 5000,
+  "allowed_status_codes": [200, 201],
+  "forward_headers": ["authorization", "x-request-id"],
+  "forward_query_params": false,
+  "created_at": "2025-11-18T10:00:00Z"
+}
+```
+
+**List Hooks for Path**
+
+```http
+GET /api/paths/:path_id/hooks
+Authorization: Bearer <session_token>
+```
+
+**Response:**
+```json
+{
+  "hooks": [
+    {
+      "id": "uuid",
+      "name": "Auth Validator",
+      "description": "Validates user authentication",
+      "target_type": "mount_point",
+      "target_path_id": "uuid",
+      "target_path": "/call/auth",
+      "target_url": null,
+      "execution_order": 0,
+      "timeout_ms": 5000,
+      "allowed_status_codes": [200, 201],
+      "forward_headers": ["authorization"],
+      "forward_query_params": false,
+      "created_at": "2025-11-18T10:00:00Z",
+      "updated_at": "2025-11-18T10:00:00Z"
+    }
+  ]
+}
+```
+
+**Get Single Hook**
+
+```http
+GET /api/hooks/:id
+Authorization: Bearer <session_token>
+```
+
+**Update Hook**
+
+```http
+PUT /api/hooks/:id
+Content-Type: application/json
+Authorization: Bearer <session_token>
+
+{
+  "name": "Updated Name",
+  "timeout_ms": 10000,
+  "allowed_status_codes": [200, 201, 202]
+}
+```
+
+**Delete Hook**
+
+```http
+DELETE /api/hooks/:id
+Authorization: Bearer <session_token>
+```
+
+**Response:**
+```json
+{
+  "message": "Hook deleted successfully"
+}
+```
+
+**Reorder Hooks**
+
+```http
+PATCH /api/paths/:path_id/hooks/reorder
+Content-Type: application/json
+Authorization: Bearer <session_token>
+
+{
+  "hooks": [
+    {"id": "hook-uuid-1", "execution_order": 0},
+    {"id": "hook-uuid-2", "execution_order": 1},
+    {"id": "hook-uuid-3", "execution_order": 2}
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "hooks": [
+    {"id": "hook-uuid-1", "execution_order": 0},
+    {"id": "hook-uuid-2", "execution_order": 1},
+    {"id": "hook-uuid-3", "execution_order": 2}
+  ]
+}
+```
+
+**Authorization:**
+- User must have `owner` or `maintainer` role on the path
+- Path must exist and not be deleted
+- For `mount_point` targets: target path must exist and be a mount point
+- Circular dependencies are automatically detected and rejected
+
+**Hook Execution Behavior:**
+- Hooks execute in `execution_order` (ascending)
+- Each hook receives the accumulated request body from previous hooks
+- Hook responses are merged at root level (`Map.merge/2`)
+- If a hook returns a status not in `allowed_status_codes`, the request is rejected
+- On rejection, the client receives the hook's response; subsequent hooks and backend are not called
+
 ### Proxy Routes
 
 **Standard Proxy (with `/call` prefix)**
@@ -765,6 +1055,32 @@ https://api.example.com/users/123  # Routes to /call/api mount point
 - `*.api.example.com` matches `v1.api.example.com`, `v2.api.example.com`, etc.
 - Most specific match wins: exact domain > wildcard > no match
 
+### Request Hooks & Middleware
+- Pre-request processing pipeline with sequential execution
+- Target internal mount points (via telephone) or external HTTP endpoints
+- Response merging at root level into request body
+- Status code whitelisting for request acceptance/rejection
+- Configurable timeout per hook (1ms - 60s)
+- Header forwarding from original request
+- Query parameter forwarding option
+- Circular dependency detection for mount point hooks
+- Real-time cache updates via PostgreSQL NOTIFY
+- ETS-backed O(1) hook lookups by path
+
+**Example Use Cases:**
+```bash
+# Authentication validation before processing
+Hook 1: POST /call/auth/validate → Returns user context
+
+# Rate limiting check
+Hook 2: POST https://ratelimit.internal/check → Returns quota info
+
+# Request enrichment with external data
+Hook 3: POST /call/inventory/lookup → Returns stock levels
+
+# All responses merged into final request body
+```
+
 ### Connection Management
 - WebSocket connections to Telephone sidecars
 - Automatic reconnection handling
@@ -801,8 +1117,15 @@ Plugboard/
 ├── lib/
 │   ├── plugboard/
 │   │   ├── mount_store.ex        # Route storage & ETS cache
-│   │   ├── telephone_channel.ex  # WebSocket channel handler
-│   │   └── proxy_controller.ex   # HTTP request handler
+│   │   ├── mount_notifier.ex     # PostgreSQL NOTIFY listener for mounts
+│   │   ├── hooks.ex              # Hooks context module
+│   │   ├── hooks/
+│   │   │   ├── hook.ex           # Hook schema
+│   │   │   └── executor.ex       # Hook execution engine
+│   │   ├── hook_store.ex         # Hook ETS cache
+│   │   ├── hook_notifier.ex      # PostgreSQL NOTIFY listener for hooks
+│   │   └── telephone_tokens/
+│   │       └── token_cleanup.ex  # Periodic token cleanup
 │   └── plugboard_web/
 │       ├── endpoint.ex                     # Phoenix endpoint (HTTP/WebSocket)
 │       ├── router.ex                       # Route definitions
@@ -812,8 +1135,7 @@ Plugboard/
 │       │
 │       ├── channels/                       # Phoenix Channels (WebSocket)
 │       │   ├── telephone_channel.ex        # Telephone WebSocket handler
-│       │   ├── telephone_socket.ex         # Telephone socket config
-│       │   └── user_socket.ex              # User socket config
+│       │   └── telephone_socket.ex         # Telephone socket config
 │       │
 │       ├── controllers/                    # HTTP controllers
 │       │   ├── page_controller.ex          # Home page
@@ -825,13 +1147,14 @@ Plugboard/
 │       │       ├── telephone_token_controller.ex
 │       │       ├── service_account_controller.ex
 │       │       ├── token_vending_controller.ex
-│       │       └── domain_affinity_controller.ex
+│       │       ├── domain_affinity_controller.ex
+│       │       └── hook_controller.ex      # Hook CRUD API
 │       │
 │       ├── live/                           # LiveView pages
 │       │   ├── paths_live/
 │       │   │   └── index.ex                # Path hierarchy management UI
 │       │   ├── path_tokens_live/
-│       │   │   └── index.ex                # Token/service account/domain UI
+│       │   │   └── index.ex                # Token/service account/domain/hooks UI
 │       │   └── user_live/                  # User auth LiveViews
 │       │       ├── registration.ex
 │       │       ├── login.ex
@@ -844,7 +1167,8 @@ Plugboard/
 │       │
 │       ├── plugs/                          # Custom plugs
 │       │   ├── validate_path.ex            # Path validation (traversal protection)
-│       │   └── domain_affinity_router.ex   # Domain-based routing plug
+│       │   ├── domain_affinity_router.ex   # Domain-based routing plug
+│       │   └── parsers.ex                  # Runtime request body size configuration
 │       │
 │       └── http_error.ex                   # Error response helper
 │
@@ -853,10 +1177,15 @@ Plugboard/
 │   │   ├── *_create_users_auth_tables.exs
 │   │   ├── *_create_paths_table.exs
 │   │   ├── *_create_user_paths_table.exs
+│   │   ├── *_add_query_optimization_indexes.exs
 │   │   ├── *_create_telephone_tokens_table.exs
+│   │   ├── *_add_timeout_fields_to_paths.exs
+│   │   ├── *_add_mount_notify_trigger.exs
+│   │   ├── *_remove_obsolete_user_columns_from_paths.exs
 │   │   ├── *_create_service_accounts_table.exs
+│   │   ├── *_add_name_to_telephone_tokens.exs
 │   │   ├── *_create_domain_affinities_table.exs
-│   │   └── *_add_mount_notify_trigger.exs
+│   │   └── *_create_hooks_table.exs        # Hooks with NOTIFY trigger
 │   └── seeds.exs                           # Seed data
 │
 ├── test/                                   # Test suite
@@ -864,22 +1193,61 @@ Plugboard/
 │   │   ├── accounts_test.exs
 │   │   ├── paths_test.exs
 │   │   ├── paths_concurrent_test.exs
+│   │   ├── paths/
+│   │   │   └── user_path_test.exs
 │   │   ├── telephone_tokens_test.exs
+│   │   ├── telephone_tokens/
+│   │   │   └── token_cleanup_test.exs
 │   │   ├── service_accounts_test.exs
 │   │   ├── domain_affinities_test.exs
+│   │   ├── domain_affinities/
+│   │   │   └── domain_affinity_test.exs
+│   │   ├── hooks_test.exs
+│   │   ├── hooks/
+│   │   │   ├── hook_test.exs
+│   │   │   └── executor_test.exs
 │   │   ├── mount_store_test.exs
 │   │   ├── mount_notifier_test.exs
+│   │   ├── hook_store_test.exs
+│   │   ├── hook_notifier_test.exs
+│   │   ├── cluster_connector_test.exs
+│   │   ├── telephone_registry_test.exs
 │   │   └── distributed_registry_test.exs
 │   ├── plugboard_web/                      # Web tests
+│   │   ├── user_auth_test.exs
+│   │   ├── http_error_test.exs
 │   │   ├── controllers/
 │   │   │   ├── proxy_controller_test.exs
+│   │   │   ├── page_controller_test.exs
+│   │   │   ├── page_html_test.exs
+│   │   │   ├── user_session_controller_test.exs
+│   │   │   ├── error_html_test.exs
+│   │   │   ├── error_json_test.exs
 │   │   │   └── api/
+│   │   │       ├── telephone_token_controller_test.exs
+│   │   │       ├── service_account_controller_test.exs
+│   │   │       ├── token_vending_controller_test.exs
+│   │   │       ├── domain_affinity_controller_test.exs
+│   │   │       └── hook_controller_test.exs
 │   │   ├── channels/
-│   │   │   └── telephone_channel_test.exs
+│   │   │   ├── telephone_channel_test.exs
+│   │   │   └── telephone_socket_test.exs
+│   │   ├── components/
+│   │   │   └── core_components_test.exs
 │   │   ├── live/
-│   │   │   ├── paths_live/index_test.exs
-│   │   │   └── path_tokens_live/index_test.exs
+│   │   │   ├── paths_live/
+│   │   │   │   ├── index_test.exs
+│   │   │   │   └── user_workflow_test.exs
+│   │   │   ├── path_tokens_live/
+│   │   │   │   └── index_test.exs
+│   │   │   └── user_live/
+│   │   │       ├── settings_test.exs
+│   │   │       ├── registration_test.exs
+│   │   │       ├── login_test.exs
+│   │   │       └── confirmation_test.exs
 │   │   └── plugs/
+│   │       ├── validate_path_test.exs
+│   │       └── domain_affinity_router_test.exs
 │   └── support/                            # Test helpers
 │
 ├── config/                                 # Configuration
@@ -940,8 +1308,7 @@ config :libcluster,
 ## Documentation
 
 - **[AGENTS.md](AGENTS.md)** - Development conventions and Phoenix guidelines
-- **[FUTURE_WORK.md](FUTURE_WORK.md)** - Roadmap and planned features
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution workflow
+- **[CLAUDE.md](CLAUDE.md)** - High-level system overview for AI assistants
 
 ---
 

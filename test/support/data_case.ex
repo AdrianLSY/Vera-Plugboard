@@ -49,6 +49,16 @@ defmodule Plugboard.DataCase do
       Ecto.Adapters.SQL.Sandbox.allow(Plugboard.Repo, pid, Plugboard.MountNotifier)
     end
 
+    # Allow the HookStore GenServer to access the database
+    if Process.whereis(Plugboard.HookStore) do
+      Ecto.Adapters.SQL.Sandbox.allow(Plugboard.Repo, pid, Plugboard.HookStore)
+    end
+
+    # Allow the HookNotifier GenServer to access the database
+    if Process.whereis(Plugboard.HookNotifier) do
+      Ecto.Adapters.SQL.Sandbox.allow(Plugboard.Repo, pid, Plugboard.HookNotifier)
+    end
+
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
   end
 

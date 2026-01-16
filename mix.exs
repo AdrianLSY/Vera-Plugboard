@@ -24,8 +24,7 @@ defmodule Plugboard.MixProject do
           PlugboardWeb.Endpoint,
           PlugboardWeb.Gettext,
           PlugboardWeb.PageHTML,
-          PlugboardWeb.ErrorHTML,
-          PlugboardWeb.UserSocket
+          PlugboardWeb.ErrorHTML
         ]
       ],
       preferred_cli_env: [
@@ -93,7 +92,8 @@ defmodule Plugboard.MixProject do
       {:joken, "~> 2.6"},
       {:horde, "~> 0.9.0"},
       {:libcluster, "~> 3.3"},
-      {:excoveralls, "~> 0.18", only: :test}
+      {:excoveralls, "~> 0.18", only: :test},
+      {:bypass, "~> 2.1", only: :test}
     ]
   end
 

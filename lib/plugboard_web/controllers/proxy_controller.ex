@@ -225,11 +225,11 @@ defmodule PlugboardWeb.ProxyController do
                 )
             end
 
-          {:error, :hook_rejected, hook, response} ->
+          {:error, :rejected, hook, response} ->
             # Hook rejected request - return hook's response
             send_hook_error_response(conn, hook, response)
 
-          {:error, :timeout, hook} ->
+          {:error, :timeout, hook, _response} ->
             Logger.warning("Hook #{hook.name} timeout for path #{path.full_path}")
 
             HTTPError.send_error(conn, 504,
@@ -242,7 +242,7 @@ defmodule PlugboardWeb.ProxyController do
               log: false
             )
 
-          {:error, :unavailable, hook} ->
+          {:error, :unavailable, hook, _response} ->
             Logger.error("Hook #{hook.name} unavailable for path #{path.full_path}")
 
             HTTPError.send_error(conn, 503,

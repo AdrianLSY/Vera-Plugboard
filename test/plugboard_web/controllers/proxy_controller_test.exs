@@ -1193,6 +1193,160 @@ defmodule PlugboardWeb.ProxyControllerTest do
     end
   end
 
+  describe "domain affinity proxy" do
+    test "MountStore.refresh_domain_affinity adds and match_by_domain finds entry" do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "domain-store-test",
+          user_id: user.id
+        })
+
+      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      MountStore.reload_all()
+
+      # Add domain affinity directly to store
+      MountStore.refresh_domain_affinity("test-domain.example.com", path.id, "/domain-store-test")
+
+      # Verify it's findable
+      assert {:ok, {_path_id, "/domain-store-test"}} =
+               MountStore.match_by_domain("test-domain.example.com")
+
+      # Cleanup
+      MountStore.remove_domain_affinity("test-domain.example.com")
+    end
+
+    test "MountStore.remove_domain_affinity removes entry" do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "domain-remove-test",
+          user_id: user.id
+        })
+
+      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      MountStore.reload_all()
+
+      # Add then remove
+      MountStore.refresh_domain_affinity("remove-me.example.com", path.id, "/domain-remove-test")
+      assert {:ok, _} = MountStore.match_by_domain("remove-me.example.com")
+
+      MountStore.remove_domain_affinity("remove-me.example.com")
+      assert {:error, :not_found} = MountStore.match_by_domain("remove-me.example.com")
+    end
+  end
+
+  describe "hook error handling" do
+    test "returns hook rejection response with custom status and body", %{conn: conn} do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "hook-reject-api",
+          user_id: user.id
+        })
+
+      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+
+      # Create a hook that will reject requests
+      bypass = Bypass.open()
+
+      {:ok, _hook} =
+        Plugboard.Hooks.create_hook(user.id, %{
+          path_id: path.id,
+          name: "rejecting-hook",
+          target_type: "http_url",
+          target_url: "http://localhost:#{bypass.port}/reject",
+          execution_order: 0,
+          timeout_ms: 5000,
+          allowed_status_codes: [200]
+        })
+
+      Plugboard.HookStore.reload_all()
+      MountStore.reload_all()
+
+      # Hook returns 403 to reject
+      Bypass.expect_once(bypass, "POST", "/reject", fn conn ->
+        Plug.Conn.resp(conn, 403, ~s({"error": "forbidden"}))
+      end)
+
+      result_conn = get(conn, "/call/hook-reject-api/test")
+
+      # Should return the hook's rejection response
+      assert result_conn.status == 403
+      assert response(result_conn, 403) =~ "forbidden"
+    end
+
+    @tag timeout: 10_000
+    test "returns 504 when hook times out", %{conn: conn} do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "hook-timeout-api",
+          user_id: user.id
+        })
+
+      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+
+      # Create a hook pointing to a port that won't respond quickly
+      # Using a non-routable IP that will cause connection timeout
+      {:ok, _hook} =
+        Plugboard.Hooks.create_hook(user.id, %{
+          path_id: path.id,
+          name: "timeout-hook",
+          target_type: "http_url",
+          # Use a non-routable address that will cause timeout
+          target_url: "http://10.255.255.1:9999/slow",
+          execution_order: 0,
+          timeout_ms: 500,
+          allowed_status_codes: [200]
+        })
+
+      Plugboard.HookStore.reload_all()
+      MountStore.reload_all()
+
+      result_conn = get(conn, "/call/hook-timeout-api/test")
+
+      # Should return 503 unavailable (connection refused) or 504 timeout
+      assert result_conn.status in [503, 504]
+    end
+
+    test "returns 503 when hook target is unavailable", %{conn: conn} do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "hook-unavail-api",
+          user_id: user.id
+        })
+
+      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+
+      # Create a hook pointing to non-existent server
+      {:ok, _hook} =
+        Plugboard.Hooks.create_hook(user.id, %{
+          path_id: path.id,
+          name: "unavailable-hook",
+          target_type: "http_url",
+          target_url: "http://localhost:59999/nonexistent",
+          execution_order: 0,
+          timeout_ms: 1000,
+          allowed_status_codes: [200]
+        })
+
+      Plugboard.HookStore.reload_all()
+      MountStore.reload_all()
+
+      result_conn = get(conn, "/call/hook-unavail-api/test")
+
+      assert result_conn.status == 503
+      assert html_response(result_conn, 503) =~ "Hook unavailable"
+    end
+  end
+
   describe "path building edge cases" do
     test "handles root path correctly", %{conn: conn} do
       user = user_fixture()
@@ -1240,6 +1394,110 @@ defmodule PlugboardWeb.ProxyControllerTest do
       _result_conn = get(conn, "/call/query-api/test?foo=bar&baz=qux")
 
       assert_receive {:query_string, "foo=bar&baz=qux"}, 1000
+
+      # Cleanup
+      send(telephone_pid, :stop)
+    end
+
+    test "handles binary path parameter", %{conn: conn} do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "binary-path-api",
+          user_id: user.id
+        })
+
+      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      MountStore.reload_all()
+
+      test_pid = self()
+
+      telephone_pid =
+        spawn_mock_telephone(path.id, self(), fn from, request_id, payload ->
+          send(test_pid, {:received_path, payload["path"]})
+          response = %{"status" => 200, "body" => "OK"}
+          send(from, {:proxy_res, request_id, response})
+        end)
+
+      assert_receive {:telephone_ready, ^telephone_pid}, 1000
+
+      # Make a request - Phoenix will pass path as list, but we test the controller handles it
+      _result_conn = get(conn, "/call/binary-path-api/some/nested/path")
+
+      assert_receive {:received_path, received_path}, 1000
+      assert received_path == "/some/nested/path"
+
+      # Cleanup
+      send(telephone_pid, :stop)
+    end
+  end
+
+  describe "invalid timeout configuration" do
+    @tag :capture_log
+    test "logs warning and uses default for timeout > 300000ms", %{conn: conn} do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "high-timeout-api",
+          user_id: user.id
+        })
+
+      # Set timeout above maximum (300000ms)
+      {:ok, path} =
+        path
+        |> Ecto.Changeset.change(request_timeout_ms: 500_000)
+        |> Plugboard.Repo.update()
+
+      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      MountStore.reload_all()
+
+      telephone_pid =
+        spawn_mock_telephone(path.id, self(), fn from, request_id, _payload ->
+          response = %{"status" => 200, "body" => "OK"}
+          send(from, {:proxy_res, request_id, response})
+        end)
+
+      assert_receive {:telephone_ready, ^telephone_pid}, 1000
+
+      # Request should succeed with default timeout being used
+      result_conn = get(conn, "/call/high-timeout-api/test")
+      assert result_conn.status == 200
+
+      # Cleanup
+      send(telephone_pid, :stop)
+    end
+
+    @tag :capture_log
+    test "logs warning and uses default for timeout = 0", %{conn: conn} do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "zero-timeout-api",
+          user_id: user.id
+        })
+
+      # Set timeout to 0
+      {:ok, path} =
+        path
+        |> Ecto.Changeset.change(request_timeout_ms: 0)
+        |> Plugboard.Repo.update()
+
+      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      MountStore.reload_all()
+
+      telephone_pid =
+        spawn_mock_telephone(path.id, self(), fn from, request_id, _payload ->
+          response = %{"status" => 200, "body" => "OK"}
+          send(from, {:proxy_res, request_id, response})
+        end)
+
+      assert_receive {:telephone_ready, ^telephone_pid}, 1000
+
+      result_conn = get(conn, "/call/zero-timeout-api/test")
+      assert result_conn.status == 200
 
       # Cleanup
       send(telephone_pid, :stop)

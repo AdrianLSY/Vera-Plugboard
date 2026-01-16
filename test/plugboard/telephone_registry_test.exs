@@ -24,12 +24,15 @@ defmodule Plugboard.TelephoneRegistryTest do
       spawn_link(fn ->
         result = TelephoneRegistry.register(path_id, self())
         send(test_pid, {:register_result, result})
-        # Keep process alive briefly for lookup
-        Process.sleep(500)
+        # Keep process alive for lookup
+        Process.sleep(1000)
       end)
 
       # Wait for registration
       assert_receive {:register_result, :ok}, 1000
+
+      # Wait for Horde CRDT propagation
+      Process.sleep(50)
 
       # Verify registration
       assert TelephoneRegistry.count_telephones(path_id) == 1
@@ -274,20 +277,23 @@ defmodule Plugboard.TelephoneRegistryTest do
       path_id = Ecto.UUID.generate()
       test_pid = self()
 
-      initial_stats = TelephoneRegistry.stats()
-
       spawn_link(fn ->
         :ok = TelephoneRegistry.register(path_id, self())
         send(test_pid, :registered)
-        Process.sleep(500)
+        Process.sleep(1000)
       end)
 
       assert_receive :registered, 1000
 
-      new_stats = TelephoneRegistry.stats()
+      # Wait for Horde CRDT propagation
+      Process.sleep(50)
 
-      # Should have at least one more telephone
-      assert new_stats.total_telephones >= initial_stats.total_telephones
+      stats = TelephoneRegistry.stats()
+
+      # Should have at least one telephone (the one we just registered)
+      # and at least one active path
+      assert stats.total_telephones >= 1
+      assert stats.active_paths >= 1
     end
   end
 
