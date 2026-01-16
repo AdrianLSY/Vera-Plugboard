@@ -14,11 +14,18 @@ defmodule Plugboard.MixProject do
       listeners: [Phoenix.CodeReloader],
       test_coverage: [
         tool: ExCoveralls,
-        summary: [threshold: 75],
+        summary: [threshold: 80],
         ignore_modules: [
+          # Production-only modules
           Plugboard.Release,
+          # Boilerplate modules with no logic
+          Plugboard.Repo,
+          Plugboard.Mailer,
+          PlugboardWeb.Endpoint,
+          PlugboardWeb.Gettext,
           PlugboardWeb.PageHTML,
-          PlugboardWeb.ErrorHTML
+          PlugboardWeb.ErrorHTML,
+          PlugboardWeb.UserSocket
         ]
       ],
       preferred_cli_env: [
