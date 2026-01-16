@@ -28,7 +28,8 @@ defmodule Plugboard.MountNotifierTest do
       # Check process state indicates successful connection
       state = :sys.get_state(pid)
       assert state.pid != nil, "Should have PostgreSQL connection PID"
-      assert state.ref != nil, "Should have monitoring reference"
+      assert state.mount_ref != nil, "Should have mount monitoring reference"
+      assert state.domain_ref != nil, "Should have domain monitoring reference"
       assert state.reconnect_attempts == 0, "Should have zero reconnect attempts on success"
     end
   end

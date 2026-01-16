@@ -60,6 +60,19 @@ defmodule PlugboardWeb.Router do
     get "/paths/:path_id/service-accounts", ServiceAccountController, :index
     get "/service-accounts", ServiceAccountController, :index_for_user
     delete "/service-accounts/:id", ServiceAccountController, :delete
+
+    # Domain affinity endpoints
+    post "/paths/:path_id/domain-affinities", DomainAffinityController, :create
+    get "/paths/:path_id/domain-affinities", DomainAffinityController, :index
+    delete "/domain-affinities/:id", DomainAffinityController, :delete
+
+    # Hook endpoints
+    post "/paths/:path_id/hooks", HookController, :create
+    get "/paths/:path_id/hooks", HookController, :index
+    get "/hooks/:id", HookController, :show
+    put "/hooks/:id", HookController, :update
+    delete "/hooks/:id", HookController, :delete
+    patch "/paths/:path_id/hooks/reorder", HookController, :reorder
   end
 
   # Token Vending Machine API (no user authentication required, uses service account API key)
@@ -114,5 +127,27 @@ defmodule PlugboardWeb.Router do
 
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
+  end
+
+  # Domain affinity proxy pipeline
+  pipeline :domain_proxy do
+    plug :accepts, ["json", "html"]
+    plug PlugboardWeb.Plugs.DomainAffinityRouter
+  end
+
+  # Domain affinity routes - MUST come last as fallback
+  # These routes handle domain-based routing (e.g., users.example.com → /call/users)
+  # Only matches if no other route matched and domain has affinity
+  scope "/", PlugboardWeb do
+    pipe_through :domain_proxy
+
+    # Catch-all for domain affinity routing
+    get "/*path", ProxyController, :proxy_domain
+    post "/*path", ProxyController, :proxy_domain
+    put "/*path", ProxyController, :proxy_domain
+    patch "/*path", ProxyController, :proxy_domain
+    delete "/*path", ProxyController, :proxy_domain
+    options "/*path", ProxyController, :proxy_domain
+    head "/*path", ProxyController, :proxy_domain
   end
 end

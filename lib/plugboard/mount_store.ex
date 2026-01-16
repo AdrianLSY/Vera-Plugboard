@@ -11,20 +11,27 @@ defmodule Plugboard.MountStore do
   - Provide fast O(1) lookups for mount point matching
   - Handle incremental updates via PostgreSQL NOTIFY
   - Periodic reconciliation with database
+  - Domain affinity matching (domain → mount point)
 
   ## Storage Schema
   ETS table `:plugboard_mounts` stores:
   - Key: `full_path` (string)
   - Value: `{id, updated_at}` (tuple)
+
+  ETS table `:plugboard_domain_affinities` stores:
+  - Key: `domain` (string)
+  - Value: `{path_id, full_path}` (tuple)
   """
 
   use GenServer
   require Logger
   alias Plugboard.Repo
   alias Plugboard.Paths.Path
+  alias Plugboard.DomainAffinities
   import Ecto.Query
 
   @table_name :plugboard_mounts
+  @domain_table :plugboard_domain_affinities
 
   # Client API
 
@@ -118,6 +125,70 @@ defmodule Plugboard.MountStore do
     :ets.tab2list(@table_name)
   end
 
+  @doc """
+  Matches a domain against registered domain affinities.
+
+  Returns `{:ok, {path_id, full_path}}` if a domain affinity is found,
+  or `{:error, :not_found}` if no match exists.
+
+  ## Matching Strategy
+  1. Normalize the domain (lowercase, strip port)
+  2. Try exact match in ETS
+  3. If not found, try wildcard matches (e.g., `*.example.com`)
+  4. Return first match or `:not_found`
+
+  ## Examples
+
+      iex> MountStore.match_by_domain("users.example.com")
+      {:ok, {"mount-id-123", "/call/users"}}
+
+      iex> MountStore.match_by_domain("foo.api.example.com")
+      {:ok, {"mount-id-456", "/call/api"}}  # Matched *.api.example.com
+
+      iex> MountStore.match_by_domain("unknown.com")
+      {:error, :not_found}
+  """
+  def match_by_domain(domain) do
+    normalized = DomainAffinities.normalize_domain(domain)
+
+    # Try exact match first
+    case :ets.lookup(@domain_table, normalized) do
+      [{^normalized, {path_id, full_path}}] ->
+        {:ok, {path_id, full_path}}
+
+      [] ->
+        # Try wildcard match
+        match_wildcard_domain(normalized)
+    end
+  end
+
+  @doc """
+  Refreshes a domain affinity in the ETS table.
+
+  Called when receiving NOTIFY updates from PostgreSQL.
+  """
+  def refresh_domain_affinity(domain, path_id, full_path) do
+    GenServer.cast(__MODULE__, {:refresh_domain_affinity, domain, path_id, full_path})
+  end
+
+  @doc """
+  Removes a domain affinity from the ETS table.
+
+  Called when a domain affinity is deleted.
+  """
+  def remove_domain_affinity(domain) do
+    GenServer.cast(__MODULE__, {:remove_domain_affinity, domain})
+  end
+
+  @doc """
+  Returns all domain affinities currently in the ETS table.
+
+  Primarily for testing and debugging.
+  """
+  def list_domain_affinities do
+    :ets.tab2list(@domain_table)
+  end
+
   # Private matching logic
 
   defp do_match(_original_path, ""), do: {:error, :not_found}
@@ -168,11 +239,36 @@ defmodule Plugboard.MountStore do
     end
   end
 
+  # Match wildcard domains (e.g., *.example.com)
+  defp match_wildcard_domain(domain) do
+    # Generate wildcard candidates: foo.bar.example.com → [*.bar.example.com, *.example.com]
+    wildcards = generate_wildcard_candidates(domain)
+
+    # Try each wildcard in order (most specific first)
+    Enum.find_value(wildcards, {:error, :not_found}, fn wildcard ->
+      case :ets.lookup(@domain_table, wildcard) do
+        [{^wildcard, {path_id, full_path}}] -> {:ok, {path_id, full_path}}
+        [] -> nil
+      end
+    end)
+  end
+
+  defp generate_wildcard_candidates(domain) do
+    parts = String.split(domain, ".")
+
+    # For "foo.bar.example.com", generate:
+    # ["*.bar.example.com", "*.example.com"]
+    parts
+    |> Enum.drop(1)
+    |> Enum.scan([], fn part, acc -> acc ++ [part] end)
+    |> Enum.map(fn parts -> "*." <> Enum.join(parts, ".") end)
+  end
+
   # Server Callbacks
 
   @impl true
   def init(_opts) do
-    # Create ETS table
+    # Create ETS tables
     :ets.new(@table_name, [
       :named_table,
       :set,
@@ -180,10 +276,18 @@ defmodule Plugboard.MountStore do
       read_concurrency: true
     ])
 
-    Logger.info("MountStore: ETS table created")
+    :ets.new(@domain_table, [
+      :named_table,
+      :set,
+      :protected,
+      read_concurrency: true
+    ])
+
+    Logger.info("MountStore: ETS tables created")
 
     # Load initial data from database
     {_count, _duration} = load_mounts_from_db(:startup)
+    {_domain_count, _domain_duration} = load_domain_affinities_from_db(:startup)
 
     # Schedule periodic reconciliation
     schedule_reconciliation()
@@ -252,15 +356,31 @@ defmodule Plugboard.MountStore do
   end
 
   @impl true
+  def handle_cast({:refresh_domain_affinity, domain, path_id, full_path}, state) do
+    :ets.insert(@domain_table, {domain, {path_id, full_path}})
+    Logger.debug("MountStore: Refreshed domain affinity #{domain} → #{full_path}")
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:remove_domain_affinity, domain}, state) do
+    :ets.delete(@domain_table, domain)
+    Logger.debug("MountStore: Removed domain affinity #{domain}")
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_call(:reload_all, _from, state) do
     {count, _duration} = load_mounts_from_db(:manual)
-    {:reply, {:ok, count}, state}
+    {domain_count, _domain_duration} = load_domain_affinities_from_db(:manual)
+    {:reply, {:ok, count, domain_count}, state}
   end
 
   @impl true
   def handle_info(:reconcile, state) do
     Logger.debug("MountStore: Running periodic reconciliation")
     {_count, _duration} = load_mounts_from_db(:periodic)
+    {_domain_count, _domain_duration} = load_domain_affinities_from_db(:periodic)
     schedule_reconciliation()
     {:noreply, state}
   end
@@ -349,5 +469,102 @@ defmodule Plugboard.MountStore do
   defp schedule_reconciliation do
     interval = Application.get_env(:plugboard, __MODULE__, [])[:reconcile_interval] || 300_000
     Process.send_after(self(), :reconcile, interval)
+  end
+
+  defp load_domain_affinities_from_db(trigger) do
+    start_time = System.monotonic_time()
+
+    try do
+      # Load domain affinities with path information
+      query = """
+      SELECT da.domain, da.path_id, p.full_path
+      FROM domain_affinities da
+      JOIN paths p ON da.path_id = p.id
+      WHERE da.deleted_at IS NULL
+        AND p.deleted_at IS NULL
+        AND p.mount_point = true
+      """
+
+      case Repo.query(query, []) do
+        {:ok, %{rows: rows}} ->
+          # Convert to ETS format: {domain, {path_id, full_path}}
+          domain_affinities =
+            Enum.map(rows, fn [domain, path_id, full_path] ->
+              {domain, {path_id, full_path}}
+            end)
+
+          # Clear and repopulate domain affinity ETS table
+          :ets.delete_all_objects(@domain_table)
+          :ets.insert(@domain_table, domain_affinities)
+
+          count = length(domain_affinities)
+          duration = System.monotonic_time() - start_time
+          duration_ms = System.convert_time_unit(duration, :native, :millisecond)
+
+          Logger.info(
+            "MountStore: Loaded #{count} domain affinities from database in #{duration_ms}ms"
+          )
+
+          # Emit telemetry
+          :telemetry.execute(
+            [:plugboard, :mount_store, :domain_affinity_reload],
+            %{duration: duration_ms, count: count},
+            %{trigger: trigger}
+          )
+
+          {count, duration_ms}
+
+        {:error, error} ->
+          Logger.error("MountStore: Database error loading domain affinities: #{inspect(error)}")
+
+          :telemetry.execute(
+            [:plugboard, :mount_store, :error],
+            %{count: 1},
+            %{operation: :load_domain_affinities, error: :database_error, trigger: trigger}
+          )
+
+          {0, 0}
+      end
+    rescue
+      e in Postgrex.Error ->
+        Logger.error(
+          "MountStore: Database error loading domain affinities: #{inspect(e.postgres)}"
+        )
+
+        :telemetry.execute(
+          [:plugboard, :mount_store, :error],
+          %{count: 1},
+          %{operation: :load_domain_affinities, error: :database_error, trigger: trigger}
+        )
+
+        current_size = :ets.info(@domain_table, :size)
+        {current_size, 0}
+
+      e in DBConnection.ConnectionError ->
+        Logger.error(
+          "MountStore: Database connection lost loading domain affinities: #{inspect(e)}"
+        )
+
+        :telemetry.execute(
+          [:plugboard, :mount_store, :error],
+          %{count: 1},
+          %{operation: :load_domain_affinities, error: :connection_error, trigger: trigger}
+        )
+
+        current_size = :ets.info(@domain_table, :size)
+        {current_size, 0}
+
+      e ->
+        Logger.error("MountStore: Unexpected error loading domain affinities: #{inspect(e)}")
+
+        :telemetry.execute(
+          [:plugboard, :mount_store, :error],
+          %{count: 1},
+          %{operation: :load_domain_affinities, error: :unknown, trigger: trigger}
+        )
+
+        current_size = :ets.info(@domain_table, :size)
+        {current_size, 0}
+    end
   end
 end
