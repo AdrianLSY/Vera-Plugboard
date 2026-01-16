@@ -124,18 +124,31 @@ if config_env() == :prod do
   # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
 end
 
-# MountStore configuration for all environments
+# =============================================================================
+# Configuration for ALL environments (dev, test, prod)
+# These settings use environment variables with sensible defaults
+# =============================================================================
+
+# MountStore configuration
+# MOUNT_STORE_RECONCILE_INTERVAL: How often to reconcile mount points with DB (ms)
+# Default: 300000 (5 minutes)
 config :plugboard, Plugboard.MountStore,
   reconcile_interval:
-    System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") |> String.to_integer()
+    (System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") || "300000") |> String.to_integer()
 
-# Telephone token configuration for all environments
+# Telephone token configuration
+# TELEPHONE_TOKEN_EXPIRY: Token validity duration (seconds). Default: 3600 (1 hour)
+# TELEPHONE_TOKEN_REFRESH_INTERVAL: How often clients should refresh (seconds). Default: 1800 (30 min)
+# TELEPHONE_HEARTBEAT_TIMEOUT_MS: Heartbeat timeout before disconnect (ms). Default: 60000 (60 sec)
 config :plugboard, :telephone,
-  token_expiry: System.get_env("TELEPHONE_TOKEN_EXPIRY") |> String.to_integer(),
+  token_expiry: (System.get_env("TELEPHONE_TOKEN_EXPIRY") || "3600") |> String.to_integer(),
   token_refresh_interval:
-    System.get_env("TELEPHONE_TOKEN_REFRESH_INTERVAL") |> String.to_integer()
+    (System.get_env("TELEPHONE_TOKEN_REFRESH_INTERVAL") || "1800") |> String.to_integer(),
+  heartbeat_timeout_ms:
+    (System.get_env("TELEPHONE_HEARTBEAT_TIMEOUT_MS") || "60000") |> String.to_integer()
 
-# Request body size limit (in bytes) - default 10MB
+# Request body size limit (in bytes)
+# MAX_REQUEST_BODY_SIZE: Maximum request body size. Default: 10485760 (10MB)
 config :plugboard,
        :max_request_body_length,
-       System.get_env("MAX_REQUEST_BODY_SIZE") |> String.to_integer()
+       (System.get_env("MAX_REQUEST_BODY_SIZE") || "10485760") |> String.to_integer()

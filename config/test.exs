@@ -44,13 +44,5 @@ config :phoenix, :plug_init_mode, :runtime
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
 
-# MountStore configuration - use shorter interval for tests (30 seconds)
-# Override with MOUNT_STORE_RECONCILE_INTERVAL env var
-config :plugboard, Plugboard.MountStore,
-  reconcile_interval: System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") |> String.to_integer()
-
-# Request body size limit (in bytes)
-# Fails fast if MAX_REQUEST_BODY_SIZE environment variable is not set
-config :plugboard,
-       :max_request_body_length,
-       System.fetch_env!("MAX_REQUEST_BODY_SIZE") |> String.to_integer()
+# Note: MountStore, telephone, and max_request_body_length configuration
+# is now consolidated in config/runtime.exs for all environments

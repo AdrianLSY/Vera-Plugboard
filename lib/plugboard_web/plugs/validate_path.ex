@@ -80,7 +80,7 @@ defmodule PlugboardWeb.Plugs.ValidatePath do
         {:error, "Encoded path traversal not allowed"}
 
       # Check for encoded null bytes
-      String.contains?(segment, ["%00", "%00"]) ->
+      String.contains?(segment, "%00") ->
         {:error, "Encoded null bytes not allowed"}
 
       # Check for path traversal

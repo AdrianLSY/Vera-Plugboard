@@ -19,7 +19,12 @@ defmodule PlugboardWeb.PathsLive.Index do
         
     <!-- Create Path Form -->
         <div class="mt-8">
-          <.form for={@form} phx-submit="create_path" class="flex gap-2 items-center">
+          <.form
+            for={@form}
+            id="create-path-form"
+            phx-submit="create_path"
+            class="flex gap-2 items-center"
+          >
             <%= if @breadcrumbs != [] do %>
               <div class="bg-[var(--ui-foreground)] rounded-full px-4 py-2 overflow-x-auto max-w-xs flex-shrink-0">
                 <div class="flex items-center gap-2 text-sm ui-text-secondary whitespace-nowrap">
@@ -48,11 +53,9 @@ defmodule PlugboardWeb.PathsLive.Index do
               </div>
             <% end %>
             <div class="flex-1">
-              <input
+              <.input
+                field={@form[:path]}
                 type="text"
-                name="path[path]"
-                id="path_path"
-                value=""
                 placeholder="Create new path (e.g., 'users', 'to-do', 'shopping-cart')"
                 autocomplete="off"
                 phx-mounted={JS.focus()}
@@ -73,7 +76,12 @@ defmodule PlugboardWeb.PathsLive.Index do
         
     <!-- Paths List -->
         <div class="mt-8">
-          <.paths_table id="paths-list" paths={@paths} on_path_click={&handle_path_click/1}>
+          <.paths_table
+            id="paths-list"
+            paths={@streams.paths}
+            paths_empty?={@paths_empty?}
+            on_path_click={&handle_path_click/1}
+          >
             <:action :let={path}>
               <div class="group/actions relative inline-flex items-center gap-2">
                 <!-- Settings icon (always visible) -->
@@ -135,7 +143,7 @@ defmodule PlugboardWeb.PathsLive.Index do
           on_cancel={JS.push("close_edit")}
         >
           <:form>
-            <.form for={@edit_form} phx-submit="save_edit">
+            <.form for={@edit_form} id="edit-path-form" phx-submit="save_edit">
               <.input
                 field={@edit_form[:path]}
                 type="text"
@@ -159,7 +167,7 @@ defmodule PlugboardWeb.PathsLive.Index do
           on_cancel={JS.push("close_delete")}
         >
           <:form>
-            <.form for={@delete_form} phx-submit="confirm_delete">
+            <.form for={@delete_form} id="delete-path-form" phx-submit="confirm_delete">
               <p class="ui-text-primary mb-4">
                 To confirm deletion, please enter the full path below:
               </p>
@@ -210,23 +218,26 @@ defmodule PlugboardWeb.PathsLive.Index do
         {nil, Paths.list_paths_by_parent(user.id, nil)}
       end
 
-    # Build breadcrumbs if we have a current parent
-    breadcrumbs = if current_parent, do: build_breadcrumbs(current_parent), else: []
+    # Build breadcrumbs if we have a current parent (uses efficient CTE query)
+    breadcrumbs =
+      if current_parent, do: Paths.get_path_with_ancestors(current_parent.id), else: []
 
     # Initialize form
     form = to_form(%{"path" => ""}, as: "path")
 
     {:ok,
-     assign(socket,
-       paths: paths,
+     socket
+     |> assign(
        form: form,
        current_parent: current_parent,
        breadcrumbs: breadcrumbs,
+       paths_empty?: paths == [],
        editing_path: nil,
        edit_form: nil,
        deleting_path: nil,
        delete_form: nil
-     )}
+     )
+     |> stream(:paths, paths)}
   end
 
   @impl true
@@ -254,7 +265,8 @@ defmodule PlugboardWeb.PathsLive.Index do
 
         {:noreply,
          socket
-         |> assign(paths: paths, form: form)
+         |> assign(form: form, paths_empty?: paths == [])
+         |> stream(:paths, paths, reset: true)
          |> put_flash(:info, "Path created successfully")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -314,7 +326,8 @@ defmodule PlugboardWeb.PathsLive.Index do
 
                 {:noreply,
                  socket
-                 |> assign(paths: paths)
+                 |> assign(paths_empty?: paths == [])
+                 |> stream(:paths, paths, reset: true)
                  |> put_flash(
                    :info,
                    if(path.mount_point, do: "Unmounted path.", else: "Mounted path.")
@@ -360,7 +373,8 @@ defmodule PlugboardWeb.PathsLive.Index do
 
         {:noreply,
          socket
-         |> assign(paths: paths, editing_path: nil, edit_form: nil)
+         |> assign(paths_empty?: paths == [], editing_path: nil, edit_form: nil)
+         |> stream(:paths, paths, reset: true)
          |> put_flash(:info, "Path updated successfully")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -405,7 +419,8 @@ defmodule PlugboardWeb.PathsLive.Index do
 
           {:noreply,
            socket
-           |> assign(paths: paths, deleting_path: nil, delete_form: nil)
+           |> assign(paths_empty?: paths == [], deleting_path: nil, delete_form: nil)
+           |> stream(:paths, paths, reset: true)
            |> put_flash(:info, "Path deleted successfully")}
 
         {:error, _changeset} ->
@@ -422,22 +437,6 @@ defmodule PlugboardWeb.PathsLive.Index do
       JS.navigate(~p"/paths/#{path.id}/tokens")
     else
       JS.navigate(~p"/paths?parent=#{path.id}")
-    end
-  end
-
-  # Builds a breadcrumb trail from root to the current path
-  defp build_breadcrumbs(nil), do: []
-
-  defp build_breadcrumbs(path) do
-    case path.parent_id do
-      nil ->
-        [path]
-
-      parent_id ->
-        case Paths.get_path(parent_id) do
-          nil -> [path]
-          parent -> build_breadcrumbs(parent) ++ [path]
-        end
     end
   end
 end

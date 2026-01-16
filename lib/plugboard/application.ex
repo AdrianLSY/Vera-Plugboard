@@ -5,6 +5,10 @@ defmodule Plugboard.Application do
 
   use Application
 
+  # Capture Mix.env() at compile time for use in releases
+  # (Mix is not available at runtime in releases)
+  @env Mix.env()
+
   @impl true
   def start(_type, _args) do
     # Validate JWT secret before starting application (BLOCKER-3 fix)
@@ -66,7 +70,7 @@ defmodule Plugboard.Application do
         Generate a new secret with: mix phx.gen.secret
         """
 
-      Mix.env() == :prod and secret == get_dev_default_secret() ->
+      @env == :prod and secret == get_dev_default_secret() ->
         raise """
         Using development SECRET_KEY_BASE in production!
         This is a critical security vulnerability.

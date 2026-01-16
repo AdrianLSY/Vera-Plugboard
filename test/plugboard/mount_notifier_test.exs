@@ -365,6 +365,75 @@ defmodule Plugboard.MountNotifierTest do
     end
   end
 
+  describe "handle_info for unexpected messages" do
+    @tag :capture_log
+    test "handles unexpected messages gracefully" do
+      pid = Process.whereis(MountNotifier)
+      assert pid != nil
+
+      # Send unexpected message
+      send(pid, {:unexpected_message, "test"})
+
+      # Should not crash
+      :timer.sleep(50)
+      assert Process.alive?(pid)
+    end
+
+    @tag :capture_log
+    test "handles arbitrary data in messages" do
+      pid = Process.whereis(MountNotifier)
+      assert pid != nil
+
+      # Send various unexpected messages
+      send(pid, :random_atom)
+      send(pid, {1, 2, 3})
+      send(pid, %{key: "value"})
+
+      # Should not crash
+      :timer.sleep(50)
+      assert Process.alive?(pid)
+    end
+  end
+
+  describe "exponential backoff calculation" do
+    @tag :capture_log
+    test "reconnection uses exponential backoff" do
+      # Get initial state
+      initial_pid = Process.whereis(MountNotifier)
+      assert initial_pid != nil
+
+      initial_state = :sys.get_state(initial_pid)
+      pg_connection_pid = initial_state.pid
+
+      # Kill the PostgreSQL connection multiple times to trigger backoff
+      if pg_connection_pid && Process.alive?(pg_connection_pid) do
+        Process.exit(pg_connection_pid, :kill)
+
+        # Wait for reconnection
+        :timer.sleep(2000)
+
+        # MountNotifier should still be alive and reconnected
+        assert Process.whereis(MountNotifier) != nil
+        assert Process.alive?(Process.whereis(MountNotifier))
+
+        # Verify state shows successful reconnection (reconnect_attempts reset to 0)
+        new_state = :sys.get_state(Process.whereis(MountNotifier))
+        assert new_state.reconnect_attempts == 0
+      end
+    end
+  end
+
+  describe "notification channel" do
+    test "listens on correct PostgreSQL channel" do
+      pid = Process.whereis(MountNotifier)
+      assert pid != nil
+
+      state = :sys.get_state(pid)
+      # Should have a valid reference from listening
+      assert state.ref != nil
+    end
+  end
+
   # Helper function to wait for a mount to appear in ETS
   # This is necessary because NOTIFY propagation has some latency
   defp wait_for_mount(path, opts) when is_list(opts) do

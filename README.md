@@ -258,8 +258,9 @@ docker run --rm -it \
 | `DB_CONNECT_TIMEOUT`                           | Max connection time (ms)              | `5000`                                | ✅       |
 | `MAX_REQUEST_BODY_SIZE`                        | Max request body (bytes)              | `10485760` (10MB)                     | ✅       |
 | `MOUNT_STORE_RECONCILE_INTERVAL`               | Path reconciliation interval (ms)     | `30000` (30s)                         | ✅       |
-| `TELEPHONE_TOKEN_EXPIRY`                       | Token expiry time (seconds)           | `3600` (1 hour)                       | ✅       |
-| `TELEPHONE_TOKEN_REFRESH_INTERVAL`             | Token refresh interval (seconds)      | `1800` (30 min)                       | ✅       |
+| `TELEPHONE_TOKEN_EXPIRY`                       | Token expiry time (seconds)           | `3600` (1 hour)                       | ❌       |
+| `TELEPHONE_TOKEN_REFRESH_INTERVAL`             | Token refresh interval (seconds)      | `1800` (30 min)                       | ❌       |
+| `TELEPHONE_HEARTBEAT_TIMEOUT_MS`               | Heartbeat timeout (milliseconds)      | `60000` (60 sec)                      | ❌       |
 | `DNS_CLUSTER_QUERY`                            | DNS query for clustering              | `plugboard.default.svc.cluster.local` | ❌       |
 | `ECTO_IPV6`                                    | Enable IPv6 for database              | `false`                               | ❌       |
 
@@ -374,15 +375,6 @@ mix test --cover
 mix test test/plugboard/mount_store_test.exs
 ```
 
-### Testing Strategy
-
-- **Behavioral Testing** - Focus on observable behavior
-- **Contract Testing** - Validate interfaces and protocols
-- **Integration Tests** - Critical paths and end-to-end flows
-- **Mocked Dependencies** - Database and external services when appropriate
-
-See [TESTING_GUIDELINES.md](TESTING_GUIDELINES.md) for detailed patterns.
-
 ---
 
 ## Clustering
@@ -415,7 +407,6 @@ config :libcluster,
 ## Documentation
 
 - **[AGENTS.md](AGENTS.md)** - Development conventions and Phoenix guidelines
-- **[TESTING_GUIDELINES.md](TESTING_GUIDELINES.md)** - Testing strategy and patterns
 - **[FUTURE_WORK.md](FUTURE_WORK.md)** - Roadmap and planned features
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution workflow
 

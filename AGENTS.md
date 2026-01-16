@@ -1,5 +1,9 @@
 This is a web application written using the Phoenix web framework.
 
+**Always refer to the `CLAUDE.md` file for a high-level system overview before starting work on this project.**
+
+**After completing any task, review and update `README.md`, `AGENTS.md`, and `CLAUDE.md` as necessary to keep documentation current.**
+
 ## Project guidelines
 
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues

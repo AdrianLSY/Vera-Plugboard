@@ -585,4 +585,228 @@ defmodule PlugboardWeb.PathTokensLive.IndexTest do
       assert unchanged_sa.name == "test-sa"
     end
   end
+
+  describe "create telephone token" do
+    setup :create_user_and_login
+
+    setup %{user: user} do
+      mount_path = create_mount_point(user)
+      %{mount_path: mount_path}
+    end
+
+    test "creates token successfully", %{conn: conn, mount_path: mount_path} do
+      {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
+
+      # Submit token creation form
+      lv
+      |> form("form[phx-submit='create_token']",
+        token: %{name: "new-token", description: "new token description"}
+      )
+      |> render_submit()
+
+      # Should show success message
+      assert render(lv) =~ "Token created successfully"
+
+      # Token created modal should appear with the JWT
+      assert has_element?(lv, "#token-created-modal")
+
+      # Close the modal
+      render_click(lv, "close_token_modal")
+      refute has_element?(lv, "#token-created-modal")
+
+      # Token should appear in the list
+      assert render(lv) =~ "new-token"
+    end
+
+    test "creates token with empty name and description", %{conn: conn, mount_path: mount_path} do
+      {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
+
+      lv
+      |> form("form[phx-submit='create_token']", token: %{name: "", description: ""})
+      |> render_submit()
+
+      assert render(lv) =~ "Token created successfully"
+
+      # Should show "Unnamed token" in the list
+      assert render(lv) =~ "Unnamed token"
+    end
+
+    test "viewer cannot create token", %{mount_path: mount_path} do
+      viewer = user_fixture()
+      {:ok, _} = Paths.add_user_to_path(viewer.id, mount_path.id, "viewer")
+
+      conn = log_in_user(build_conn(), viewer)
+      {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
+
+      lv
+      |> form("form[phx-submit='create_token']", token: %{name: "hack", description: ""})
+      |> render_submit()
+
+      assert render(lv) =~ "Requires owner or maintainer role"
+    end
+  end
+
+  describe "revoke telephone token" do
+    setup :create_user_and_login
+
+    setup %{user: user} do
+      mount_path = create_mount_point(user)
+
+      {:ok, _jwt, token} =
+        TelephoneTokens.generate_token(mount_path, user, "to-revoke", nil)
+
+      %{mount_path: mount_path, token: token}
+    end
+
+    test "revokes token successfully", %{conn: conn, mount_path: mount_path, token: token} do
+      {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
+
+      # Verify token is displayed
+      assert render(lv) =~ "to-revoke"
+
+      # Revoke the token
+      lv
+      |> element("button[phx-click='revoke_token'][phx-value-id='#{token.id}']")
+      |> render_click()
+
+      assert render(lv) =~ "Token revoked successfully"
+
+      # Token should no longer appear (or should show as revoked)
+      refute render(lv) =~ "to-revoke"
+    end
+
+    test "viewer cannot revoke token", %{mount_path: mount_path, token: token} do
+      viewer = user_fixture()
+      {:ok, _} = Paths.add_user_to_path(viewer.id, mount_path.id, "viewer")
+
+      conn = log_in_user(build_conn(), viewer)
+      {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
+
+      lv
+      |> element("button[phx-click='revoke_token'][phx-value-id='#{token.id}']")
+      |> render_click()
+
+      assert render(lv) =~ "Requires owner or maintainer role"
+
+      # Token should still exist
+      assert TelephoneTokens.get_token(token.id) != nil
+    end
+  end
+
+  describe "create service account" do
+    setup :create_user_and_login
+
+    setup %{user: user} do
+      mount_path = create_mount_point(user)
+      %{mount_path: mount_path}
+    end
+
+    test "creates service account successfully", %{conn: conn, mount_path: mount_path} do
+      {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
+
+      # Switch to service accounts tab
+      lv
+      |> element("button[phx-click='switch_tab'][phx-value-tab='service_accounts']")
+      |> render_click()
+
+      # Submit service account creation form
+      lv
+      |> form("form[phx-submit='create_service_account']",
+        service_account: %{name: "new-sa", description: "new sa description"}
+      )
+      |> render_submit()
+
+      # Should show success message
+      assert render(lv) =~ "Service account created successfully"
+
+      # API key modal should appear
+      assert has_element?(lv, "#api-key-created-modal")
+
+      # Close the modal
+      render_click(lv, "close_api_key_modal")
+      refute has_element?(lv, "#api-key-created-modal")
+
+      # Service account should appear in the list
+      assert render(lv) =~ "new-sa"
+    end
+
+    test "viewer cannot create service account", %{mount_path: mount_path} do
+      viewer = user_fixture()
+      {:ok, _} = Paths.add_user_to_path(viewer.id, mount_path.id, "viewer")
+
+      conn = log_in_user(build_conn(), viewer)
+      {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
+
+      lv
+      |> element("button[phx-click='switch_tab'][phx-value-tab='service_accounts']")
+      |> render_click()
+
+      lv
+      |> form("form[phx-submit='create_service_account']",
+        service_account: %{name: "hack", description: ""}
+      )
+      |> render_submit()
+
+      assert render(lv) =~ "Requires owner or maintainer role"
+    end
+  end
+
+  describe "revoke service account" do
+    setup :create_user_and_login
+
+    setup %{user: user} do
+      mount_path = create_mount_point(user)
+
+      {:ok, _api_key, service_account} =
+        ServiceAccounts.generate_service_account(user, mount_path.id, "to-revoke-sa", nil)
+
+      %{mount_path: mount_path, service_account: service_account}
+    end
+
+    test "revokes service account successfully", %{
+      conn: conn,
+      mount_path: mount_path,
+      service_account: sa
+    } do
+      {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
+
+      lv
+      |> element("button[phx-click='switch_tab'][phx-value-tab='service_accounts']")
+      |> render_click()
+
+      # Verify service account is displayed
+      assert render(lv) =~ "to-revoke-sa"
+
+      # Revoke the service account
+      lv
+      |> element("button[phx-click='revoke_service_account'][phx-value-id='#{sa.id}']")
+      |> render_click()
+
+      assert render(lv) =~ "Service account revoked successfully"
+
+      # Service account should no longer appear
+      refute render(lv) =~ "to-revoke-sa"
+    end
+
+    test "viewer cannot revoke service account", %{mount_path: mount_path, service_account: sa} do
+      viewer = user_fixture()
+      {:ok, _} = Paths.add_user_to_path(viewer.id, mount_path.id, "viewer")
+
+      conn = log_in_user(build_conn(), viewer)
+      {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
+
+      lv
+      |> element("button[phx-click='switch_tab'][phx-value-tab='service_accounts']")
+      |> render_click()
+
+      lv
+      |> element("button[phx-click='revoke_service_account'][phx-value-id='#{sa.id}']")
+      |> render_click()
+
+      assert render(lv) =~ "Requires owner or maintainer role"
+
+      # Service account should still exist
+      assert ServiceAccounts.get_service_account(sa.id) != nil
+    end
+  end
 end

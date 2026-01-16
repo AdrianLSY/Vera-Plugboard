@@ -196,11 +196,11 @@ defmodule Plugboard.DistributedRegistry do
   def lookup(path_id) do
     # Find all registrations where the key matches {path_id, _pid}
     # The registry stores keys as tuples: {path_id, pid}
-    # We need to iterate through all keys and filter by matching path_id
-    __MODULE__
-    |> Horde.Registry.select([{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}])
-    |> Enum.filter(fn {{key_path_id, _key_pid}, _pid, _value} -> key_path_id == path_id end)
-    |> Enum.map(fn {{_key_path_id, _key_pid}, pid, value} -> {pid, value} end)
+    # Use match specification to filter at the registry level (more efficient than full scan)
+    # Pattern: {{path_id, _any_pid}, pid, value} -> {pid, value}
+    Horde.Registry.select(__MODULE__, [
+      {{{path_id, :_}, :"$1", :"$2"}, [], [{{:"$1", :"$2"}}]}
+    ])
   end
 
   @doc """

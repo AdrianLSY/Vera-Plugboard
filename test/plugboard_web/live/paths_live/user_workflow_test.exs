@@ -131,8 +131,9 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
 
       # Step 6: Navigate into "api" path to create nested paths
       # Click the row that navigates to the path's children
+      # Note: Stream DOM IDs use format "paths-{uuid}" (stream name prefix)
       lv
-      |> element("tr#paths-list-#{api_path.id}")
+      |> element("tr#paths-#{api_path.id}")
       |> render_click()
 
       # Should navigate to api children view
@@ -181,7 +182,7 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
 
       # Step 9: Navigate into "users" to create a deeper nested path
       lv
-      |> element("tr#paths-list-#{users_path.id}")
+      |> element("tr#paths-#{users_path.id}")
       |> render_click()
 
       assert_redirect(lv, ~p"/paths?parent=#{users_path.id}")
@@ -223,9 +224,10 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
 
       # Verify child paths are not in the paths list (they may appear in placeholder text)
       # Check that we don't have table rows for child paths
-      assert !has_element?(lv, "#paths-list-#{users_path.id}")
-      assert !has_element?(lv, "#paths-list-#{products_path.id}")
-      assert !has_element?(lv, "#paths-list-#{profile_path.id}")
+      # Note: Stream DOM IDs use format "paths-{uuid}" (stream name prefix)
+      assert !has_element?(lv, "#paths-#{users_path.id}")
+      assert !has_element?(lv, "#paths-#{products_path.id}")
+      assert !has_element?(lv, "#paths-#{profile_path.id}")
 
       # Step 12: Mount the "profile" path (terminal path with no children)
       # Navigate to profile path

@@ -711,11 +711,21 @@ defmodule PlugboardWeb.CoreComponents do
   regular paths (folders) and mount points (connection endpoints). It supports
   navigation, actions, and customizable rendering.
 
+  This component expects a LiveView stream for the paths, not a regular list.
+  Use `stream/3` in your LiveView to populate the paths.
+
   ## Examples
 
+      # In your LiveView mount:
+      socket
+      |> assign(:paths_empty?, paths == [])
+      |> stream(:paths, paths)
+
+      # In your template:
       <.paths_table
         id="paths"
-        paths={@paths}
+        paths={@streams.paths}
+        paths_empty?={@paths_empty?}
         on_path_click={fn path -> JS.navigate(~p"/paths?parent=\#{path.id}") end}
       >
         <:action :let={path}>
@@ -724,12 +734,17 @@ defmodule PlugboardWeb.CoreComponents do
       </.paths_table>
 
       # With custom empty state
-      <.paths_table id="mount-points" paths={@mount_points}>
+      <.paths_table id="mount-points" paths={@streams.mount_points} paths_empty?={@mount_points_empty?}>
         <:empty>No mount points configured yet</:empty>
       </.paths_table>
   """
   attr :id, :string, required: true, doc: "unique identifier for the table"
-  attr :paths, :list, required: true, doc: "list of path structs to display"
+
+  attr :paths, :any,
+    required: true,
+    doc: "stream of path structs to display (from @streams.paths)"
+
+  attr :paths_empty?, :boolean, required: true, doc: "whether the paths stream is empty"
 
   attr :on_path_click, :any,
     default: nil,
@@ -750,61 +765,58 @@ defmodule PlugboardWeb.CoreComponents do
   def paths_table(assigns) do
     ~H"""
     <div class={["w-full", @class]}>
-      <%= if @paths == [] do %>
-        <div class="text-center py-8 ui-text-secondary">
-          <%= if @empty != [] do %>
-            {render_slot(@empty)}
-          <% else %>
-            No paths found
-          <% end %>
-        </div>
-      <% else %>
-        <table class="w-full border-separate border-spacing-y-1">
-          <tbody>
-            <tr
-              :for={path <- @paths}
-              id={"#{@id}-#{path.id}"}
-              class="group transition-colors cursor-pointer"
-              phx-click={@on_path_click && @on_path_click.(path)}
-            >
-              <td class="py-3 px-4 rounded-full group-hover:bg-[var(--ui-foreground)]">
-                <div class="flex items-center justify-between gap-3">
-                  <!-- Icon: Folder for paths, connection for mount points -->
-                  <div class="flex-shrink-0">
-                    <%= if path.mount_point do %>
-                      <.icon name="hero-link" class="size-5 ui-text-primary" />
-                    <% else %>
-                      <.icon name="hero-folder" class="size-5 ui-text-primary" />
-                    <% end %>
-                  </div>
-                  <!-- Path name -->
-                  <div class="flex-1 min-w-0">
-                    <div class="ui-text-primary">
-                      <span class="font-medium">
-                        {if @show_full_path, do: path.full_path, else: path.path}
-                      </span>
-                      <%= if path.mount_point do %>
-                        <span class="ml-2 text-xs ui-text-secondary">(mounted)</span>
-                      <% end %>
-                    </div>
-                  </div>
-                  <!-- Actions integrated into path column -->
-                  <%= if @action != [] do %>
-                    <div
-                      class="flex justify-end items-center gap-2 flex-shrink-0"
-                      phx-click="stop_propagation"
-                    >
-                      <%= for action <- @action do %>
-                        {render_slot(action, path)}
-                      <% end %>
-                    </div>
+      <div :if={@paths_empty?} class="text-center py-8 ui-text-secondary">
+        <%= if @empty != [] do %>
+          {render_slot(@empty)}
+        <% else %>
+          No paths found
+        <% end %>
+      </div>
+      <table :if={!@paths_empty?} class="w-full border-separate border-spacing-y-1">
+        <tbody id={@id} phx-update="stream">
+          <tr
+            :for={{dom_id, path} <- @paths}
+            id={dom_id}
+            class="group transition-colors cursor-pointer"
+            phx-click={@on_path_click && @on_path_click.(path)}
+          >
+            <td class="py-3 px-4 rounded-full group-hover:bg-[var(--ui-foreground)]">
+              <div class="flex items-center justify-between gap-3">
+                <!-- Icon: Folder for paths, connection for mount points -->
+                <div class="flex-shrink-0">
+                  <%= if path.mount_point do %>
+                    <.icon name="hero-link" class="size-5 ui-text-primary" />
+                  <% else %>
+                    <.icon name="hero-folder" class="size-5 ui-text-primary" />
                   <% end %>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      <% end %>
+                <!-- Path name -->
+                <div class="flex-1 min-w-0">
+                  <div class="ui-text-primary">
+                    <span class="font-medium">
+                      {if @show_full_path, do: path.full_path, else: path.path}
+                    </span>
+                    <%= if path.mount_point do %>
+                      <span class="ml-2 text-xs ui-text-secondary">(mounted)</span>
+                    <% end %>
+                  </div>
+                </div>
+                <!-- Actions integrated into path column -->
+                <%= if @action != [] do %>
+                  <div
+                    class="flex justify-end items-center gap-2 flex-shrink-0"
+                    phx-click="stop_propagation"
+                  >
+                    <%= for action <- @action do %>
+                      {render_slot(action, path)}
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     """
   end

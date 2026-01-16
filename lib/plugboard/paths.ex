@@ -579,6 +579,60 @@ defmodule Plugboard.Paths do
   end
 
   @doc """
+  Gets a path with all its ancestors in a single query using a recursive CTE.
+
+  Returns a list of paths from root to the given path (inclusive),
+  ordered by depth (root first). This is more efficient than recursive
+  Elixir calls for building breadcrumbs.
+
+  ## Examples
+
+      iex> get_path_with_ancestors(path_id)
+      [%Path{full_path: "/api"}, %Path{full_path: "/api/v1"}, %Path{full_path: "/api/v1/users"}]
+
+      iex> get_path_with_ancestors(root_path_id)
+      [%Path{full_path: "/root"}]
+
+      iex> get_path_with_ancestors(nonexistent_id)
+      []
+
+  """
+  def get_path_with_ancestors(path_id) do
+    query = """
+    WITH RECURSIVE ancestors AS (
+      SELECT id, parent_id, path, full_path, mount_point,
+             request_timeout_ms, connect_timeout_ms,
+             inserted_at, updated_at, deleted_at,
+             0 as depth
+      FROM paths
+      WHERE id = $1 AND deleted_at IS NULL
+
+      UNION ALL
+
+      SELECT p.id, p.parent_id, p.path, p.full_path, p.mount_point,
+             p.request_timeout_ms, p.connect_timeout_ms,
+             p.inserted_at, p.updated_at, p.deleted_at,
+             a.depth + 1
+      FROM paths p
+      INNER JOIN ancestors a ON p.id = a.parent_id
+      WHERE p.deleted_at IS NULL
+    )
+    SELECT id, parent_id, path, full_path, mount_point,
+           request_timeout_ms, connect_timeout_ms,
+           inserted_at, updated_at, deleted_at
+    FROM ancestors
+    ORDER BY depth DESC
+    """
+
+    {:ok, uuid_binary} = Ecto.UUID.dump(path_id)
+    result = Repo.query!(query, [uuid_binary], timeout: 15_000)
+
+    Enum.map(result.rows, fn row ->
+      Repo.load(Path, {result.columns, row})
+    end)
+  end
+
+  @doc """
   Gets all descendants of a path recursively.
 
   ## Examples

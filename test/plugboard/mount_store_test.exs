@@ -454,5 +454,98 @@ defmodule Plugboard.MountStoreTest do
 
       assert {:ok, {"/reconcile-test", "/", _}} = MountStore.match("/reconcile-test")
     end
+
+    test "remove_mount/1 removes mount from ETS directly" do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "direct-remove",
+          user_id: user.id
+        })
+
+      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      MountStore.reload_all()
+
+      # Verify mount exists
+      assert {:ok, {"/direct-remove", "/", _}} = MountStore.match("/direct-remove")
+
+      # Remove directly using remove_mount (simulates NOTIFY)
+      MountStore.remove_mount("/direct-remove")
+
+      # Give it time to process the cast
+      :timer.sleep(50)
+
+      # Should no longer match
+      assert {:error, :not_found} = MountStore.match("/direct-remove")
+    end
+
+    test "refresh_mount/1 updates existing mount in ETS" do
+      user = user_fixture()
+
+      {:ok, path} =
+        Paths.create_path(%{
+          path: "refresh-update",
+          user_id: user.id
+        })
+
+      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      MountStore.reload_all()
+
+      # Get original mount data
+      [{"/refresh-update", {original_id, _original_updated_at}}] =
+        :ets.lookup(:plugboard_mounts, "/refresh-update")
+
+      # Trigger refresh
+      MountStore.refresh_mount("/refresh-update")
+
+      # Give it time to process
+      :timer.sleep(50)
+
+      # Verify mount still exists with same ID
+      [{"/refresh-update", {new_id, _new_updated_at}}] =
+        :ets.lookup(:plugboard_mounts, "/refresh-update")
+
+      assert original_id == new_id
+    end
+
+    test "reload_all emits telemetry" do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:plugboard, :mount_store, :reload],
+          [:plugboard, :mount_store, :size]
+        ])
+
+      # Trigger reload
+      {:ok, _count} = MountStore.reload_all()
+
+      # Verify reload telemetry was emitted
+      assert_receive {[:plugboard, :mount_store, :reload], ^ref, %{duration: _, count: _},
+                      %{trigger: :manual}},
+                     1000
+
+      # Verify size telemetry was emitted
+      assert_receive {[:plugboard, :mount_store, :size], ^ref, %{count: _}, %{}}, 1000
+
+      :telemetry.detach(ref)
+    end
+
+    test "reconcile emits telemetry with :periodic trigger" do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:plugboard, :mount_store, :reload]
+        ])
+
+      # Trigger reconcile directly
+      mount_store_pid = Process.whereis(Plugboard.MountStore)
+      send(mount_store_pid, :reconcile)
+
+      # Verify reload telemetry was emitted with periodic trigger
+      assert_receive {[:plugboard, :mount_store, :reload], ^ref, %{duration: _, count: _},
+                      %{trigger: :periodic}},
+                     1000
+
+      :telemetry.detach(ref)
+    end
   end
 end

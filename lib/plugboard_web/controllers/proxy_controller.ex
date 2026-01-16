@@ -11,8 +11,9 @@ defmodule PlugboardWeb.ProxyController do
 
   ### HTTP Status Codes
 
-  - **400 Bad Request**: Invalid path (traversal attempts, excessive depth)
+  - **400 Bad Request**: Invalid path (traversal attempts, excessive depth) or failed to read request body
   - **404 Not Found**: No mount point matches the requested path
+  - **413 Request Entity Too Large**: Request body exceeds configured maximum size
   - **500 Internal Server Error**: Path configuration errors
   - **502 Bad Gateway**: Telephone errors or disconnections during request
   - **503 Service Unavailable**: No telephone registered for the path
@@ -169,25 +170,65 @@ defmodule PlugboardWeb.ProxyController do
   end
 
   defp forward_request_to_telephone(conn, telephone_pid, path, forwarded_path) do
-    timeout = path.request_timeout_ms
+    timeout = validate_timeout(path.request_timeout_ms, path)
 
-    # Validate timeout is reasonable (reassign if invalid)
-    timeout =
-      if timeout <= 0 or timeout > 300_000 do
-        Logger.warning(
-          "Invalid timeout #{timeout}ms for path #{path.full_path}, using default 60000ms"
+    with {:ok, body, conn} <- read_request_body(conn, path, forwarded_path) do
+      do_forward_request(conn, telephone_pid, path, forwarded_path, body, timeout)
+    end
+  end
+
+  defp validate_timeout(timeout, _path) when timeout > 0 and timeout <= 300_000, do: timeout
+
+  defp validate_timeout(timeout, path) do
+    Logger.warning(
+      "Invalid timeout #{timeout}ms for path #{path.full_path}, using default 60000ms"
+    )
+
+    60_000
+  end
+
+  defp read_request_body(conn, path, forwarded_path) do
+    case Plug.Conn.read_body(conn) do
+      {:ok, body, conn} ->
+        {:ok, body, conn}
+
+      {:more, _partial, conn} ->
+        Logger.warning("Request body too large for path #{path.full_path}")
+
+        :telemetry.execute(
+          [:plugboard, :proxy, :body_too_large],
+          %{count: 1},
+          %{path_id: path.id, forwarded_path: forwarded_path}
         )
 
-        60_000
-      else
-        timeout
-      end
+        {:error,
+         HTTPError.send_error(conn, 413,
+           reason: "Request Entity Too Large",
+           details: %{path: path.full_path, forwarded_path: forwarded_path},
+           log: false
+         )}
 
+      {:error, reason} ->
+        Logger.warning("Failed to read request body for #{path.full_path}: #{inspect(reason)}")
+
+        :telemetry.execute(
+          [:plugboard, :proxy, :body_read_error],
+          %{count: 1},
+          %{path_id: path.id, forwarded_path: forwarded_path, reason: inspect(reason)}
+        )
+
+        {:error,
+         HTTPError.send_error(conn, 400,
+           reason: "Failed to read request body",
+           details: %{path: path.full_path, error: inspect(reason)},
+           log: false
+         )}
+    end
+  end
+
+  defp do_forward_request(conn, telephone_pid, path, forwarded_path, body, timeout) do
     # Generate unique request ID for correlation
     request_id = Ecto.UUID.generate()
-
-    # Read request body
-    {:ok, body, conn} = Plug.Conn.read_body(conn)
 
     # Build request payload for telephone with correlation ID
     request_payload = %{

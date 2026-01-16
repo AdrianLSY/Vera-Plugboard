@@ -146,8 +146,8 @@ defmodule PlugboardWeb.TelephoneChannel do
     # Check if heartbeat timeout has been exceeded
     last_heartbeat = Map.get(socket.assigns, :last_heartbeat, 0)
     now = System.monotonic_time(:millisecond)
-    # 60 seconds
-    timeout_ms = 60_000
+    # Configurable via TELEPHONE_HEARTBEAT_TIMEOUT_MS env var (default: 60 seconds)
+    timeout_ms = Application.get_env(:plugboard, :telephone)[:heartbeat_timeout_ms] || 60_000
 
     if now - last_heartbeat > timeout_ms do
       Logger.warning(
