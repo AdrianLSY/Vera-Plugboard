@@ -27,11 +27,15 @@ defmodule Plugboard.HookStore do
 
   @table_name :plugboard_hooks
 
+  # Type definitions
+  @type path_id :: String.t()
+
   # Client API
 
   @doc """
   Starts the HookStore GenServer.
   """
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -49,6 +53,7 @@ defmodule Plugboard.HookStore do
       iex> get_hooks(nonexistent_path_id)
       []
   """
+  @spec get_hooks(path_id()) :: [Hook.t()]
   def get_hooks(path_id) do
     case :ets.lookup(@table_name, path_id) do
       [{^path_id, hooks}] -> hooks
@@ -61,6 +66,7 @@ defmodule Plugboard.HookStore do
 
   Called when receiving NOTIFY updates from PostgreSQL.
   """
+  @spec refresh_hooks(path_id()) :: :ok
   def refresh_hooks(path_id) do
     GenServer.cast(__MODULE__, {:refresh_hooks, path_id})
   end
@@ -70,6 +76,7 @@ defmodule Plugboard.HookStore do
 
   Useful for testing and manual reconciliation.
   """
+  @spec reload_all() :: {:ok, non_neg_integer()}
   def reload_all do
     GenServer.call(__MODULE__, :reload_all)
   end
@@ -79,6 +86,7 @@ defmodule Plugboard.HookStore do
 
   Primarily for testing and debugging.
   """
+  @spec list_all_hooks() :: [{path_id(), [Hook.t()]}]
   def list_all_hooks do
     :ets.tab2list(@table_name)
   end
@@ -109,11 +117,12 @@ defmodule Plugboard.HookStore do
   @impl true
   def handle_cast({:refresh_hooks, path_id}, state) do
     try do
-      # Load hooks for this path
+      # Load hooks for this path with preloaded target_path
       hooks =
         Hook
         |> where([h], h.path_id == ^path_id and is_nil(h.deleted_at))
         |> order_by([h], asc: h.execution_order)
+        |> preload([:target_path])
         |> Repo.all()
 
       if Enum.empty?(hooks) do
@@ -180,10 +189,12 @@ defmodule Plugboard.HookStore do
 
     try do
       # Load all active hooks grouped by path_id
+      # Preload target_path to avoid N+1 queries during hook execution
       hooks_by_path =
         Hook
         |> where([h], is_nil(h.deleted_at))
         |> order_by([h], asc: h.path_id, asc: h.execution_order)
+        |> preload([:target_path])
         |> Repo.all()
         |> Enum.group_by(& &1.path_id)
 

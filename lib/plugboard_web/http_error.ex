@@ -75,6 +75,14 @@ defmodule PlugboardWeb.HTTPError do
   import Plug.Conn
   require Logger
 
+  # Type definitions
+  @type status :: integer() | atom()
+  @type error_opts :: [
+          reason: String.t(),
+          details: map(),
+          log: boolean()
+        ]
+
   @http_images_path "public/img/http"
 
   @doc """
@@ -122,6 +130,7 @@ defmodule PlugboardWeb.HTTPError do
       # Using atom status code
       send_error(conn, :service_unavailable, reason: "System maintenance")
   """
+  @spec send_error(Plug.Conn.t(), status(), error_opts()) :: Plug.Conn.t()
   def send_error(conn, status, opts \\ []) do
     status_code = normalize_status(status)
     reason = Keyword.get(opts, :reason, default_reason(status_code))
@@ -177,6 +186,7 @@ defmodule PlugboardWeb.HTTPError do
         details: %{field: "email", error: "invalid format"})
       # => {"error": "Validation failed", "status": 422, "details": {...}}
   """
+  @spec send_json_error(Plug.Conn.t(), status(), error_opts()) :: Plug.Conn.t()
   def send_json_error(conn, status, opts \\ []) do
     status_code = normalize_status(status)
     reason = Keyword.get(opts, :reason, default_reason(status_code))
@@ -221,6 +231,7 @@ defmodule PlugboardWeb.HTTPError do
       has_image?(999)
       # => false (likely no image for this code)
   """
+  @spec has_image?(integer()) :: boolean()
   def has_image?(status_code) do
     image_path =
       Path.join([

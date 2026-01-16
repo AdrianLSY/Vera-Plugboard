@@ -2,7 +2,27 @@ defmodule PlugboardWeb.TelephoneChannel do
   @moduledoc """
   Channel for telephone WebSocket communication.
 
-  Handles telephone registration, heartbeats, token refresh, and proxy request/response.
+  Handles telephone registration, heartbeats, token refresh, proxy request/response,
+  and WebSocket proxy connections.
+
+  ## WebSocket Proxy Support
+
+  This channel also handles proxied WebSocket connections from clients. Each proxied
+  WebSocket connection is tracked by a unique `connection_id` and managed by a
+  `WebSocketProxyHandler` process.
+
+  ### Message Flow
+
+  **Plugboard -> Telephone (outgoing events):**
+  - `ws_connect` - Request to open WebSocket to backend
+  - `ws_frame` - Forward frame from client to backend
+  - `ws_close` - Client closed connection
+
+  **Telephone -> Plugboard (incoming events):**
+  - `ws_connected` - Backend WebSocket established
+  - `ws_frame` - Frame from backend to forward to client
+  - `ws_closed` - Backend closed connection
+  - `ws_error` - Error occurred
   """
 
   use PlugboardWeb, :channel
@@ -24,10 +44,11 @@ defmodule PlugboardWeb.TelephoneChannel do
       # Get token expiry config for response
       expiry_seconds = Application.get_env(:plugboard, :telephone)[:token_expiry] || 3600
 
-      # Initialize waiting callers map and heartbeat tracking
+      # Initialize waiting callers map, WebSocket connections map, and heartbeat tracking
       socket =
         socket
         |> assign(:waiting_callers, %{})
+        |> assign(:ws_connections, %{})
         |> assign(:last_heartbeat, System.monotonic_time(:millisecond))
 
       # Schedule first heartbeat check
@@ -107,6 +128,103 @@ defmodule PlugboardWeb.TelephoneChannel do
     {:noreply, socket}
   end
 
+  # =============================================================================
+  # WebSocket Proxy Events (from Telephone sidecar)
+  # =============================================================================
+
+  @impl true
+  def handle_in("ws_connected", %{"connection_id" => connection_id} = payload, socket) do
+    # Backend WebSocket connected - notify the handler
+    ws_connections = Map.get(socket.assigns, :ws_connections, %{})
+
+    case Map.get(ws_connections, connection_id) do
+      nil ->
+        Logger.warning("Received ws_connected for unknown connection: #{connection_id}")
+        {:noreply, socket}
+
+      handler_pid ->
+        send(handler_pid, {:ws_connected, connection_id, payload})
+
+        Logger.debug(
+          "WebSocket backend connected for #{connection_id} on path #{socket.assigns.path.full_path}"
+        )
+
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_in(
+        "ws_frame",
+        %{"connection_id" => connection_id, "opcode" => opcode, "data" => data},
+        socket
+      ) do
+    # Frame from backend - forward to handler
+    ws_connections = Map.get(socket.assigns, :ws_connections, %{})
+
+    case Map.get(ws_connections, connection_id) do
+      nil ->
+        Logger.warning("Received ws_frame for unknown connection: #{connection_id}")
+        {:noreply, socket}
+
+      handler_pid ->
+        # Decode base64 data if needed
+        decoded_data = decode_frame_data(data)
+        send(handler_pid, {:ws_frame, connection_id, opcode, decoded_data})
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("ws_closed", %{"connection_id" => connection_id} = payload, socket) do
+    # Backend closed WebSocket - notify handler and clean up
+    ws_connections = Map.get(socket.assigns, :ws_connections, %{})
+    code = payload["code"] || 1000
+    reason = payload["reason"] || "Backend closed connection"
+
+    case Map.get(ws_connections, connection_id) do
+      nil ->
+        Logger.debug("Received ws_closed for already closed connection: #{connection_id}")
+        {:noreply, socket}
+
+      handler_pid ->
+        send(handler_pid, {:ws_closed, connection_id, code, reason})
+
+        Logger.info("WebSocket backend closed for #{connection_id}: #{code} - #{reason}")
+
+        # Remove from connections map
+        updated_connections = Map.delete(ws_connections, connection_id)
+        {:noreply, assign(socket, :ws_connections, updated_connections)}
+    end
+  end
+
+  @impl true
+  def handle_in("ws_error", %{"connection_id" => connection_id, "reason" => reason}, socket) do
+    # Error from backend - notify handler
+    ws_connections = Map.get(socket.assigns, :ws_connections, %{})
+
+    case Map.get(ws_connections, connection_id) do
+      nil ->
+        Logger.warning("Received ws_error for unknown connection: #{connection_id}")
+        {:noreply, socket}
+
+      handler_pid ->
+        send(handler_pid, {:ws_error, connection_id, reason})
+
+        Logger.error(
+          "WebSocket backend error for #{connection_id} on path #{socket.assigns.path.full_path}: #{reason}"
+        )
+
+        # Remove from connections map
+        updated_connections = Map.delete(ws_connections, connection_id)
+        {:noreply, assign(socket, :ws_connections, updated_connections)}
+    end
+  end
+
+  # =============================================================================
+  # HTTP Proxy Messages (from ProxyController)
+  # =============================================================================
+
   @impl true
   def handle_info({:proxy_request, from_pid, request_id, request_payload}, socket) do
     # Forward the request to the telephone client with correlation ID
@@ -162,6 +280,98 @@ defmodule PlugboardWeb.TelephoneChannel do
     end
   end
 
+  # =============================================================================
+  # WebSocket Proxy Messages (from WebSocketProxyHandler)
+  # =============================================================================
+
+  @impl true
+  def handle_info({:ws_connect, handler_pid, connection_id, params}, socket) do
+    # Client wants to establish WebSocket to backend
+    Logger.info(
+      "WebSocket connect request #{connection_id} for path #{params.path} on #{socket.assigns.path.full_path}"
+    )
+
+    # Store the handler PID
+    ws_connections = Map.get(socket.assigns, :ws_connections, %{})
+    socket = assign(socket, :ws_connections, Map.put(ws_connections, connection_id, handler_pid))
+
+    # Monitor the handler process for cleanup
+    Process.monitor(handler_pid)
+
+    # Forward to telephone
+    push(socket, "ws_connect", %{
+      "connection_id" => connection_id,
+      "path" => params.path,
+      "query_string" => params.query_string,
+      "headers" => params.headers
+    })
+
+    :telemetry.execute(
+      [:plugboard, :telephone, :ws_connect],
+      %{count: 1},
+      %{path_id: socket.assigns.path_id, connection_id: connection_id}
+    )
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:ws_frame, connection_id, opcode, data}, socket) do
+    # Frame from client to forward to backend
+    # Encode binary data as base64 for JSON transport
+    encoded_data = encode_frame_data(data)
+
+    push(socket, "ws_frame", %{
+      "connection_id" => connection_id,
+      "opcode" => to_string(opcode),
+      "data" => encoded_data
+    })
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:ws_close, connection_id, code, reason}, socket) do
+    # Client closed WebSocket or timeout
+    ws_connections = Map.get(socket.assigns, :ws_connections, %{})
+
+    push(socket, "ws_close", %{
+      "connection_id" => connection_id,
+      "code" => code,
+      "reason" => reason
+    })
+
+    Logger.info("WebSocket close sent for #{connection_id}: #{code} - #{reason}")
+
+    # Remove from connections map
+    updated_connections = Map.delete(ws_connections, connection_id)
+    {:noreply, assign(socket, :ws_connections, updated_connections)}
+  end
+
+  @impl true
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, socket) do
+    # WebSocket handler process died - clean up its connection
+    ws_connections = Map.get(socket.assigns, :ws_connections, %{})
+
+    case find_connection_by_handler(ws_connections, pid) do
+      nil ->
+        {:noreply, socket}
+
+      connection_id ->
+        Logger.debug("WebSocket handler for #{connection_id} died, cleaning up")
+
+        # Notify telephone to close backend connection
+        push(socket, "ws_close", %{
+          "connection_id" => connection_id,
+          "code" => 1001,
+          "reason" => "Handler process terminated"
+        })
+
+        updated_connections = Map.delete(ws_connections, connection_id)
+        {:noreply, assign(socket, :ws_connections, updated_connections)}
+    end
+  end
+
   @impl true
   def terminate(reason, socket) do
     # Unregister from the registry
@@ -181,10 +391,28 @@ defmodule PlugboardWeb.TelephoneChannel do
       end)
     end
 
+    # Notify all WebSocket proxy handlers that telephone disconnected
+    ws_connections = Map.get(socket.assigns, :ws_connections, %{})
+
+    if map_size(ws_connections) > 0 do
+      Logger.warning(
+        "Telephone disconnected with #{map_size(ws_connections)} active WebSocket connections for path #{socket.assigns.path.full_path}"
+      )
+
+      # Notify each WebSocket handler
+      Enum.each(ws_connections, fn {connection_id, handler_pid} ->
+        send(handler_pid, {:telephone_disconnected, connection_id})
+      end)
+    end
+
     # Emit telemetry
     :telemetry.execute(
       [:plugboard, :telephone, :disconnected],
-      %{count: 1, pending_requests: map_size(waiting_callers)},
+      %{
+        count: 1,
+        pending_requests: map_size(waiting_callers),
+        ws_connections: map_size(ws_connections)
+      },
       %{path_id: socket.assigns.path_id, path: socket.assigns.path.full_path, reason: reason}
     )
 
@@ -193,5 +421,30 @@ defmodule PlugboardWeb.TelephoneChannel do
     )
 
     :ok
+  end
+
+  # =============================================================================
+  # Private Helper Functions
+  # =============================================================================
+
+  defp encode_frame_data(data) when is_binary(data), do: Base.encode64(data)
+  defp encode_frame_data(data), do: to_string(data)
+
+  defp decode_frame_data(data) when is_binary(data) do
+    case Base.decode64(data) do
+      {:ok, decoded} -> decoded
+      :error -> data
+    end
+  end
+
+  defp decode_frame_data(data), do: to_string(data)
+
+  defp find_connection_by_handler(ws_connections, handler_pid) do
+    ws_connections
+    |> Enum.find(fn {_conn_id, pid} -> pid == handler_pid end)
+    |> case do
+      {connection_id, _pid} -> connection_id
+      nil -> nil
+    end
   end
 end

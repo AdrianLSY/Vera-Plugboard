@@ -659,9 +659,8 @@ defmodule Plugboard.MountStoreTest do
 
       # Should match exact, not wildcard
       assert {:ok, {path_id, "/users"}} = MountStore.match_by_domain("users.example.com")
-      # path_id from ETS is binary, convert string UUID to binary for comparison
-      {:ok, expected_id} = Ecto.UUID.dump(other_path.id)
-      assert path_id == expected_id
+      # path_id from ETS is a string UUID
+      assert path_id == other_path.id
     end
 
     test "most specific wildcard wins", %{path: path} do
@@ -693,14 +692,12 @@ defmodule Plugboard.MountStoreTest do
 
       # Should match more specific wildcard
       assert {:ok, {path_id, "/users"}} = MountStore.match_by_domain("v1.api.example.com")
-      # path_id from ETS is binary, convert string UUID to binary for comparison
-      {:ok, expected_id} = Ecto.UUID.dump(other_path.id)
-      assert path_id == expected_id
+      # path_id from ETS is a string UUID
+      assert path_id == other_path.id
 
       # Should match broad wildcard for other subdomains
       assert {:ok, {path_id, "/api"}} = MountStore.match_by_domain("other.example.com")
-      {:ok, expected_id} = Ecto.UUID.dump(path.id)
-      assert path_id == expected_id
+      assert path_id == path.id
     end
 
     test "returns not_found for unknown domain" do
@@ -739,9 +736,8 @@ defmodule Plugboard.MountStoreTest do
       affinities = MountStore.list_domain_affinities()
 
       assert length(affinities) == 1
-      # path_id from ETS is binary
-      {:ok, expected_id} = Ecto.UUID.dump(path.id)
-      assert {"api.example.com", {expected_id, "/api"}} in affinities
+      # path_id from ETS is a string UUID
+      assert {"api.example.com", {path.id, "/api"}} in affinities
     end
   end
 end

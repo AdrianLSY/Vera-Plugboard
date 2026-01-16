@@ -93,7 +93,8 @@ defmodule Plugboard.MixProject do
       {:horde, "~> 0.9.0"},
       {:libcluster, "~> 3.3"},
       {:excoveralls, "~> 0.18", only: :test},
-      {:bypass, "~> 2.1", only: :test}
+      {:bypass, "~> 2.1", only: :test},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 

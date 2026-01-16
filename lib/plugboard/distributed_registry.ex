@@ -29,9 +29,15 @@ defmodule Plugboard.DistributedRegistry do
 
   require Logger
 
+  # Type definitions
+  @type path_id :: String.t()
+  @type registration_value :: map()
+  @type telephone_entry :: {pid(), registration_value()}
+
   @doc """
   Starts the distributed registry as part of the supervision tree.
   """
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(_opts) do
     Horde.Registry.start_link(__MODULE__, [keys: :unique], name: __MODULE__)
   end
@@ -77,6 +83,7 @@ defmodule Plugboard.DistributedRegistry do
       iex> DistributedRegistry.register("path-123")
       {:ok, #PID<0.234.0>}  # where #PID<0.234.0> is self()
   """
+  @spec register(path_id(), pid() | nil, map() | nil) :: {:ok, pid()} | {:error, term()}
   def register(path_id, _pid \\ nil, value \\ nil) do
     # Horde.Registry.register ONLY registers self(), not arbitrary PIDs
     # This is by design - processes must register themselves
@@ -148,6 +155,7 @@ defmodule Plugboard.DistributedRegistry do
       iex> DistributedRegistry.unregister("path-123")
       :ok
   """
+  @spec unregister(path_id(), pid() | nil) :: :ok | {:error, term()}
   def unregister(path_id, _pid \\ nil) do
     calling_pid = self()
     unique_key = {path_id, calling_pid}
@@ -193,6 +201,7 @@ defmodule Plugboard.DistributedRegistry do
       iex> DistributedRegistry.lookup("nonexistent")
       []
   """
+  @spec lookup(path_id()) :: [telephone_entry()]
   def lookup(path_id) do
     # Find all registrations where the key matches {path_id, _pid}
     # The registry stores keys as tuples: {path_id, pid}
@@ -224,6 +233,7 @@ defmodule Plugboard.DistributedRegistry do
       iex> DistributedRegistry.get_telephone("nonexistent")
       {:error, :no_telephone}
   """
+  @spec get_telephone(path_id()) :: {:ok, pid()} | {:error, :no_telephone}
   def get_telephone(path_id) do
     case lookup(path_id) do
       [] ->
@@ -249,6 +259,7 @@ defmodule Plugboard.DistributedRegistry do
       iex> DistributedRegistry.count_telephones("nonexistent")
       0
   """
+  @spec count_telephones(path_id()) :: non_neg_integer()
   def count_telephones(path_id) do
     path_id
     |> lookup()
@@ -266,6 +277,7 @@ defmodule Plugboard.DistributedRegistry do
       iex> DistributedRegistry.list_active_paths()
       ["path-123", "path-456"]
   """
+  @spec list_active_paths() :: [path_id()]
   def list_active_paths do
     # This is an expensive operation - use only for debugging/monitoring
     # Extract path_id from {path_id, pid} tuple keys
@@ -294,6 +306,12 @@ defmodule Plugboard.DistributedRegistry do
         this_node: :"plugboard@127.0.0.1"
       }
   """
+  @spec stats() :: %{
+          active_paths: non_neg_integer(),
+          total_telephones: non_neg_integer(),
+          nodes: non_neg_integer(),
+          this_node: node()
+        }
   def stats do
     paths = list_active_paths()
 
@@ -321,6 +339,7 @@ defmodule Plugboard.DistributedRegistry do
         {Plugboard.DistributedRegistry, :"plugboard@10.0.1.2"}
       ]
   """
+  @spec members() :: [{module(), node()}]
   def members do
     Horde.Cluster.members(__MODULE__)
   end
@@ -339,6 +358,7 @@ defmodule Plugboard.DistributedRegistry do
       iex> DistributedRegistry.add_node(:"plugboard@10.0.1.2")
       :ok
   """
+  @spec add_node(node()) :: :ok
   def add_node(node_name) when is_atom(node_name) do
     Horde.Cluster.set_members(
       __MODULE__,

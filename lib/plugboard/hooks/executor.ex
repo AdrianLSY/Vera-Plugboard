@@ -14,6 +14,16 @@ defmodule Plugboard.Hooks.Executor do
   alias Plugboard.TelephoneRegistry
   alias Plugboard.MountStore
   alias Plugboard.Paths
+  alias Plugboard.Hooks.Hook
+
+  # Type definitions
+  @type path_id :: String.t()
+  @type hook_error_response :: %{status: integer(), body: String.t()}
+  @type execute_result ::
+          {:ok, Plug.Conn.t()}
+          | {:error, :rejected, Hook.t(), hook_error_response()}
+          | {:error, :timeout, Hook.t(), nil}
+          | {:error, :unavailable, Hook.t(), nil}
 
   @doc """
   Executes all hooks for a path and returns the modified connection.
@@ -24,6 +34,7 @@ defmodule Plugboard.Hooks.Executor do
     - {:error, :timeout, hook} on timeout
     - {:error, :unavailable, hook} on connection error
   """
+  @spec execute_hooks(Plug.Conn.t(), path_id()) :: execute_result()
   def execute_hooks(conn, path_id) do
     hooks = HookStore.get_hooks(path_id)
 
@@ -274,6 +285,25 @@ defmodule Plugboard.Hooks.Executor do
     {:error, :invalid_format}
   end
 
+  # Updates the connection with the modified body after hook execution.
+  #
+  # IMPORTANT: Body Consumption Pattern
+  # -----------------------------------
+  # At this point, the original request body has already been consumed by
+  # `Plug.Conn.read_body/1` in `execute_hooks/2`. Since Plug only allows
+  # reading the body once, we store the modified body in two places:
+  #
+  # 1. `conn.body_params` - For code that accesses parsed body params
+  # 2. `conn.private[:raw_body]` - For code that needs the raw JSON string
+  #
+  # The ProxyController handles this by calling `read_request_body/3` which
+  # reads from the connection body (for requests without hooks) or could be
+  # extended to read from `conn.private[:raw_body]` if hooks modified it.
+  #
+  # Currently, ProxyController.forward_request_to_telephone/4 calls
+  # read_request_body/3 AFTER hooks execute, so the original body reading
+  # in execute_hooks/2 consumes the body first. This works because
+  # ProxyController receives the already-modified conn from execute_hooks.
   defp put_modified_body(conn, body) do
     json_body = Jason.encode!(body)
 

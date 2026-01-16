@@ -28,16 +28,27 @@ defmodule Plugboard.MountStore do
   alias Plugboard.Repo
   alias Plugboard.Paths.Path
   alias Plugboard.DomainAffinities
+  alias Plugboard.DomainAffinities.DomainAffinity
   import Ecto.Query
 
   @table_name :plugboard_mounts
   @domain_table :plugboard_domain_affinities
+
+  # Type definitions
+  @type mount_id :: String.t()
+  @type full_path :: String.t()
+  @type forwarded_path :: String.t()
+  @type domain :: String.t()
+  @type path_id :: String.t()
+  @type match_result :: {:ok, {full_path(), forwarded_path(), mount_id()}} | {:error, :not_found}
+  @type domain_match_result :: {:ok, {path_id(), full_path()}} | {:error, :not_found}
 
   # Client API
 
   @doc """
   Starts the MountStore GenServer.
   """
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -69,6 +80,7 @@ defmodule Plugboard.MountStore do
       iex> MountStore.match("/nonexistent")
       {:error, :not_found}
   """
+  @spec match(String.t()) :: match_result()
   def match(request_path) do
     start_time = System.monotonic_time()
     normalized_path = normalize_path(request_path)
@@ -90,6 +102,7 @@ defmodule Plugboard.MountStore do
 
   Called when receiving NOTIFY updates from PostgreSQL.
   """
+  @spec refresh_mount(String.t()) :: :ok
   def refresh_mount(full_path) do
     GenServer.cast(__MODULE__, {:refresh_mount, full_path})
   end
@@ -99,6 +112,7 @@ defmodule Plugboard.MountStore do
 
   Called when a mount point is deleted or unmarked.
   """
+  @spec remove_mount(String.t()) :: :ok
   def remove_mount(full_path) do
     GenServer.cast(__MODULE__, {:remove_mount, full_path})
   end
@@ -112,6 +126,7 @@ defmodule Plugboard.MountStore do
   - Measurements: `%{duration: milliseconds, count: mount_count}`
   - Metadata: `%{trigger: :manual | :periodic}`
   """
+  @spec reload_all() :: {:ok, non_neg_integer(), non_neg_integer()}
   def reload_all do
     GenServer.call(__MODULE__, :reload_all)
   end
@@ -121,6 +136,7 @@ defmodule Plugboard.MountStore do
 
   Primarily for testing and debugging.
   """
+  @spec list_mounts() :: [{String.t(), {String.t(), DateTime.t()}}]
   def list_mounts do
     :ets.tab2list(@table_name)
   end
@@ -148,6 +164,7 @@ defmodule Plugboard.MountStore do
       iex> MountStore.match_by_domain("unknown.com")
       {:error, :not_found}
   """
+  @spec match_by_domain(String.t()) :: domain_match_result()
   def match_by_domain(domain) do
     normalized = DomainAffinities.normalize_domain(domain)
 
@@ -167,6 +184,7 @@ defmodule Plugboard.MountStore do
 
   Called when receiving NOTIFY updates from PostgreSQL.
   """
+  @spec refresh_domain_affinity(String.t(), String.t(), String.t()) :: :ok
   def refresh_domain_affinity(domain, path_id, full_path) do
     GenServer.cast(__MODULE__, {:refresh_domain_affinity, domain, path_id, full_path})
   end
@@ -176,6 +194,7 @@ defmodule Plugboard.MountStore do
 
   Called when a domain affinity is deleted.
   """
+  @spec remove_domain_affinity(String.t()) :: :ok
   def remove_domain_affinity(domain) do
     GenServer.cast(__MODULE__, {:remove_domain_affinity, domain})
   end
@@ -185,6 +204,7 @@ defmodule Plugboard.MountStore do
 
   Primarily for testing and debugging.
   """
+  @spec list_domain_affinities() :: [{String.t(), {String.t(), String.t()}}]
   def list_domain_affinities do
     :ets.tab2list(@domain_table)
   end
@@ -475,56 +495,46 @@ defmodule Plugboard.MountStore do
     start_time = System.monotonic_time()
 
     try do
-      # Load domain affinities with path information
-      query = """
-      SELECT da.domain, da.path_id, p.full_path
-      FROM domain_affinities da
-      JOIN paths p ON da.path_id = p.id
-      WHERE da.deleted_at IS NULL
-        AND p.deleted_at IS NULL
-        AND p.mount_point = true
-      """
+      # Load domain affinities with path information using Ecto query
+      # This avoids connection lifecycle issues that can occur with raw SQL
+      #
+      # Note: Ecto returns binary_id as raw binary in select queries, so we
+      # convert them to string UUIDs using Ecto.UUID.cast!/1 for consistency
+      # with other parts of the codebase.
+      domain_affinities =
+        from(da in DomainAffinity,
+          join: p in Path,
+          on: da.path_id == p.id,
+          where: is_nil(da.deleted_at) and is_nil(p.deleted_at) and p.mount_point == true,
+          select: {da.domain, da.path_id, p.full_path}
+        )
+        |> Repo.all()
+        |> Enum.map(fn {domain, path_id, full_path} ->
+          # Convert binary UUID to string format
+          path_id_string = Ecto.UUID.cast!(path_id)
+          {domain, {path_id_string, full_path}}
+        end)
 
-      case Repo.query(query, []) do
-        {:ok, %{rows: rows}} ->
-          # Convert to ETS format: {domain, {path_id, full_path}}
-          domain_affinities =
-            Enum.map(rows, fn [domain, path_id, full_path] ->
-              {domain, {path_id, full_path}}
-            end)
+      # Clear and repopulate domain affinity ETS table
+      :ets.delete_all_objects(@domain_table)
+      :ets.insert(@domain_table, domain_affinities)
 
-          # Clear and repopulate domain affinity ETS table
-          :ets.delete_all_objects(@domain_table)
-          :ets.insert(@domain_table, domain_affinities)
+      count = length(domain_affinities)
+      duration = System.monotonic_time() - start_time
+      duration_ms = System.convert_time_unit(duration, :native, :millisecond)
 
-          count = length(domain_affinities)
-          duration = System.monotonic_time() - start_time
-          duration_ms = System.convert_time_unit(duration, :native, :millisecond)
+      Logger.info(
+        "MountStore: Loaded #{count} domain affinities from database in #{duration_ms}ms"
+      )
 
-          Logger.info(
-            "MountStore: Loaded #{count} domain affinities from database in #{duration_ms}ms"
-          )
+      # Emit telemetry
+      :telemetry.execute(
+        [:plugboard, :mount_store, :domain_affinity_reload],
+        %{duration: duration_ms, count: count},
+        %{trigger: trigger}
+      )
 
-          # Emit telemetry
-          :telemetry.execute(
-            [:plugboard, :mount_store, :domain_affinity_reload],
-            %{duration: duration_ms, count: count},
-            %{trigger: trigger}
-          )
-
-          {count, duration_ms}
-
-        {:error, error} ->
-          Logger.error("MountStore: Database error loading domain affinities: #{inspect(error)}")
-
-          :telemetry.execute(
-            [:plugboard, :mount_store, :error],
-            %{count: 1},
-            %{operation: :load_domain_affinities, error: :database_error, trigger: trigger}
-          )
-
-          {0, 0}
-      end
+      {count, duration_ms}
     rescue
       e in Postgrex.Error ->
         Logger.error(

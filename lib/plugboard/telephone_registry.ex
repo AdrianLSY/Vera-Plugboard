@@ -2,31 +2,53 @@ defmodule Plugboard.TelephoneRegistry do
   @moduledoc """
   Registry for tracking connected telephone processes across cluster nodes.
 
-  This module provides a backwards-compatible API while delegating to
-  DistributedRegistry (Horde-based) for cluster-wide telephone tracking.
+  ## Compatibility Shim Pattern
 
-  In Phase 5, this used local ETS tables. In Phase 6, it uses Horde.Registry
-  for distributed operation, enabling requests to route to telephones on any
-  node in the cluster.
+  **This module is a compatibility shim** that delegates all operations to
+  `Plugboard.DistributedRegistry` (Horde-based). It exists to maintain backward
+  compatibility with code written during Phase 5 of development, when telephone
+  tracking used local ETS tables.
+
+  ### Why Keep This Shim?
+
+  1. **Gradual Migration**: Allows existing code to continue working without
+     changes while the underlying implementation evolved from ETS to Horde.
+
+  2. **API Stability**: External code and tests reference `TelephoneRegistry`,
+     not `DistributedRegistry`. Changing all call sites would be disruptive.
+
+  3. **Semantic Clarity**: The name "TelephoneRegistry" clearly describes its
+     purpose (tracking telephones), while "DistributedRegistry" is more generic.
+
+  ### Implementation Details
+
+  - `start_link/1` returns `:ignore` - no process is started since
+    `DistributedRegistry` handles the actual registration.
+  - All other functions delegate directly to `DistributedRegistry`.
+  - Return values are normalized (e.g., `{:ok, pid}` → `:ok` for `register/2`).
 
   ## Cluster Operation
 
-  With Horde.Registry:
+  With Horde.Registry (via DistributedRegistry):
   - Telephones can connect to any node
   - Requests on any node can reach any telephone
   - Automatic failover when nodes leave cluster
   - CRDT-based eventual consistency
 
-  ## Migration Notes
+  ## Future Considerations
 
-  The API remains unchanged from Phase 5, ensuring backward compatibility.
-  All calls are now delegated to DistributedRegistry which handles cluster
-  coordination.
+  This shim may be removed in a future major version. When that happens:
+  1. Update all call sites to use `DistributedRegistry` directly
+  2. Remove this module
+  3. Update the supervision tree (currently expects this module)
   """
 
   alias Plugboard.DistributedRegistry
 
   require Logger
+
+  # Type definitions
+  @type path_id :: String.t()
 
   @doc """
   Starts the TelephoneRegistry.
@@ -34,6 +56,7 @@ defmodule Plugboard.TelephoneRegistry do
   This is a no-op in Phase 6 since DistributedRegistry handles the actual
   registration. Kept for backwards compatibility with existing supervision tree.
   """
+  @spec start_link(keyword()) :: :ignore
   def start_link(_opts) do
     # No-op: DistributedRegistry is started separately
     # Return :ignore to tell supervisor this child doesn't need to be started
@@ -54,6 +77,7 @@ defmodule Plugboard.TelephoneRegistry do
     - :ok on success
     - {:error, reason} on failure
   """
+  @spec register(path_id(), pid()) :: :ok | {:error, term()}
   def register(path_id, telephone_pid) when is_binary(path_id) and is_pid(telephone_pid) do
     case DistributedRegistry.register(path_id, telephone_pid) do
       {:ok, _pid} -> :ok
@@ -70,6 +94,7 @@ defmodule Plugboard.TelephoneRegistry do
     - path_id: The path ID to unregister from
     - telephone_pid: The PID of the telephone channel process
   """
+  @spec unregister(path_id(), pid()) :: :ok | {:error, term()}
   def unregister(path_id, telephone_pid) when is_binary(path_id) and is_pid(telephone_pid) do
     DistributedRegistry.unregister(path_id, telephone_pid)
   end
@@ -87,6 +112,7 @@ defmodule Plugboard.TelephoneRegistry do
     - {:ok, pid} if a telephone is available
     - {:error, :no_telephone} if no telephones are registered
   """
+  @spec get_telephone(path_id()) :: {:ok, pid()} | {:error, :no_telephone}
   def get_telephone(path_id) when is_binary(path_id) do
     DistributedRegistry.get_telephone(path_id)
   end
@@ -102,6 +128,7 @@ defmodule Plugboard.TelephoneRegistry do
   ## Returns
     - List of PIDs registered for the path
   """
+  @spec list_telephones(path_id()) :: [pid()]
   def list_telephones(path_id) when is_binary(path_id) do
     path_id
     |> DistributedRegistry.lookup()
@@ -119,6 +146,7 @@ defmodule Plugboard.TelephoneRegistry do
   ## Returns
     - Integer count of registered telephones
   """
+  @spec count_telephones(path_id()) :: non_neg_integer()
   def count_telephones(path_id) when is_binary(path_id) do
     DistributedRegistry.count_telephones(path_id)
   end
@@ -133,6 +161,7 @@ defmodule Plugboard.TelephoneRegistry do
   ## Returns
     - List of path_id strings
   """
+  @spec list_active_paths() :: [path_id()]
   def list_active_paths do
     DistributedRegistry.list_active_paths()
   end
@@ -157,6 +186,12 @@ defmodule Plugboard.TelephoneRegistry do
         this_node: :"plugboard@127.0.0.1"
       }
   """
+  @spec stats() :: %{
+          active_paths: non_neg_integer(),
+          total_telephones: non_neg_integer(),
+          nodes: non_neg_integer(),
+          this_node: node()
+        }
   def stats do
     DistributedRegistry.stats()
   end
@@ -174,6 +209,7 @@ defmodule Plugboard.TelephoneRegistry do
         {Plugboard.DistributedRegistry, :"plugboard@10.0.1.2"}
       ]
   """
+  @spec members() :: [{module(), node()}]
   def members do
     DistributedRegistry.members()
   end

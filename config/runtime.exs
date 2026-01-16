@@ -152,3 +152,17 @@ config :plugboard, :telephone,
 config :plugboard,
        :max_request_body_length,
        (System.get_env("MAX_REQUEST_BODY_SIZE") || "10485760") |> String.to_integer()
+
+# WebSocket proxy configuration
+# WEBSOCKET_PROXY_ENABLED: Enable/disable WebSocket proxying. Default: true
+# WEBSOCKET_CONNECT_TIMEOUT_MS: Timeout for backend WebSocket connection. Default: 5000 (5 sec)
+# WEBSOCKET_MAX_FRAME_SIZE: Maximum WebSocket frame size in bytes. Default: 1048576 (1MB)
+# WEBSOCKET_IDLE_TIMEOUT_MS: Idle timeout before closing connection. Default: 300000 (5 min)
+config :plugboard, :websocket_proxy,
+  enabled: (System.get_env("WEBSOCKET_PROXY_ENABLED") || "true") == "true",
+  connect_timeout_ms:
+    (System.get_env("WEBSOCKET_CONNECT_TIMEOUT_MS") || "5000") |> String.to_integer(),
+  max_frame_size:
+    (System.get_env("WEBSOCKET_MAX_FRAME_SIZE") || "1048576") |> String.to_integer(),
+  idle_timeout_ms:
+    (System.get_env("WEBSOCKET_IDLE_TIMEOUT_MS") || "300000") |> String.to_integer()

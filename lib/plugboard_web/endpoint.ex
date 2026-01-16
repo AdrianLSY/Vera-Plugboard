@@ -58,5 +58,10 @@ defmodule PlugboardWeb.Endpoint do
   plug(Plug.MethodOverride)
   plug(Plug.Head)
   plug(Plug.Session, @session_options)
+
+  # WebSocket proxy - intercepts WebSocket upgrade requests before the router
+  # and proxies them through Telephone sidecars to backend services
+  plug(PlugboardWeb.Plugs.WebSocketProxyPlug)
+
   plug(PlugboardWeb.Router)
 end

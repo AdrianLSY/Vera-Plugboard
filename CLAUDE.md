@@ -8,11 +8,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Plugboard is a WebSocket-based reverse proxy server for the Vera-Stack. It routes HTTP requests through WebSocket tunnels to Telephone sidecars using:
+Plugboard is a WebSocket-based reverse proxy server for the Vera-Stack. It routes HTTP requests and WebSocket connections through tunnels to Telephone sidecars using:
 - ETS-backed O(1) path matching with terminal mount strategy
 - CRDT-based distributed registry via Horde
 - Phoenix Channels for WebSocket communication
 - UUID-based request correlation for concurrent request handling
+- WebSocket proxy support for real-time bidirectional communication
 
 ## Build & Development Commands
 
@@ -53,6 +54,7 @@ mix precommit                # compile --warnings-as-errors + deps.unlock --unus
 - **Hooks** (`hooks.ex`) - Context for managing request hooks/middleware with role-based access.
 - **Hooks.Executor** (`hooks/executor.ex`) - Executes hooks sequentially, merges responses into request body.
 - **TokenCleanup** (`telephone_tokens/token_cleanup.ex`) - Periodic cleanup of expired telephone tokens (hourly).
+- **WebSocketProxyRegistry** (`websocket_proxy_registry.ex`) - ETS-based registry tracking active WebSocket proxy connections.
 
 ### Web Layer (lib/plugboard_web/)
 
@@ -62,9 +64,19 @@ mix precommit                # compile --warnings-as-errors + deps.unlock --unus
 - **Plugs.Parsers** (`plugs/parsers.ex`) - Custom Plug.Parsers wrapper that reads max body size from runtime config.
 - **Plugs.ValidatePath** (`plugs/validate_path.ex`) - Path validation with traversal protection.
 - **Plugs.DomainAffinityRouter** (`plugs/domain_affinity_router.ex`) - Domain-based routing plug for custom domain routing.
+- **Plugs.WebSocketProxyPlug** (`plugs/websocket_proxy_plug.ex`) - Detects WebSocket upgrade requests and proxies them through Telephone sidecars.
+- **WebSocket.ProxyHandler** (`websocket/proxy_handler.ex`) - WebSock handler managing individual proxied WebSocket connections.
 
 ### Request Flow
 
+**HTTP Requests:**
+```
+Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneChannel → Telephone sidecar → Backend
+```
+
+**WebSocket Connections:**
+```
+Client WS → WebSocketProxyPlug → ETS lookup → Horde registry → ProxyHandler ↔ TelephoneChannel ↔ Telephone → Backend WS
 ```
 Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneChannel → Telephone sidecar → Backend
 ```
@@ -100,11 +112,16 @@ Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneC
 | `POSTGRES_PORT` | Database port | `5432` |
 | `MAX_REQUEST_BODY_SIZE` | Max request body (bytes) | `10485760` (10MB) |
 | `MOUNT_STORE_RECONCILE_INTERVAL` | Path reconciliation (ms) | `300000` (5 min) |
+| `HOOK_STORE_RECONCILE_INTERVAL` | Hook cache reconciliation (ms) | `300000` (5 min) |
 | `TELEPHONE_TOKEN_EXPIRY` | Token expiry (seconds) | `3600` (1 hour) |
 | `TELEPHONE_TOKEN_REFRESH_INTERVAL` | Token refresh interval (seconds) | `1800` (30 min) |
 | `TELEPHONE_HEARTBEAT_TIMEOUT_MS` | Heartbeat timeout (ms) | `60000` (60 sec) |
 | `DNS_CLUSTER_QUERY` | DNS query for clustering | - |
 | `ECTO_IPV6` | Enable IPv6 for database | `false` |
+| `WEBSOCKET_PROXY_ENABLED` | Enable WebSocket proxying | `true` |
+| `WEBSOCKET_CONNECT_TIMEOUT_MS` | WebSocket backend connect timeout | `5000` (5 sec) |
+| `WEBSOCKET_MAX_FRAME_SIZE` | Max WebSocket frame size (bytes) | `1048576` (1MB) |
+| `WEBSOCKET_IDLE_TIMEOUT_MS` | WebSocket idle timeout | `300000` (5 min) |
 
 ## LiveView Patterns
 

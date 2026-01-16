@@ -27,6 +27,8 @@ defmodule Plugboard.Application do
       Plugboard.HookStore,
       # Start the HookNotifier to listen for hook change notifications
       Plugboard.HookNotifier,
+      # Start the WebSocketProxyRegistry for tracking active WebSocket proxy connections
+      Plugboard.WebSocketProxyRegistry,
       # Start the DistributedRegistry (Horde) for cluster-wide telephone tracking
       Plugboard.DistributedRegistry,
       # Start the ClusterConnector to sync libcluster events with Horde

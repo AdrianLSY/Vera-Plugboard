@@ -16,6 +16,7 @@ Plugboard is a reverse proxy server that routes HTTP requests through WebSocket 
 ### Key Features
 
 - **WebSocket Tunnels** - Persistent connections to Telephone sidecars
+- **WebSocket Proxy** - Transparent WebSocket proxying to backend services
 - **O(1) Path Matching** - ETS-backed route lookup with terminal mount strategy
 - **Domain Affinity** - Domain-based routing with exact and wildcard matching
 - **Request Hooks** - Middleware pipeline for pre-request processing
@@ -173,7 +174,7 @@ iex -S mix phx.server
 │           Telephone Sidecar (WebSocket)             │
 │           Connected to /call/users                  │
 │                                                     │
-│  Forwards: GET /profile/123 → Backend              │
+│  Forwards: GET /profile/123 → Backend               │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -234,6 +235,58 @@ Hook returns 403 (not in allowed_status_codes [200, 201, 202, 204])
     → Subsequent hooks are NOT executed
     → Target backend is NOT called
 ```
+
+### WebSocket Proxy Flow
+
+Plugboard supports transparent WebSocket proxying, allowing clients to establish WebSocket connections that are forwarded through Telephone sidecars to backend services.
+
+```
+┌──────────────┐
+│    Client    │
+└──────┬───────┘
+       │ WebSocket Upgrade: wss://api.example.com/websocket
+       │ Sec-WebSocket-Protocol: graphql-ws
+       ▼
+┌─────────────────────────────────────────────────────┐
+│              Plugboard (:4000)                      │
+│                                                     │
+│  1. WebSocketProxyPlug detects upgrade request      │
+│  2. MountStore.match_by_domain("api.example.com")   │
+│     → ETS lookup (O(1))                             │
+│     → Finds: api.example.com → /call/api            │
+│  3. TelephoneRegistry.get_telephone(path_id)        │
+│     → Gets available telephone                      │
+│  4. WebSockAdapter.upgrade() → ProxyHandler         │
+│  5. ProxyHandler sends ws_connect to Telephone      │
+└────────────┬────────────────────────────────────────┘
+             │ Phoenix Channel (existing connection)
+             ▼
+┌─────────────────────────────────────────────────────┐
+│           Telephone Sidecar                         │
+│                                                     │
+│  1. Receives ws_connect event                       │
+│  2. Opens WebSocket to backend                      │
+│     → wss://localhost:3000/websocket                │
+│     → Negotiates subprotocol (graphql-ws)           │
+│  3. Sends ws_connected back to Plugboard            │
+│  4. Bidirectional frame forwarding:                 │
+│     Client ←→ Plugboard ←→ Telephone ←→ Backend     │
+└────────────┬────────────────────────────────────────┘
+             │ WebSocket
+             ▼
+┌─────────────────────────────────────────────────────┐
+│              Backend Service (:3000)                │
+│           WebSocket endpoint /websocket             │
+│           Subprotocol: graphql-ws                   │
+└─────────────────────────────────────────────────────┘
+```
+
+**WebSocket Proxy Features:**
+- Transparent subprotocol negotiation (graphql-ws, wamp, etc.)
+- Binary and text frame support
+- Works with path-based (`/call/api/ws`) and domain-based routing
+- Same authentication/authorization as HTTP proxy
+- Automatic cleanup on client/backend disconnect
 
 ---
 
@@ -591,6 +644,10 @@ docker run --rm -it \
 | `TELEPHONE_HEARTBEAT_TIMEOUT_MS`               | Heartbeat timeout (milliseconds)      | `60000` (60 sec)                      | ❌       |
 | `DNS_CLUSTER_QUERY`                            | DNS query for clustering              | `plugboard.default.svc.cluster.local` | ❌       |
 | `ECTO_IPV6`                                    | Enable IPv6 for database              | `false`                               | ❌       |
+| `WEBSOCKET_PROXY_ENABLED`                      | Enable WebSocket proxying             | `true`                                | ❌       |
+| `WEBSOCKET_CONNECT_TIMEOUT_MS`                 | Backend WebSocket connect timeout     | `5000` (5 sec)                        | ❌       |
+| `WEBSOCKET_MAX_FRAME_SIZE`                     | Max WebSocket frame size (bytes)      | `1048576` (1MB)                       | ❌       |
+| `WEBSOCKET_IDLE_TIMEOUT_MS`                    | WebSocket idle timeout                | `300000` (5 min)                      | ❌       |
 
 ---
 
@@ -1080,6 +1137,42 @@ Hook 3: POST /call/inventory/lookup → Returns stock levels
 
 # All responses merged into final request body
 ```
+
+### WebSocket Proxy
+- Transparent WebSocket proxying through Telephone sidecars to backend services
+- Works with both path-based (`/call/api/websocket`) and domain-based routing
+- Transparent subprotocol negotiation (passes client's `Sec-WebSocket-Protocol` to backend)
+- Binary and text frame support with base64 encoding over Phoenix Channels
+- Per-connection isolation with unique connection IDs
+- Automatic cleanup on client disconnect, backend disconnect, or telephone disconnect
+- Configurable connect timeout, idle timeout, and max frame size
+- ETS-based connection registry for monitoring and telemetry
+
+**Example Use Cases:**
+```bash
+# WebSocket with path-based routing
+wss://plugboard.example.com/call/api/websocket
+
+# WebSocket with domain affinity
+wss://api.example.com/websocket
+
+# With subprotocol negotiation
+wss://api.example.com/graphql  # Sec-WebSocket-Protocol: graphql-ws
+```
+
+**How It Works:**
+1. Client sends WebSocket upgrade request to Plugboard
+2. `WebSocketProxyPlug` detects upgrade, matches path/domain to mount point
+3. Plugboard upgrades connection and spawns `ProxyHandler`
+4. `ProxyHandler` sends `ws_connect` to Telephone via existing Phoenix Channel
+5. Telephone opens WebSocket to backend, sends `ws_connected` back
+6. Bidirectional frame forwarding: Client ↔ Plugboard ↔ Telephone ↔ Backend
+
+**Configuration:**
+- `WEBSOCKET_PROXY_ENABLED` - Enable/disable WebSocket proxying (default: `true`)
+- `WEBSOCKET_CONNECT_TIMEOUT_MS` - Timeout for backend connection (default: `5000`)
+- `WEBSOCKET_MAX_FRAME_SIZE` - Maximum frame size in bytes (default: `1048576`)
+- `WEBSOCKET_IDLE_TIMEOUT_MS` - Idle timeout before closing (default: `300000`)
 
 ### Connection Management
 - WebSocket connections to Telephone sidecars
