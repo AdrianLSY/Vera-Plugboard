@@ -19,7 +19,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
         user_id: user.id
       })
 
-    {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+    {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
 
     %{conn: conn, user: user, path: mount_path}
   end
@@ -52,10 +52,10 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       assert json["description"] == nil
     end
 
-    test "creates token with maintainer role", %{conn: _conn, path: path} do
-      # Create another user with maintainer role
+    test "creates token with maintainer role", %{conn: _conn, user: owner, path: path} do
+      # Create another user with maintainer role (owner adds them)
       maintainer = user_fixture()
-      Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, maintainer.id, path.id, "maintainer")
 
       # Log in as maintainer
       conn = log_in_user(build_conn(), maintainer)
@@ -70,10 +70,10 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       assert json["description"] == "Maintainer token"
     end
 
-    test "rejects creation with viewer role", %{path: path} do
-      # Create another user with viewer role
+    test "rejects creation with viewer role", %{user: owner, path: path} do
+      # Create another user with viewer role (owner adds them)
       viewer = user_fixture()
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, path.id, "viewer")
 
       # Log in as viewer
       conn = log_in_user(build_conn(), viewer)
@@ -120,9 +120,9 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       assert json["error"] == "Path must be a mount point"
     end
 
-    test "rejects creation for deleted path", %{conn: conn, path: path} do
+    test "rejects creation for deleted path", %{conn: conn, user: user, path: path} do
       # Soft delete the path
-      {:ok, deleted_path} = Paths.delete_path(path)
+      {:ok, deleted_path} = Paths.delete_path(user.id, path)
 
       conn = post(conn, ~p"/api/paths/#{deleted_path.id}/tokens")
 
@@ -176,9 +176,9 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       # Create tokens
       {:ok, _jwt1, _token1} = TelephoneTokens.generate_token(path, owner, "Token 1", nil)
 
-      # Create maintainer
+      # Create maintainer (owner adds them)
       maintainer = user_fixture()
-      Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, maintainer.id, path.id, "maintainer")
 
       # Log in as maintainer
       conn = log_in_user(build_conn(), maintainer)
@@ -193,9 +193,9 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       # Create tokens
       {:ok, _jwt1, _token1} = TelephoneTokens.generate_token(path, owner, "Token 1", nil)
 
-      # Create viewer
+      # Create viewer (owner adds them)
       viewer = user_fixture()
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, path.id, "viewer")
 
       # Log in as viewer
       conn = log_in_user(build_conn(), viewer)
@@ -232,7 +232,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       {:ok, _jwt2, token2} = TelephoneTokens.generate_token(path, user, "Will revoke", nil)
 
       # Revoke second token
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token2.id)
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token2.id)
 
       conn = get(conn, ~p"/api/paths/#{path.id}/tokens")
 
@@ -267,17 +267,17 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       assert json = json_response(conn, 200)
       assert json["message"] == "Token revoked successfully"
 
-      # Verify token is now invalid
-      assert {:error, :token_revoked} = TelephoneTokens.validate_jwt(jwt)
+      # Verify token is now invalid (returns :token_not_found for security - no info leakage)
+      assert {:error, :token_not_found} = TelephoneTokens.validate_jwt(jwt)
     end
 
     test "revokes token with maintainer role", %{user: owner, path: path} do
       # Create token
       {:ok, jwt, token} = TelephoneTokens.generate_token(path, owner, nil, nil)
 
-      # Create maintainer
+      # Create maintainer (owner adds them)
       maintainer = user_fixture()
-      Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, maintainer.id, path.id, "maintainer")
 
       # Log in as maintainer
       conn = log_in_user(build_conn(), maintainer)
@@ -287,17 +287,17 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
       assert json = json_response(conn, 200)
       assert json["message"] == "Token revoked successfully"
 
-      # Verify token is revoked
-      assert {:error, :token_revoked} = TelephoneTokens.validate_jwt(jwt)
+      # Verify token is revoked (returns :token_not_found for security - no info leakage)
+      assert {:error, :token_not_found} = TelephoneTokens.validate_jwt(jwt)
     end
 
     test "rejects revocation with viewer role", %{user: owner, path: path} do
       # Create token
       {:ok, _jwt, token} = TelephoneTokens.generate_token(path, owner, nil, nil)
 
-      # Create viewer
+      # Create viewer (owner adds them)
       viewer = user_fixture()
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, path.id, "viewer")
 
       # Log in as viewer
       conn = log_in_user(build_conn(), viewer)
@@ -340,7 +340,7 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
     } do
       # Create and revoke token
       {:ok, _jwt, token} = TelephoneTokens.generate_token(path, user, nil, nil)
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token.id)
 
       # Revoke again via API
       conn = delete(conn, ~p"/api/tokens/#{token.id}")
@@ -356,12 +356,12 @@ defmodule PlugboardWeb.Api.TelephoneTokenControllerTest do
 
   describe "multiple users with different roles" do
     test "owner, maintainer, and viewer have correct access levels", %{user: owner, path: path} do
-      # Create maintainer and viewer
+      # Create maintainer and viewer (owner adds them)
       maintainer = user_fixture()
       viewer = user_fixture()
 
-      Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, path.id, "viewer")
 
       # Owner can create
       conn_owner = log_in_user(build_conn(), owner)

@@ -17,7 +17,7 @@ defmodule PlugboardWeb.TelephoneSocketTest do
         user_id: user.id
       })
 
-    {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+    {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
 
     %{user: user, path: mount_path}
   end
@@ -106,7 +106,7 @@ defmodule PlugboardWeb.TelephoneSocketTest do
       {:ok, jwt, token} = TelephoneTokens.generate_token(path, user)
 
       # Revoke the token
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token.id)
 
       assert :error = connect(TelephoneSocket, %{"token" => jwt})
     end
@@ -118,7 +118,7 @@ defmodule PlugboardWeb.TelephoneSocketTest do
       {:ok, jwt, token} = TelephoneTokens.generate_token(path, user)
 
       # Revoke token
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token.id)
 
       # Connection should fail
       assert :error = connect(TelephoneSocket, %{"token" => jwt})
@@ -132,7 +132,7 @@ defmodule PlugboardWeb.TelephoneSocketTest do
       {:ok, jwt, _token} = TelephoneTokens.generate_token(path, user)
 
       # Soft delete the path
-      {:ok, _deleted} = Paths.delete_path(path)
+      {:ok, _deleted} = Paths.delete_path(user.id, path)
 
       assert :error = connect(TelephoneSocket, %{"token" => jwt})
     end
@@ -141,7 +141,7 @@ defmodule PlugboardWeb.TelephoneSocketTest do
       {:ok, jwt, _token} = TelephoneTokens.generate_token(path, user)
 
       # Unmark as mount point
-      {:ok, _non_mount} = Paths.update_path(path, %{mount_point: false})
+      {:ok, _non_mount} = Paths.update_path(user.id, path, %{mount_point: false})
 
       assert :error = connect(TelephoneSocket, %{"token" => jwt})
     end
@@ -149,7 +149,7 @@ defmodule PlugboardWeb.TelephoneSocketTest do
     test "rejects connection when path no longer exists", %{user: user} do
       # Create a temporary path
       {:ok, temp_path} = Paths.create_path(%{path: "temp", user_id: user.id})
-      {:ok, temp_mount} = Paths.update_path(temp_path, %{mount_point: true})
+      {:ok, temp_mount} = Paths.update_path(user.id, temp_path, %{mount_point: true})
       {:ok, jwt, _token} = TelephoneTokens.generate_token(temp_mount, user)
 
       # Hard delete the path (cascade deletes token)
@@ -196,10 +196,10 @@ defmodule PlugboardWeb.TelephoneSocketTest do
     test "same token on different paths has different socket IDs", %{user: user} do
       # Create two paths
       {:ok, path1} = Paths.create_path(%{path: "api1", user_id: user.id})
-      {:ok, mount1} = Paths.update_path(path1, %{mount_point: true})
+      {:ok, mount1} = Paths.update_path(user.id, path1, %{mount_point: true})
 
       {:ok, path2} = Paths.create_path(%{path: "api2", user_id: user.id})
-      {:ok, mount2} = Paths.update_path(path2, %{mount_point: true})
+      {:ok, mount2} = Paths.update_path(user.id, path2, %{mount_point: true})
 
       # Create tokens for each path
       {:ok, jwt1, token1} = TelephoneTokens.generate_token(mount1, user)

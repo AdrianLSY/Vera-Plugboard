@@ -14,7 +14,7 @@ defmodule PlugboardWeb.Plugs.ValidatePathTest do
         user_id: user.id
       })
 
-    {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+    {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
     Plugboard.MountStore.reload_all()
 
     :ok

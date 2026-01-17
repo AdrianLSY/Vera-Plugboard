@@ -930,22 +930,23 @@ defmodule PlugboardWeb.PathTokensLive.Index do
 
   @impl true
   def handle_event("revoke_token", %{"id" => token_id}, socket) do
-    if socket.assigns.user_role in ["owner", "maintainer"] do
-      case TelephoneTokens.revoke_token(token_id) do
-        {:ok, _token} ->
-          # Reload tokens
-          tokens = TelephoneTokens.list_tokens_for_path(socket.assigns.path.id)
+    user = socket.assigns.current_scope.user
 
-          {:noreply,
-           socket
-           |> assign(tokens: tokens)
-           |> put_flash(:info, "Token revoked successfully")}
+    case TelephoneTokens.revoke_token(user.id, token_id) do
+      {:ok, _token} ->
+        # Reload tokens
+        tokens = TelephoneTokens.list_tokens_for_path(socket.assigns.path.id)
 
-        {:error, _reason} ->
-          {:noreply, put_flash(socket, :error, "Failed to revoke token")}
-      end
-    else
-      {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+        {:noreply,
+         socket
+         |> assign(tokens: tokens)
+         |> put_flash(:info, "Token revoked successfully")}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to revoke token")}
     end
   end
 
@@ -1046,23 +1047,24 @@ defmodule PlugboardWeb.PathTokensLive.Index do
 
   @impl true
   def handle_event("revoke_service_account", %{"id" => sa_id}, socket) do
-    if socket.assigns.user_role in ["owner", "maintainer"] do
-      case ServiceAccounts.revoke_service_account(sa_id) do
-        {:ok, _sa} ->
-          # Reload service accounts
-          service_accounts =
-            ServiceAccounts.list_service_accounts_for_path(socket.assigns.path.id)
+    user = socket.assigns.current_scope.user
 
-          {:noreply,
-           socket
-           |> assign(service_accounts: service_accounts)
-           |> put_flash(:info, "Service account revoked successfully")}
+    case ServiceAccounts.revoke_service_account(user.id, sa_id) do
+      {:ok, _sa} ->
+        # Reload service accounts
+        service_accounts =
+          ServiceAccounts.list_service_accounts_for_path(socket.assigns.path.id)
 
-        {:error, _reason} ->
-          {:noreply, put_flash(socket, :error, "Failed to revoke service account")}
-      end
-    else
-      {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+        {:noreply,
+         socket
+         |> assign(service_accounts: service_accounts)
+         |> put_flash(:info, "Service account revoked successfully")}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to revoke service account")}
     end
   end
 
@@ -1097,45 +1099,47 @@ defmodule PlugboardWeb.PathTokensLive.Index do
 
   @impl true
   def handle_event("save_edit_service_account", %{"edit_service_account" => sa_params}, socket) do
+    user = socket.assigns.current_scope.user
     service_account = socket.assigns.editing_service_account
 
-    if socket.assigns.user_role in ["owner", "maintainer"] do
-      attrs = %{
-        name: sa_params["name"],
-        description: if(sa_params["description"] == "", do: nil, else: sa_params["description"])
-      }
+    attrs = %{
+      name: sa_params["name"],
+      description: if(sa_params["description"] == "", do: nil, else: sa_params["description"])
+    }
 
-      case ServiceAccounts.update_service_account(service_account.id, attrs) do
-        {:ok, _updated_sa} ->
-          # Reload service accounts
-          service_accounts =
-            ServiceAccounts.list_service_accounts_for_path(socket.assigns.path.id)
+    case ServiceAccounts.update_service_account(user.id, service_account.id, attrs) do
+      {:ok, _updated_sa} ->
+        # Reload service accounts
+        service_accounts =
+          ServiceAccounts.list_service_accounts_for_path(socket.assigns.path.id)
 
-          {:noreply,
-           socket
-           |> assign(
-             service_accounts: service_accounts,
-             editing_service_account: nil,
-             edit_service_account_form: nil
-           )
-           |> put_flash(:info, "Service account updated successfully")}
+        {:noreply,
+         socket
+         |> assign(
+           service_accounts: service_accounts,
+           editing_service_account: nil,
+           edit_service_account_form: nil
+         )
+         |> put_flash(:info, "Service account updated successfully")}
 
-        {:error, %Ecto.Changeset{} = changeset} ->
-          {:noreply,
-           socket
-           |> assign(edit_service_account_form: to_form(changeset, as: "edit_service_account"))
-           |> put_flash(:error, "Failed to update service account")}
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
 
-        {:error, :not_found} ->
-          {:noreply, put_flash(socket, :error, "Service account not found")}
-      end
-    else
-      {:noreply, put_flash(socket, :error, "Requires owner or maintainer role")}
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply,
+         socket
+         |> assign(edit_service_account_form: to_form(changeset, as: "edit_service_account"))
+         |> put_flash(:error, "Failed to update service account")}
+
+      {:error, :not_found} ->
+        {:noreply, put_flash(socket, :error, "Service account not found")}
     end
   end
 
   @impl true
   def handle_event("create_domain", %{"domain" => domain_params}, socket) do
+    user = socket.assigns.current_scope.user
+
     if socket.assigns.user_role in ["owner", "maintainer"] do
       # Verify path is a mount point
       if socket.assigns.path.mount_point do
@@ -1144,7 +1148,7 @@ defmodule PlugboardWeb.PathTokensLive.Index do
           path_id: socket.assigns.path.id
         }
 
-        case DomainAffinities.create_domain_affinity(attrs) do
+        case DomainAffinities.create_domain_affinity(user.id, attrs) do
           {:ok, _domain_affinity} ->
             # Reload domain affinities
             domain_affinities =
@@ -1175,8 +1179,10 @@ defmodule PlugboardWeb.PathTokensLive.Index do
 
   @impl true
   def handle_event("delete_domain", %{"id" => domain_id}, socket) do
+    user = socket.assigns.current_scope.user
+
     if socket.assigns.user_role in ["owner", "maintainer"] do
-      case DomainAffinities.delete_domain_affinity(domain_id) do
+      case DomainAffinities.delete_domain_affinity(user.id, domain_id) do
         {:ok, _domain_affinity} ->
           # Reload domain affinities
           domain_affinities =
@@ -1208,8 +1214,8 @@ defmodule PlugboardWeb.PathTokensLive.Index do
         target_type: Map.get(hook_params, "target_type", "mount_point"),
         target_path_id: Map.get(hook_params, "target_path_id"),
         target_url: Map.get(hook_params, "target_url"),
-        execution_order: String.to_integer(Map.get(hook_params, "execution_order", "0")),
-        timeout_ms: String.to_integer(Map.get(hook_params, "timeout_ms", "5000")),
+        execution_order: parse_integer(Map.get(hook_params, "execution_order"), 0),
+        timeout_ms: parse_integer(Map.get(hook_params, "timeout_ms"), 5000),
         forward_query_params: Map.get(hook_params, "forward_query_params") == "true"
       }
 
@@ -1357,4 +1363,20 @@ defmodule PlugboardWeb.PathTokensLive.Index do
         end
     end
   end
+
+  # Safely parses a string to integer with a default fallback
+  # Prevents ArgumentError from String.to_integer/1 on invalid input
+  defp parse_integer(nil, default), do: default
+  defp parse_integer("", default), do: default
+
+  defp parse_integer(value, default) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, ""} -> int
+      {int, _rest} -> int
+      :error -> default
+    end
+  end
+
+  defp parse_integer(value, _default) when is_integer(value), do: value
+  defp parse_integer(_, default), do: default
 end

@@ -41,9 +41,9 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
       assert path_id == path.id
     end
 
-    test "creates domain affinity as maintainer", %{conn: conn, path: path} do
+    test "creates domain affinity as maintainer", %{conn: conn, user: user, path: path} do
       maintainer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(user.id, maintainer.id, path.id, "maintainer")
 
       conn =
         conn
@@ -58,9 +58,9 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
       assert %{"id" => _} = json_response(conn, 201)
     end
 
-    test "rejects creation as viewer", %{conn: conn, path: path} do
+    test "rejects creation as viewer", %{conn: conn, user: user, path: path} do
       viewer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       conn =
         conn
@@ -88,7 +88,7 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
           }
         })
 
-      assert %{"error" => "You do not have access to this path"} = json_response(conn, 403)
+      assert %{"error" => "Requires owner or maintainer role"} = json_response(conn, 403)
     end
 
     test "rejects creation for non-mount path", %{conn: conn, user: user} do
@@ -120,7 +120,7 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
           }
         })
 
-      assert %{"error" => "You do not have access to this path"} = json_response(conn, 403)
+      assert %{"error" => "Path not found"} = json_response(conn, 404)
     end
 
     test "rejects invalid domain format", %{conn: conn, path: path} do
@@ -135,10 +135,10 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
       assert details["domain"]
     end
 
-    test "rejects duplicate domain", %{conn: conn, path: path} do
+    test "rejects duplicate domain", %{conn: conn, user: user, path: path} do
       # Create first domain affinity
       {:ok, _} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
@@ -170,15 +170,15 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
       %{conn: conn, user: user, path: path}
     end
 
-    test "lists domain affinities for path as owner", %{conn: conn, path: path} do
+    test "lists domain affinities for path as owner", %{conn: conn, user: user, path: path} do
       {:ok, _da1} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api1.example.com",
           path_id: path.id
         })
 
       {:ok, _da2} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api2.example.com",
           path_id: path.id
         })
@@ -193,12 +193,12 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
       assert "api2.example.com" in domains
     end
 
-    test "lists domain affinities as viewer", %{conn: conn, path: path} do
+    test "lists domain affinities as viewer", %{conn: conn, user: user, path: path} do
       viewer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       {:ok, _} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
@@ -244,7 +244,7 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
         })
 
       {:ok, domain_affinity} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
@@ -261,11 +261,12 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
 
     test "deletes domain affinity as maintainer", %{
       conn: conn,
+      user: user,
       path: path,
       domain_affinity: da
     } do
       maintainer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(user.id, maintainer.id, path.id, "maintainer")
 
       conn =
         conn
@@ -276,9 +277,9 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
       assert %{"message" => "Domain affinity deleted successfully"} = json_response(conn, 200)
     end
 
-    test "rejects deletion as viewer", %{conn: conn, path: path, domain_affinity: da} do
+    test "rejects deletion as viewer", %{conn: conn, user: user, path: path, domain_affinity: da} do
       viewer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       conn =
         conn
@@ -298,7 +299,7 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
         |> log_in_user(other_user)
         |> delete(~p"/api/domain-affinities/#{da.id}")
 
-      assert %{"error" => "You do not have access to this path"} = json_response(conn, 403)
+      assert %{"error" => "Requires owner or maintainer role"} = json_response(conn, 403)
     end
 
     test "returns 404 for non-existent domain affinity", %{conn: conn} do

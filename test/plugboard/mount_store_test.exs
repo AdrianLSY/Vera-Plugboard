@@ -23,7 +23,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -40,7 +40,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -64,7 +64,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _child} = Paths.update_path(child, %{mount_point: true})
+      {:ok, _child} = Paths.update_path(user.id, child, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -83,7 +83,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _services_path} = Paths.update_path(services_path, %{mount_point: true})
+      {:ok, _services_path} = Paths.update_path(user.id, services_path, %{mount_point: true})
 
       # /services-v2 mount (more specific in terms of path length)
       {:ok, services_v2_path} =
@@ -92,7 +92,8 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _services_v2_path} = Paths.update_path(services_v2_path, %{mount_point: true})
+      {:ok, _services_v2_path} =
+        Paths.update_path(user.id, services_v2_path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -119,7 +120,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -137,7 +138,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -160,7 +161,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -178,7 +179,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -203,7 +204,7 @@ defmodule Plugboard.MountStoreTest do
       assert {:error, :not_found} = MountStore.match("/newmount")
 
       # Mark as mount
-      {:ok, updated} = Paths.update_path(path, %{mount_point: true})
+      {:ok, updated} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Wait a bit for NOTIFY to propagate, then verify with reload
       :timer.sleep(50)
@@ -223,7 +224,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, mounted_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mounted_path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -232,7 +233,7 @@ defmodule Plugboard.MountStoreTest do
       assert {:ok, {"/tempmount", "/", _mount_id}} = MountStore.match("/tempmount")
 
       # Unmark as mount (use the mounted_path, not the original path)
-      {:ok, _unmounted_path} = Paths.update_path(mounted_path, %{mount_point: false})
+      {:ok, _unmounted_path} = Paths.update_path(user.id, mounted_path, %{mount_point: false})
 
       # Reload to ensure ETS is updated
       MountStore.reload_all()
@@ -252,7 +253,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -261,7 +262,7 @@ defmodule Plugboard.MountStoreTest do
       assert {:ok, {"/deleteme", "/", _mount_id}} = MountStore.match("/deleteme")
 
       # Delete the path
-      {:ok, _path} = Paths.delete_path(path)
+      {:ok, _path} = Paths.delete_path(user.id, path)
 
       # Reload to ensure ETS is updated
       MountStore.reload_all()
@@ -282,7 +283,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path1} = Paths.update_path(path1, %{mount_point: true})
+      {:ok, _path1} = Paths.update_path(user.id, path1, %{mount_point: true})
 
       {:ok, path2} =
         Paths.create_path(%{
@@ -290,7 +291,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path2} = Paths.update_path(path2, %{mount_point: true})
+      {:ok, _path2} = Paths.update_path(user.id, path2, %{mount_point: true})
 
       # Force reload
       {:ok, count, _domain_count} = MountStore.reload_all()
@@ -314,7 +315,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -336,7 +337,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated
       MountStore.reload_all()
@@ -420,7 +421,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       assert {:ok, {"/still-works", "/", _}} = MountStore.match("/still-works")
@@ -449,7 +450,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       assert {:ok, {"/reconcile-test", "/", _}} = MountStore.match("/reconcile-test")
@@ -464,7 +465,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Verify mount exists
@@ -489,7 +490,7 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Get original mount data
@@ -559,14 +560,14 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
 
-      %{path: path}
+      %{path: path, user: user}
     end
 
-    test "matches exact domain", %{path: path} do
+    test "matches exact domain", %{path: path, user: user} do
       {:ok, _da} =
-        Plugboard.DomainAffinities.create_domain_affinity(%{
+        Plugboard.DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
@@ -576,9 +577,9 @@ defmodule Plugboard.MountStoreTest do
       assert {:ok, {_path_id, "/api"}} = MountStore.match_by_domain("api.example.com")
     end
 
-    test "normalizes domain before matching", %{path: path} do
+    test "normalizes domain before matching", %{path: path, user: user} do
       {:ok, _da} =
-        Plugboard.DomainAffinities.create_domain_affinity(%{
+        Plugboard.DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
@@ -589,9 +590,9 @@ defmodule Plugboard.MountStoreTest do
       assert {:ok, {_path_id, "/api"}} = MountStore.match_by_domain("API.EXAMPLE.COM")
     end
 
-    test "strips port before matching", %{path: path} do
+    test "strips port before matching", %{path: path, user: user} do
       {:ok, _da} =
-        Plugboard.DomainAffinities.create_domain_affinity(%{
+        Plugboard.DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
@@ -602,9 +603,9 @@ defmodule Plugboard.MountStoreTest do
       assert {:ok, {_path_id, "/api"}} = MountStore.match_by_domain("api.example.com:8080")
     end
 
-    test "matches wildcard domain", %{path: path} do
+    test "matches wildcard domain", %{path: path, user: user} do
       {:ok, _da} =
-        Plugboard.DomainAffinities.create_domain_affinity(%{
+        Plugboard.DomainAffinities.create_domain_affinity(user.id, %{
           domain: "*.api.example.com",
           path_id: path.id
         })
@@ -617,9 +618,9 @@ defmodule Plugboard.MountStoreTest do
       assert {:ok, {_path_id, "/api"}} = MountStore.match_by_domain("foo.api.example.com")
     end
 
-    test "wildcard does not match base domain", %{path: path} do
+    test "wildcard does not match base domain", %{path: path, user: user} do
       {:ok, _da} =
-        Plugboard.DomainAffinities.create_domain_affinity(%{
+        Plugboard.DomainAffinities.create_domain_affinity(user.id, %{
           domain: "*.api.example.com",
           path_id: path.id
         })
@@ -630,27 +631,25 @@ defmodule Plugboard.MountStoreTest do
       assert {:error, :not_found} = MountStore.match_by_domain("api.example.com")
     end
 
-    test "exact match takes precedence over wildcard", %{path: path} do
-      user = user_fixture()
-
+    test "exact match takes precedence over wildcard", %{path: path, user: user} do
       {:ok, other_path} =
         Paths.create_path(%{
           path: "users",
           user_id: user.id
         })
 
-      {:ok, other_path} = Paths.update_path(other_path, %{mount_point: true})
+      {:ok, other_path} = Paths.update_path(user.id, other_path, %{mount_point: true})
 
       # Create wildcard that would match
       {:ok, _da1} =
-        Plugboard.DomainAffinities.create_domain_affinity(%{
+        Plugboard.DomainAffinities.create_domain_affinity(user.id, %{
           domain: "*.example.com",
           path_id: path.id
         })
 
       # Create exact match
       {:ok, _da2} =
-        Plugboard.DomainAffinities.create_domain_affinity(%{
+        Plugboard.DomainAffinities.create_domain_affinity(user.id, %{
           domain: "users.example.com",
           path_id: other_path.id
         })
@@ -663,27 +662,25 @@ defmodule Plugboard.MountStoreTest do
       assert path_id == other_path.id
     end
 
-    test "most specific wildcard wins", %{path: path} do
-      user = user_fixture()
-
+    test "most specific wildcard wins", %{path: path, user: user} do
       {:ok, other_path} =
         Paths.create_path(%{
           path: "users",
           user_id: user.id
         })
 
-      {:ok, other_path} = Paths.update_path(other_path, %{mount_point: true})
+      {:ok, other_path} = Paths.update_path(user.id, other_path, %{mount_point: true})
 
       # Create broad wildcard
       {:ok, _da1} =
-        Plugboard.DomainAffinities.create_domain_affinity(%{
+        Plugboard.DomainAffinities.create_domain_affinity(user.id, %{
           domain: "*.example.com",
           path_id: path.id
         })
 
       # Create more specific wildcard
       {:ok, _da2} =
-        Plugboard.DomainAffinities.create_domain_affinity(%{
+        Plugboard.DomainAffinities.create_domain_affinity(user.id, %{
           domain: "*.api.example.com",
           path_id: other_path.id
         })
@@ -719,14 +716,14 @@ defmodule Plugboard.MountStoreTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
 
-      %{path: path}
+      %{path: path, user: user}
     end
 
-    test "returns all domain affinities from ETS", %{path: path} do
+    test "returns all domain affinities from ETS", %{path: path, user: user} do
       {:ok, _da} =
-        Plugboard.DomainAffinities.create_domain_affinity(%{
+        Plugboard.DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })

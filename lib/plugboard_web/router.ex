@@ -9,7 +9,16 @@ defmodule PlugboardWeb.Router do
     plug :fetch_live_flash
     plug :put_root_layout, html: {PlugboardWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+
+    # Enhanced security headers beyond Phoenix defaults
+    plug :put_secure_browser_headers, %{
+      "x-frame-options" => "SAMEORIGIN",
+      "x-content-type-options" => "nosniff",
+      "x-xss-protection" => "1; mode=block",
+      "referrer-policy" => "strict-origin-when-cross-origin",
+      "permissions-policy" => "geolocation=(), microphone=(), camera=()"
+    }
+
     plug :fetch_current_scope_for_user
   end
 
@@ -26,6 +35,9 @@ defmodule PlugboardWeb.Router do
   end
 
   # Proxy pipeline with validation
+  # NOTE: CSRF protection is intentionally omitted here because this is a reverse proxy.
+  # Proxied requests originate from external clients and should not require CSRF tokens.
+  # The proxy validates paths and routes to authenticated telephone sidecars.
   pipeline :proxy do
     plug :accepts, ["json"]
     plug PlugboardWeb.Plugs.ValidatePath

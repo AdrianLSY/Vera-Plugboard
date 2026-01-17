@@ -20,7 +20,7 @@ defmodule PlugboardWeb.PathTokensLive.IndexTest do
         user_id: user.id
       })
 
-    {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+    {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
     mount_path
   end
 
@@ -234,9 +234,9 @@ defmodule PlugboardWeb.PathTokensLive.IndexTest do
       assert render(lv) =~ "Token not found"
     end
 
-    test "viewer role cannot edit token", %{user: _owner, mount_path: mount_path, token: token} do
+    test "viewer role cannot edit token", %{user: owner, mount_path: mount_path, token: token} do
       viewer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, mount_path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, mount_path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
       {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
@@ -257,9 +257,9 @@ defmodule PlugboardWeb.PathTokensLive.IndexTest do
       assert unchanged_token.description == "test description"
     end
 
-    test "maintainer role can edit token", %{mount_path: mount_path, token: token} do
+    test "maintainer role can edit token", %{user: owner, mount_path: mount_path, token: token} do
       maintainer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(maintainer.id, mount_path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, maintainer.id, mount_path.id, "maintainer")
 
       conn = log_in_user(build_conn(), maintainer)
       {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
@@ -488,12 +488,12 @@ defmodule PlugboardWeb.PathTokensLive.IndexTest do
     end
 
     test "viewer role cannot edit service account", %{
-      user: _owner,
+      user: owner,
       mount_path: mount_path,
       service_account: sa
     } do
       viewer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, mount_path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, mount_path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
       {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
@@ -521,11 +521,12 @@ defmodule PlugboardWeb.PathTokensLive.IndexTest do
     end
 
     test "maintainer role can edit service account", %{
+      user: owner,
       mount_path: mount_path,
       service_account: sa
     } do
       maintainer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(maintainer.id, mount_path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, maintainer.id, mount_path.id, "maintainer")
 
       conn = log_in_user(build_conn(), maintainer)
       {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
@@ -631,9 +632,9 @@ defmodule PlugboardWeb.PathTokensLive.IndexTest do
       assert render(lv) =~ "Unnamed token"
     end
 
-    test "viewer cannot create token", %{mount_path: mount_path} do
+    test "viewer cannot create token", %{user: owner, mount_path: mount_path} do
       viewer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, mount_path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, mount_path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
       {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
@@ -675,9 +676,9 @@ defmodule PlugboardWeb.PathTokensLive.IndexTest do
       refute render(lv) =~ "to-revoke"
     end
 
-    test "viewer cannot revoke token", %{mount_path: mount_path, token: token} do
+    test "viewer cannot revoke token", %{user: owner, mount_path: mount_path, token: token} do
       viewer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, mount_path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, mount_path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
       {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
@@ -730,9 +731,9 @@ defmodule PlugboardWeb.PathTokensLive.IndexTest do
       assert render(lv) =~ "new-sa"
     end
 
-    test "viewer cannot create service account", %{mount_path: mount_path} do
+    test "viewer cannot create service account", %{user: owner, mount_path: mount_path} do
       viewer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, mount_path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, mount_path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
       {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")
@@ -788,9 +789,13 @@ defmodule PlugboardWeb.PathTokensLive.IndexTest do
       refute render(lv) =~ "to-revoke-sa"
     end
 
-    test "viewer cannot revoke service account", %{mount_path: mount_path, service_account: sa} do
+    test "viewer cannot revoke service account", %{
+      user: owner,
+      mount_path: mount_path,
+      service_account: sa
+    } do
       viewer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, mount_path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, mount_path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
       {:ok, lv, _html} = live(conn, ~p"/paths/#{mount_path.id}/tokens")

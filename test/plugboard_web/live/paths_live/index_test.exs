@@ -176,7 +176,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
 
     test "unmounts a mounted path.", %{conn: conn, user: user} do
       path = create_path_for_user(user, %{path: "mounted"})
-      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _} = Paths.update_path(user.id, path, %{mount_point: true})
 
       {:ok, lv, _html} = live(conn, ~p"/paths")
 
@@ -366,7 +366,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       {:ok, path} = Paths.create_path(%{path: "shared", user_id: owner.id})
 
       # Grant viewer access
-      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
       {:ok, lv, _html} = live(conn, ~p"/paths")
@@ -384,7 +384,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       {:ok, path} = Paths.create_path(%{path: "shared", user_id: owner.id})
 
       # Grant maintainer access
-      {:ok, _} = Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, maintainer.id, path.id, "maintainer")
 
       conn = log_in_user(build_conn(), maintainer)
       {:ok, lv, _html} = live(conn, ~p"/paths")
@@ -433,7 +433,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       {:ok, parent} = Paths.create_path(%{path: "parent", user_id: owner.id})
 
       # Grant viewer access to parent
-      {:ok, _} = Paths.add_user_to_path(viewer.id, parent.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, parent.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
       {:ok, lv, _html} = live(conn, ~p"/paths?parent=#{parent.id}")
@@ -451,7 +451,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
     test "toggling mount on shared path (as owner)", %{user: owner} do
       {:ok, path} = Paths.create_path(%{path: "mountable", user_id: owner.id})
       viewer = user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, path.id, "viewer")
 
       conn = log_in_user(build_conn(), owner)
       {:ok, lv, _html} = live(conn, ~p"/paths")
@@ -527,7 +527,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       viewer = user_fixture()
 
       {:ok, path} = Paths.create_path(%{path: "shared", user_id: owner.id, mount_point: true})
-      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, path.id, "viewer")
 
       # Owner sees mount indicator
       conn_owner = log_in_user(build_conn(), owner)
@@ -547,7 +547,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       viewer = user_fixture()
 
       {:ok, path} = Paths.create_path(%{path: "shared", user_id: owner.id})
-      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, path.id, "viewer")
 
       # Owner deletes the path
       conn_owner = log_in_user(build_conn(), owner)
@@ -573,7 +573,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       collaborator = user_fixture()
 
       {:ok, parent} = Paths.create_path(%{path: "parent", user_id: owner.id})
-      {:ok, _} = Paths.add_user_to_path(collaborator.id, parent.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, collaborator.id, parent.id, "maintainer")
 
       # Collaborator creates child
       conn = log_in_user(build_conn(), collaborator)
@@ -596,7 +596,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       collaborator = user_fixture()
 
       {:ok, parent} = Paths.create_path(%{path: "shared", user_id: owner.id})
-      {:ok, _} = Paths.add_user_to_path(collaborator.id, parent.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, collaborator.id, parent.id, "maintainer")
 
       # Both users connect to view the parent
       conn_owner = log_in_user(build_conn(), owner)
@@ -624,7 +624,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       viewer = user_fixture()
 
       {:ok, path} = Paths.create_path(%{path: "shared", user_id: owner.id})
-      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, path.id, "viewer")
 
       # Both users connect
       conn_owner = log_in_user(build_conn(), owner)
@@ -656,7 +656,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       viewer = user_fixture()
 
       {:ok, path} = Paths.create_path(%{path: "mountable", user_id: owner.id})
-      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(owner.id, viewer.id, path.id, "viewer")
 
       conn_owner = log_in_user(build_conn(), owner)
       conn_viewer = log_in_user(build_conn(), viewer)
@@ -682,7 +682,7 @@ defmodule PlugboardWeb.PathsLive.IndexTest do
       user2 = user_fixture()
 
       {:ok, path} = Paths.create_path(%{path: "contested", user_id: user1.id})
-      {:ok, _} = Paths.add_user_to_path(user2.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(user1.id, user2.id, path.id, "maintainer")
 
       conn1 = log_in_user(build_conn(), user1)
       conn2 = log_in_user(build_conn(), user2)

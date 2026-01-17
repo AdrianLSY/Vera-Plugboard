@@ -43,7 +43,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -64,7 +64,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -92,7 +92,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(child, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, child, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -113,7 +113,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -136,7 +136,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -159,7 +159,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -182,7 +182,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -209,7 +209,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
         })
 
       {:ok, path} =
-        Paths.update_path(path, %{
+        Paths.update_path(user.id, path, %{
           mount_point: true,
           request_timeout_ms: 500
         })
@@ -273,7 +273,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Make request with no telephone - should return 503
@@ -318,7 +318,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
         |> Ecto.Changeset.change(request_timeout_ms: -1000)
         |> Plugboard.Repo.update()
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Create a non-responding telephone
@@ -369,7 +369,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
         })
 
       {:ok, path} =
-        Paths.update_path(path, %{
+        Paths.update_path(user.id, path, %{
           mount_point: true,
           request_timeout_ms: 500
         })
@@ -416,7 +416,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Try path traversal
@@ -437,7 +437,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Create a very deep path (>50 segments)
@@ -463,7 +463,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
         })
 
       {:ok, path} =
-        Paths.update_path(path, %{
+        Paths.update_path(user.id, path, %{
           mount_point: true,
           request_timeout_ms: 500
         })
@@ -523,7 +523,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Wait for NOTIFY to propagate and use manual reload to ensure test reliability
       # NOTIFY propagation can be slower in test environment due to transaction isolation
@@ -545,7 +545,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, mounted_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mounted_path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -555,7 +555,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       assert conn1.status == 503
 
       # Unmark as mount (use the mounted_path, not the original path)
-      {:ok, _unmounted_path} = Paths.update_path(mounted_path, %{mount_point: false})
+      {:ok, _unmounted_path} = Paths.update_path(user.id, mounted_path, %{mount_point: false})
 
       # Reload to ensure ETS is updated
       MountStore.reload_all()
@@ -575,7 +575,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated
       MountStore.reload_all()
@@ -585,7 +585,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
       assert conn1.status == 503
 
       # Delete path
-      {:ok, _path} = Paths.delete_path(path)
+      {:ok, _path} = Paths.delete_path(user.id, path)
 
       # Wait for NOTIFY to propagate and remove from ETS
       # For now, we use manual reload to ensure test reliability
@@ -608,7 +608,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -632,7 +632,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _api_mount} = Paths.update_path(api, %{mount_point: true})
+      {:ok, _api_mount} = Paths.update_path(user.id, api, %{mount_point: true})
 
       # /api-v2 mount (more specific in terms of path length)
       {:ok, api_v2} =
@@ -641,7 +641,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _api_v2_mount} = Paths.update_path(api_v2, %{mount_point: true})
+      {:ok, _api_v2_mount} = Paths.update_path(user.id, api_v2, %{mount_point: true})
 
       # Reload to ensure ETS is updated (tests don't wait for NOTIFY)
       MountStore.reload_all()
@@ -696,7 +696,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Create a mock telephone that registers itself and responds successfully
@@ -733,7 +733,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Create a mock telephone that responds with 201 Created
@@ -768,7 +768,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Create a mock telephone that responds with multiple headers
@@ -809,7 +809,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       telephone_pid =
@@ -841,7 +841,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       test_pid = self()
@@ -886,7 +886,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       telephone_pid =
@@ -925,7 +925,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       telephone_pid =
@@ -961,7 +961,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       telephone_pid =
@@ -998,7 +998,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       telephone_pid =
@@ -1028,7 +1028,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       telephone_pid =
@@ -1058,7 +1058,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Create a telephone process that registers itself then immediately exits
@@ -1105,7 +1105,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
         })
 
       {:ok, path} =
-        Paths.update_path(path, %{
+        Paths.update_path(user.id, path, %{
           mount_point: true,
           # 1 second timeout
           request_timeout_ms: 1000
@@ -1164,7 +1164,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       telephone_pid =
@@ -1202,7 +1202,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Add domain affinity directly to store
@@ -1225,7 +1225,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Add then remove
@@ -1233,6 +1233,8 @@ defmodule PlugboardWeb.ProxyControllerTest do
       assert {:ok, _} = MountStore.match_by_domain("remove-me.example.com")
 
       MountStore.remove_domain_affinity("remove-me.example.com")
+      # Wait for async cast to complete
+      Process.sleep(50)
       assert {:error, :not_found} = MountStore.match_by_domain("remove-me.example.com")
     end
   end
@@ -1247,7 +1249,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Create a hook that will reject requests
       bypass = Bypass.open()
@@ -1288,7 +1290,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Create a hook pointing to a port that won't respond quickly
       # Using a non-routable IP that will cause connection timeout
@@ -1322,7 +1324,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Create a hook pointing to non-existent server
       {:ok, _hook} =
@@ -1356,7 +1358,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Request to just the mount point
@@ -1375,7 +1377,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       test_pid = self()
@@ -1407,7 +1409,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       test_pid = self()
@@ -1449,7 +1451,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
         |> Ecto.Changeset.change(request_timeout_ms: 500_000)
         |> Plugboard.Repo.update()
 
-      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       telephone_pid =
@@ -1484,7 +1486,7 @@ defmodule PlugboardWeb.ProxyControllerTest do
         |> Ecto.Changeset.change(request_timeout_ms: 0)
         |> Plugboard.Repo.update()
 
-      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       telephone_pid =

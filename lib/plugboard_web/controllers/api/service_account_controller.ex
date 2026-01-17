@@ -128,28 +128,24 @@ defmodule PlugboardWeb.Api.ServiceAccountController do
         |> put_status(:not_found)
         |> json(%{error: "Service account not found"})
 
-      service_account ->
-        # Check user has appropriate role on the path
-        case Paths.get_user_role(user.id, service_account.path_id) do
-          role when role in ["owner", "maintainer"] ->
-            case ServiceAccounts.revoke_service_account(service_account_id) do
-              {:ok, _revoked_sa} ->
-                Logger.info("Service account #{service_account_id} revoked by user #{user.id}")
+      _service_account ->
+        case ServiceAccounts.revoke_service_account(user.id, service_account_id) do
+          {:ok, _revoked_sa} ->
+            Logger.info("Service account #{service_account_id} revoked by user #{user.id}")
 
-                conn
-                |> put_status(:ok)
-                |> json(%{message: "Service account revoked successfully"})
+            conn
+            |> put_status(:ok)
+            |> json(%{message: "Service account revoked successfully"})
 
-              {:error, changeset} ->
-                conn
-                |> put_status(:unprocessable_entity)
-                |> json(%{error: "Failed to revoke service account", details: changeset})
-            end
-
-          _ ->
+          {:error, :unauthorized} ->
             conn
             |> put_status(:forbidden)
             |> json(%{error: "Requires owner or maintainer role"})
+
+          {:error, changeset} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: "Failed to revoke service account", details: changeset})
         end
     end
   end

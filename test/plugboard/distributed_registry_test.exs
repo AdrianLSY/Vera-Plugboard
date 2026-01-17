@@ -82,6 +82,9 @@ defmodule Plugboard.DistributedRegistryTest do
       path_id = Ecto.UUID.generate()
       DistributedRegistry.register(path_id)
 
+      # Wait for Horde CRDT propagation
+      Process.sleep(50)
+
       assert {:ok, pid} = DistributedRegistry.get_telephone(path_id)
       assert is_pid(pid)
 

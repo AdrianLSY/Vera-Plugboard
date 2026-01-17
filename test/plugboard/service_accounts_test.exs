@@ -15,8 +15,8 @@ defmodule Plugboard.ServiceAccountsTest do
       assert {:ok, api_key, service_account} =
                ServiceAccounts.generate_service_account(user, path.id, "test-sa", "Test SA")
 
-      # API key format check
-      assert String.starts_with?(api_key, "sa_live_")
+      # API key format check (prefix changed from sa_live_ to pb_sa_ for security)
+      assert String.starts_with?(api_key, "pb_sa_")
       assert String.length(api_key) > 20
 
       # Service account checks
@@ -35,21 +35,21 @@ defmodule Plugboard.ServiceAccountsTest do
       assert api_key1 != api_key2
     end
 
-    test "requires owner or maintainer role", %{path: path} do
+    test "requires owner or maintainer role", %{user: owner, path: path} do
       other_user = Plugboard.AccountsFixtures.user_fixture()
 
-      # Add as viewer
-      {:ok, _} = Paths.add_user_to_path(other_user.id, path.id, "viewer")
+      # Add as viewer (owner adds them)
+      {:ok, _} = Paths.add_user_to_path(owner.id, other_user.id, path.id, "viewer")
 
       assert {:error, "Requires owner or maintainer role"} =
                ServiceAccounts.generate_service_account(other_user, path.id, "test", nil)
     end
 
-    test "allows maintainer to create service accounts", %{user: _owner, path: path} do
+    test "allows maintainer to create service accounts", %{user: owner, path: path} do
       maintainer = Plugboard.AccountsFixtures.user_fixture()
 
-      # Add as maintainer
-      {:ok, _} = Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      # Add as maintainer (owner adds them)
+      {:ok, _} = Paths.add_user_to_path(owner.id, maintainer.id, path.id, "maintainer")
 
       assert {:ok, _api_key, _sa} =
                ServiceAccounts.generate_service_account(maintainer, path.id, "test", nil)
@@ -119,17 +119,18 @@ defmodule Plugboard.ServiceAccountsTest do
     end
 
     test "rejects invalid API key" do
-      assert {:error, :api_key_not_found} = ServiceAccounts.validate_api_key("sa_live_invalid")
+      assert {:error, :api_key_not_found} = ServiceAccounts.validate_api_key("pb_sa_invalid")
     end
 
-    test "rejects revoked service account", %{api_key: api_key, service_account: sa} do
-      {:ok, _} = ServiceAccounts.revoke_service_account(sa.id)
+    test "rejects revoked service account", %{api_key: api_key, service_account: sa, user: user} do
+      {:ok, _} = ServiceAccounts.revoke_service_account(user.id, sa.id)
 
-      assert {:error, :service_account_revoked} = ServiceAccounts.validate_api_key(api_key)
+      # Revoked accounts are not found (security: don't leak revocation status)
+      assert {:error, :api_key_not_found} = ServiceAccounts.validate_api_key(api_key)
     end
 
-    test "rejects when path is deleted", %{api_key: api_key, path: path} do
-      {:ok, _} = Paths.delete_path(path)
+    test "rejects when path is deleted", %{api_key: api_key, path: path, user: user} do
+      {:ok, _} = Paths.delete_path(user.id, path)
 
       # After deletion, path won't be found
       assert {:error, :path_not_found} = ServiceAccounts.validate_api_key(api_key)
@@ -182,7 +183,7 @@ defmodule Plugboard.ServiceAccountsTest do
     end
   end
 
-  describe "revoke_service_account/1" do
+  describe "revoke_service_account/2" do
     setup do
       user = Plugboard.AccountsFixtures.user_fixture()
       {:ok, path} = create_mount_point(user)
@@ -190,21 +191,21 @@ defmodule Plugboard.ServiceAccountsTest do
       {:ok, _api_key, service_account} =
         ServiceAccounts.generate_service_account(user, path.id, "test", nil)
 
-      %{service_account: service_account}
+      %{user: user, service_account: service_account}
     end
 
-    test "revokes service account", %{service_account: sa} do
-      assert {:ok, revoked} = ServiceAccounts.revoke_service_account(sa.id)
+    test "revokes service account", %{service_account: sa, user: user} do
+      assert {:ok, revoked} = ServiceAccounts.revoke_service_account(user.id, sa.id)
       assert revoked.revoked_at != nil
     end
 
-    test "returns error for non-existent service account" do
+    test "returns error for non-existent service account", %{user: user} do
       fake_uuid = Ecto.UUID.generate()
-      assert {:error, :not_found} = ServiceAccounts.revoke_service_account(fake_uuid)
+      assert {:error, :not_found} = ServiceAccounts.revoke_service_account(user.id, fake_uuid)
     end
   end
 
-  describe "update_service_account/2" do
+  describe "update_service_account/3" do
     setup do
       user = Plugboard.AccountsFixtures.user_fixture()
       {:ok, path} = create_mount_point(user)
@@ -215,80 +216,81 @@ defmodule Plugboard.ServiceAccountsTest do
       %{user: user, path: path, service_account: service_account}
     end
 
-    test "updates service account name and description", %{service_account: sa} do
+    test "updates service account name and description", %{service_account: sa, user: user} do
       attrs = %{name: "updated-name", description: "updated description"}
-      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(user.id, sa.id, attrs)
 
       assert updated_sa.name == "updated-name"
       assert updated_sa.description == "updated description"
       assert updated_sa.id == sa.id
     end
 
-    test "updates only name", %{service_account: sa} do
+    test "updates only name", %{service_account: sa, user: user} do
       attrs = %{name: "new-name"}
-      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(user.id, sa.id, attrs)
 
       assert updated_sa.name == "new-name"
       assert updated_sa.description == "original desc"
     end
 
-    test "updates only description", %{service_account: sa} do
+    test "updates only description", %{service_account: sa, user: user} do
       attrs = %{description: "new description"}
-      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(user.id, sa.id, attrs)
 
       assert updated_sa.name == "original-name"
       assert updated_sa.description == "new description"
     end
 
-    test "allows setting description to nil", %{service_account: sa} do
+    test "allows setting description to nil", %{service_account: sa, user: user} do
       attrs = %{description: nil}
-      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(user.id, sa.id, attrs)
 
       assert updated_sa.name == "original-name"
       assert updated_sa.description == nil
     end
 
-    test "validates name format", %{service_account: sa} do
+    test "validates name format", %{service_account: sa, user: user} do
       # Invalid characters
       attrs = %{name: "invalid name!"}
-      assert {:error, changeset} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert {:error, changeset} = ServiceAccounts.update_service_account(user.id, sa.id, attrs)
 
       assert "must contain only letters, numbers, hyphens, and underscores" in errors_on(
                changeset
              ).name
     end
 
-    test "validates name length minimum", %{service_account: sa} do
+    test "validates name length minimum", %{service_account: sa, user: user} do
       # Too short
       attrs = %{name: "ab"}
-      assert {:error, changeset} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert {:error, changeset} = ServiceAccounts.update_service_account(user.id, sa.id, attrs)
 
       assert "should be at least 3 character(s)" in errors_on(changeset).name
     end
 
-    test "validates name length maximum", %{service_account: sa} do
+    test "validates name length maximum", %{service_account: sa, user: user} do
       # Too long (> 100 chars)
       long_name = String.duplicate("a", 101)
       attrs = %{name: long_name}
 
-      assert {:error, changeset} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert {:error, changeset} = ServiceAccounts.update_service_account(user.id, sa.id, attrs)
       assert "should be at most 100 character(s)" in errors_on(changeset).name
     end
 
-    test "validates description length", %{service_account: sa} do
+    test "validates description length", %{service_account: sa, user: user} do
       # Description too long (> 500 chars)
       long_desc = String.duplicate("a", 501)
       attrs = %{description: long_desc}
 
-      assert {:error, changeset} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert {:error, changeset} = ServiceAccounts.update_service_account(user.id, sa.id, attrs)
       assert "should be at most 500 character(s)" in errors_on(changeset).description
     end
 
-    test "returns error for non-existent service account" do
+    test "returns error for non-existent service account", %{user: user} do
       fake_id = Ecto.UUID.generate()
       attrs = %{name: "test"}
 
-      assert {:error, :not_found} = ServiceAccounts.update_service_account(fake_id, attrs)
+      assert {:error, :not_found} =
+               ServiceAccounts.update_service_account(user.id, fake_id, attrs)
     end
 
     test "enforces unique name per user", %{user: user, path: path, service_account: sa} do
@@ -297,26 +299,29 @@ defmodule Plugboard.ServiceAccountsTest do
 
       # Try to update first SA to use the second SA's name
       attrs = %{name: "other-name"}
-      assert {:error, changeset} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert {:error, changeset} = ServiceAccounts.update_service_account(user.id, sa.id, attrs)
 
       errors = errors_on(changeset)
       assert errors[:name] != nil or errors[:user_id] != nil
     end
 
-    test "allows same name if updating the same service account", %{service_account: sa} do
+    test "allows same name if updating the same service account", %{
+      service_account: sa,
+      user: user
+    } do
       # Updating with the same name should work
       attrs = %{name: "original-name", description: "new desc"}
-      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(user.id, sa.id, attrs)
 
       assert updated_sa.name == "original-name"
       assert updated_sa.description == "new desc"
     end
 
-    test "does not modify other service account fields", %{service_account: sa} do
+    test "does not modify other service account fields", %{service_account: sa, user: user} do
       original_sa = Repo.get(ServiceAccounts.ServiceAccount, sa.id)
 
       attrs = %{name: "updated-name"}
-      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(sa.id, attrs)
+      assert {:ok, updated_sa} = ServiceAccounts.update_service_account(user.id, sa.id, attrs)
 
       # These should remain unchanged
       assert updated_sa.api_key_hash == original_sa.api_key_hash
@@ -338,7 +343,7 @@ defmodule Plugboard.ServiceAccountsTest do
       {:ok, _, sa3} = ServiceAccounts.generate_service_account(user, path.id, "sa3", nil)
 
       # Revoke one
-      {:ok, _} = ServiceAccounts.revoke_service_account(sa3.id)
+      {:ok, _} = ServiceAccounts.revoke_service_account(user.id, sa3.id)
 
       %{path: path, sa1: sa1, sa2: sa2}
     end

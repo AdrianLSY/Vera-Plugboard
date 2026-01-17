@@ -26,7 +26,7 @@ defmodule Plugboard.HooksTest do
   # Helper to create a mount point
   defp create_mount_point(user, attrs \\ %{}) do
     path = create_path(user, attrs)
-    {:ok, mount} = Paths.update_path(path, %{mount_point: true})
+    {:ok, mount} = Paths.update_path(user.id, path, %{mount_point: true})
     mount
   end
 
@@ -208,9 +208,9 @@ defmodule Plugboard.HooksTest do
                Hooks.create_hook(other_user.id, attrs)
     end
 
-    test "allows maintainer to create hook", %{path: path, target: target} do
+    test "allows maintainer to create hook", %{user: user, path: path, target: target} do
       maintainer = user_fixture()
-      Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(user.id, maintainer.id, path.id, "maintainer")
 
       attrs = %{
         path_id: path.id,
@@ -224,9 +224,9 @@ defmodule Plugboard.HooksTest do
       assert {:ok, %Hook{}} = Hooks.create_hook(maintainer.id, attrs)
     end
 
-    test "rejects viewer from creating hook", %{path: path, target: target} do
+    test "rejects viewer from creating hook", %{user: user, path: path, target: target} do
       viewer = user_fixture()
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       attrs = %{
         path_id: path.id,
@@ -380,9 +380,9 @@ defmodule Plugboard.HooksTest do
                Hooks.update_hook(other_user.id, hook, attrs)
     end
 
-    test "allows maintainer to update hook", %{path: path, hook: hook} do
+    test "allows maintainer to update hook", %{user: user, path: path, hook: hook} do
       maintainer = user_fixture()
-      Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(user.id, maintainer.id, path.id, "maintainer")
 
       attrs = %{name: "Maintainer Update"}
 
@@ -390,9 +390,9 @@ defmodule Plugboard.HooksTest do
       assert updated.name == "Maintainer Update"
     end
 
-    test "rejects viewer from updating hook", %{path: path, hook: hook} do
+    test "rejects viewer from updating hook", %{user: user, path: path, hook: hook} do
       viewer = user_fixture()
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       attrs = %{name: "Viewer Update"}
 
@@ -477,16 +477,16 @@ defmodule Plugboard.HooksTest do
                Hooks.delete_hook(other_user.id, hook)
     end
 
-    test "allows maintainer to delete hook", %{path: path, hook: hook} do
+    test "allows maintainer to delete hook", %{user: user, path: path, hook: hook} do
       maintainer = user_fixture()
-      Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(user.id, maintainer.id, path.id, "maintainer")
 
       assert {:ok, _deleted} = Hooks.delete_hook(maintainer.id, hook)
     end
 
-    test "rejects viewer from deleting hook", %{path: path, hook: hook} do
+    test "rejects viewer from deleting hook", %{user: user, path: path, hook: hook} do
       viewer = user_fixture()
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       assert {:error, "Requires owner or maintainer role"} = Hooks.delete_hook(viewer.id, hook)
     end

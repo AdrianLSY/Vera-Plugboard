@@ -20,7 +20,7 @@ defmodule Plugboard.TelephoneTokensTest do
           user_id: user.id
         })
 
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       %{user: user, path: mount_path}
     end
@@ -82,9 +82,9 @@ defmodule Plugboard.TelephoneTokensTest do
     test "stores hashed token, not plaintext", %{user: user, path: path} do
       assert {:ok, jwt, token} = TelephoneTokens.generate_token(path, user)
 
-      # Token hash should be hex-encoded SHA256 (64 characters)
-      assert String.length(token.token_hash) == 64
-      assert String.match?(token.token_hash, ~r/^[0-9a-f]+$/)
+      # Token hash should be Argon2 format (starts with $argon2)
+      assert String.starts_with?(token.token_hash, "$argon2")
+      assert String.length(token.token_hash) > 80
 
       # Token hash should not match the JWT
       refute token.token_hash == jwt
@@ -92,7 +92,7 @@ defmodule Plugboard.TelephoneTokensTest do
 
     test "rejects non-mount point paths", %{user: user, path: path} do
       # Unmark as mount point
-      {:ok, non_mount} = Paths.update_path(path, %{mount_point: false})
+      {:ok, non_mount} = Paths.update_path(user.id, path, %{mount_point: false})
 
       assert {:error, "Path must be a mount point"} =
                TelephoneTokens.generate_token(non_mount, user)
@@ -100,7 +100,7 @@ defmodule Plugboard.TelephoneTokensTest do
 
     test "rejects deleted paths", %{user: user, path: path} do
       # Soft delete the path
-      {:ok, deleted_path} = Paths.delete_path(path)
+      {:ok, deleted_path} = Paths.delete_path(user.id, path)
 
       assert {:error, "Path is deleted"} = TelephoneTokens.generate_token(deleted_path, user)
     end
@@ -125,7 +125,7 @@ defmodule Plugboard.TelephoneTokensTest do
           user_id: user.id
         })
 
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
       {:ok, jwt, token} = TelephoneTokens.generate_token(mount_path, user)
 
       %{user: user, path: mount_path, jwt: jwt, token: token}
@@ -168,27 +168,29 @@ defmodule Plugboard.TelephoneTokensTest do
         set: [expires_at: DateTime.add(DateTime.utc_now(), -3600, :second)]
       )
 
-      assert {:error, :token_expired} = TelephoneTokens.validate_jwt(jwt)
+      # Expired tokens return :token_not_found (security: don't leak expiration status)
+      assert {:error, :token_not_found} = TelephoneTokens.validate_jwt(jwt)
     end
 
-    test "rejects revoked token", %{jwt: jwt, token: token} do
+    test "rejects revoked token", %{jwt: jwt, token: token, user: user} do
       # Revoke the token
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token.id)
 
-      assert {:error, :token_revoked} = TelephoneTokens.validate_jwt(jwt)
+      # Revoked tokens return :token_not_found (security: don't leak revocation status)
+      assert {:error, :token_not_found} = TelephoneTokens.validate_jwt(jwt)
     end
 
-    test "rejects token for deleted path", %{jwt: jwt, path: path} do
+    test "rejects token for deleted path", %{jwt: jwt, path: path, user: user} do
       # Soft delete the path
-      {:ok, _deleted} = Paths.delete_path(path)
+      {:ok, _deleted} = Paths.delete_path(user.id, path)
 
       # When a path is deleted, get_path returns nil, so we get :path_not_found
       assert {:error, :path_not_found} = TelephoneTokens.validate_jwt(jwt)
     end
 
-    test "rejects token for non-mount path", %{jwt: jwt, path: path} do
+    test "rejects token for non-mount path", %{jwt: jwt, path: path, user: user} do
       # Unmark as mount point
-      {:ok, _non_mount} = Paths.update_path(path, %{mount_point: false})
+      {:ok, _non_mount} = Paths.update_path(user.id, path, %{mount_point: false})
 
       assert {:error, :path_not_mount} = TelephoneTokens.validate_jwt(jwt)
     end
@@ -196,7 +198,7 @@ defmodule Plugboard.TelephoneTokensTest do
     test "rejects token for non-existent path", %{user: user} do
       # Create a token then delete the path completely
       {:ok, path} = Paths.create_path(%{path: "temp", user_id: user.id})
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
       {:ok, jwt, _token} = TelephoneTokens.generate_token(mount_path, user)
 
       # Hard delete from database (bypassing soft delete)
@@ -209,7 +211,7 @@ defmodule Plugboard.TelephoneTokensTest do
 
     test "rejects token that doesn't exist in database", %{user: user, path: path} do
       # Generate a valid JWT but don't store it in database
-      # We need to hash it the same way the code does to ensure proper lookup
+      # We need to use the same key derivation as the production code
       claims = %{
         "sub" => user.id,
         "jti" => Ecto.UUID.generate(),
@@ -218,7 +220,8 @@ defmodule Plugboard.TelephoneTokensTest do
         "exp" => DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.to_unix()
       }
 
-      secret = Application.get_env(:plugboard, PlugboardWeb.Endpoint)[:secret_key_base]
+      # Use derived secret (same as production code)
+      secret = Plugboard.Crypto.derive_jwt_secret("telephone_jwt")
       signer = Joken.Signer.create("HS256", secret)
       jwt = Joken.generate_and_sign!(%{}, claims, signer)
 
@@ -237,7 +240,7 @@ defmodule Plugboard.TelephoneTokensTest do
           user_id: user.id
         })
 
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
       {:ok, jwt, token} = TelephoneTokens.generate_token(mount_path, user)
 
       %{user: user, path: mount_path, jwt: jwt, token: token}
@@ -258,7 +261,11 @@ defmodule Plugboard.TelephoneTokensTest do
       assert diff <= 5
     end
 
-    test "prevents race condition: token revoked during validation", %{jwt: jwt, token: token} do
+    test "prevents race condition: token revoked during validation", %{
+      jwt: jwt,
+      token: token,
+      user: user
+    } do
       # Simulate race condition: token gets revoked while validation is happening
       # This should fail because validation happens in a transaction
 
@@ -272,11 +279,11 @@ defmodule Plugboard.TelephoneTokensTest do
 
       # Revoke token immediately
       Process.sleep(10)
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token.id)
 
-      # Validation should fail
+      # Validation should fail (returns :token_not_found for revoked tokens)
       result = Task.await(task)
-      assert {:error, :token_revoked} = result
+      assert {:error, :token_not_found} = result
     end
 
     test "concurrent validation attempts on same token", %{jwt: jwt} do
@@ -307,10 +314,10 @@ defmodule Plugboard.TelephoneTokensTest do
     test "rolls back on validation failure", %{user: user, path: path} do
       # Create a token and immediately revoke it
       {:ok, jwt, token} = TelephoneTokens.generate_token(path, user)
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token.id)
 
-      # Attempt to validate and mark as used
-      assert {:error, :token_revoked} = TelephoneTokens.validate_and_mark_used(jwt)
+      # Attempt to validate and mark as used (returns :token_not_found for revoked tokens)
+      assert {:error, :token_not_found} = TelephoneTokens.validate_and_mark_used(jwt)
 
       # Verify last_used_at was NOT updated (transaction rolled back)
       updated_token = Repo.get(TelephoneToken, token.id)
@@ -328,14 +335,14 @@ defmodule Plugboard.TelephoneTokensTest do
           user_id: user.id
         })
 
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
       {:ok, jwt, token} = TelephoneTokens.generate_token(mount_path, user)
 
       %{user: user, path: mount_path, jwt: jwt, token: token}
     end
 
-    test "revokes an active token", %{token: token} do
-      assert {:ok, revoked_token} = TelephoneTokens.revoke_token(token.id)
+    test "revokes an active token", %{token: token, user: user} do
+      assert {:ok, revoked_token} = TelephoneTokens.revoke_token(user.id, token.id)
 
       assert revoked_token.revoked_at != nil
       assert revoked_token.id == token.id
@@ -345,24 +352,25 @@ defmodule Plugboard.TelephoneTokensTest do
       assert diff <= 5
     end
 
-    test "revoked token fails validation", %{jwt: jwt, token: token} do
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
+    test "revoked token fails validation", %{jwt: jwt, token: token, user: user} do
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token.id)
 
-      assert {:error, :token_revoked} = TelephoneTokens.validate_jwt(jwt)
+      # Revoked tokens return :token_not_found (security: don't leak revocation status)
+      assert {:error, :token_not_found} = TelephoneTokens.validate_jwt(jwt)
     end
 
-    test "returns error for non-existent token" do
+    test "returns error for non-existent token", %{user: user} do
       fake_id = Ecto.UUID.generate()
-      assert {:error, :not_found} = TelephoneTokens.revoke_token(fake_id)
+      assert {:error, :not_found} = TelephoneTokens.revoke_token(user.id, fake_id)
     end
 
-    test "can revoke already revoked token (idempotent)", %{token: token} do
+    test "can revoke already revoked token (idempotent)", %{token: token, user: user} do
       # First revocation
-      {:ok, revoked1} = TelephoneTokens.revoke_token(token.id)
+      {:ok, revoked1} = TelephoneTokens.revoke_token(user.id, token.id)
       assert revoked1.revoked_at != nil
 
       # Second revocation
-      {:ok, revoked2} = TelephoneTokens.revoke_token(token.id)
+      {:ok, revoked2} = TelephoneTokens.revoke_token(user.id, token.id)
       assert revoked2.revoked_at != nil
 
       # Timestamps might differ slightly, but both should be revoked
@@ -380,7 +388,7 @@ defmodule Plugboard.TelephoneTokensTest do
           user_id: user.id
         })
 
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
       {:ok, _jwt, token} = TelephoneTokens.generate_token(mount_path, user, "original", "desc")
 
       %{user: user, path: mount_path, token: token}
@@ -478,7 +486,7 @@ defmodule Plugboard.TelephoneTokensTest do
           user_id: user.id
         })
 
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
       {:ok, jwt, token} = TelephoneTokens.generate_token(mount_path, user)
 
       %{user: user, path: mount_path, jwt: jwt, token: token}
@@ -512,8 +520,8 @@ defmodule Plugboard.TelephoneTokensTest do
       assert {:error, :not_found} = TelephoneTokens.refresh_token(fake_id)
     end
 
-    test "returns error for revoked token", %{token: token} do
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
+    test "returns error for revoked token", %{token: token, user: user} do
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token.id)
 
       assert {:error, :token_revoked} = TelephoneTokens.refresh_token(token.id)
     end
@@ -529,7 +537,7 @@ defmodule Plugboard.TelephoneTokensTest do
           user_id: user.id
         })
 
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
       {:ok, _jwt, token} = TelephoneTokens.generate_token(mount_path, user)
 
       %{token: token}
@@ -575,7 +583,7 @@ defmodule Plugboard.TelephoneTokensTest do
           user_id: user.id
         })
 
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       %{user: user, path: mount_path}
     end
@@ -597,7 +605,7 @@ defmodule Plugboard.TelephoneTokensTest do
       {:ok, _jwt2, token2} = TelephoneTokens.generate_token(path, user, "Will revoke")
 
       # Revoke second token
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token2.id)
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token2.id)
 
       tokens = TelephoneTokens.list_tokens_for_path(path.id)
 
@@ -650,10 +658,10 @@ defmodule Plugboard.TelephoneTokensTest do
 
     test "returns all active tokens for a user across multiple paths", %{user: user} do
       {:ok, path1} = Paths.create_path(%{path: "api", user_id: user.id})
-      {:ok, mount1} = Paths.update_path(path1, %{mount_point: true})
+      {:ok, mount1} = Paths.update_path(user.id, path1, %{mount_point: true})
 
       {:ok, path2} = Paths.create_path(%{path: "web", user_id: user.id})
-      {:ok, mount2} = Paths.update_path(path2, %{mount_point: true})
+      {:ok, mount2} = Paths.update_path(user.id, path2, %{mount_point: true})
 
       {:ok, _jwt1, token1} = TelephoneTokens.generate_token(mount1, user)
       {:ok, _jwt2, token2} = TelephoneTokens.generate_token(mount2, user)
@@ -671,12 +679,12 @@ defmodule Plugboard.TelephoneTokensTest do
 
     test "does not return revoked tokens", %{user: user} do
       {:ok, path} = Paths.create_path(%{path: "api", user_id: user.id})
-      {:ok, mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       {:ok, _jwt1, token1} = TelephoneTokens.generate_token(mount, user)
       {:ok, _jwt2, token2} = TelephoneTokens.generate_token(mount, user)
 
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token2.id)
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token2.id)
 
       tokens = TelephoneTokens.list_tokens_for_user(user.id)
 
@@ -700,7 +708,7 @@ defmodule Plugboard.TelephoneTokensTest do
           user_id: user.id
         })
 
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       %{user: user, path: mount_path}
     end
@@ -762,7 +770,7 @@ defmodule Plugboard.TelephoneTokensTest do
           user_id: user.id
         })
 
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
       {:ok, _jwt, token} = TelephoneTokens.generate_token(mount_path, user)
 
       %{token: token}
@@ -792,7 +800,7 @@ defmodule Plugboard.TelephoneTokensTest do
           user_id: user.id
         })
 
-      {:ok, path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       %{user: user, path: path}
     end

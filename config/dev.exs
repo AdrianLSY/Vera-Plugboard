@@ -93,3 +93,11 @@ config :swoosh, :api_client, false
 
 # Note: MountStore, telephone, and max_request_body_length configuration
 # is now consolidated in config/runtime.exs for all environments
+
+# Development session salts - DO NOT use these in production
+config :plugboard, :session,
+  signing_salt: "dev_signing_salt_not_for_production",
+  encryption_salt: nil
+
+# Mark as dev environment for secure cookie flag
+config :plugboard, :env, :dev

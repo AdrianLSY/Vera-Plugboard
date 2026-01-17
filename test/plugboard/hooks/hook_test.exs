@@ -24,7 +24,7 @@ defmodule Plugboard.Hooks.HookTest do
 
   defp create_mount_point(user, attrs \\ %{}) do
     path = create_path(user, attrs)
-    {:ok, mount} = Paths.update_path(path, %{mount_point: true})
+    {:ok, mount} = Paths.update_path(user.id, path, %{mount_point: true})
     mount
   end
 
@@ -200,7 +200,7 @@ defmodule Plugboard.Hooks.HookTest do
 
       changeset = Hook.create_changeset(%Hook{}, attrs)
       refute changeset.valid?
-      assert "must be a valid HTTP or HTTPS URL" in errors_on(changeset).target_url
+      assert "must use HTTP or HTTPS scheme" in errors_on(changeset).target_url
     end
 
     test "validates target_url accepts https", %{path: path} do
@@ -349,7 +349,8 @@ defmodule Plugboard.Hooks.HookTest do
         target_url: "https://example.com/webhook",
         execution_order: 0,
         timeout_ms: 5000,
-        forward_headers: ["authorization", "x-request-id", "content-type"]
+        # Note: authorization is a blocked header for security, using safe headers instead
+        forward_headers: ["x-request-id", "content-type", "accept"]
       }
 
       changeset = Hook.create_changeset(%Hook{}, attrs)

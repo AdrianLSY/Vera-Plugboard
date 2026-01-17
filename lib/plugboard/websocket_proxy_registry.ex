@@ -102,6 +102,12 @@ defmodule Plugboard.WebSocketProxyRegistry do
   """
   @spec unregister(String.t()) :: :ok
   def unregister(connection_id) do
+    GenServer.call(__MODULE__, {:unregister, connection_id})
+  end
+
+  # Internal unregister function called from within GenServer process
+  # (which owns the protected ETS table)
+  defp do_unregister(connection_id) do
     case :ets.lookup(@table, connection_id) do
       [{^connection_id, _handler_pid, path_id, _telephone_pid, connected_at}] ->
         :ets.delete(@table, connection_id)
@@ -167,10 +173,12 @@ defmodule Plugboard.WebSocketProxyRegistry do
 
   @impl true
   def init(_opts) do
-    # Create ETS tables
-    :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
+    # Create ETS tables with :protected access
+    # Only this GenServer can write; other processes can only read
+    # This prevents external processes from corrupting the registry
+    :ets.new(@table, [:named_table, :protected, :set, read_concurrency: true])
 
-    :ets.new(@path_index_table, [:named_table, :public, :bag, read_concurrency: true])
+    :ets.new(@path_index_table, [:named_table, :protected, :bag, read_concurrency: true])
 
     Logger.info("WebSocketProxyRegistry started")
     {:ok, %{}}
@@ -200,6 +208,12 @@ defmodule Plugboard.WebSocketProxyRegistry do
   end
 
   @impl true
+  def handle_call({:unregister, connection_id}, _from, state) do
+    do_unregister(connection_id)
+    {:reply, :ok, state}
+  end
+
+  @impl true
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
     # Handler process died, clean up its connection(s)
     # A single handler PID could theoretically have multiple connections
@@ -215,7 +229,7 @@ defmodule Plugboard.WebSocketProxyRegistry do
             "WebSocket handler #{inspect(pid)} died, cleaning up connection #{connection_id}"
           )
 
-          unregister(connection_id)
+          do_unregister(connection_id)
         end)
     end
 

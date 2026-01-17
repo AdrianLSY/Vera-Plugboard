@@ -143,9 +143,9 @@ defmodule Plugboard.DomainAffinities.DomainAffinityTest do
       assert "path must be a mount point" in errors_on(changeset).path_id
     end
 
-    test "rejects deleted path", %{path: path} do
+    test "rejects deleted path", %{path: path, user: user} do
       # Soft delete the path
-      Paths.delete_path(path)
+      Paths.delete_path(user.id, path)
 
       attrs = %{domain: "api.example.com", path_id: path.id}
       changeset = DomainAffinity.changeset(%DomainAffinity{}, attrs)

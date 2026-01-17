@@ -21,55 +21,46 @@ defmodule PlugboardWeb.Api.DomainAffinityController do
   def create(conn, %{"path_id" => path_id, "domain_affinity" => domain_params}) do
     user = conn.assigns.current_scope.user
 
-    # Check user has access to the path
-    case Paths.get_user_role(user.id, path_id) do
-      role when role in ["owner", "maintainer"] ->
-        # Verify path is a mount point
-        case Paths.get_path(path_id) do
-          nil ->
-            conn
-            |> put_status(404)
-            |> json(%{error: "Path not found"})
-
-          path ->
-            if path.mount_point do
-              attrs = Map.put(domain_params, "path_id", path_id)
-
-              case DomainAffinities.create_domain_affinity(attrs) do
-                {:ok, domain_affinity} ->
-                  conn
-                  |> put_status(201)
-                  |> json(%{
-                    id: domain_affinity.id,
-                    domain: domain_affinity.domain,
-                    path_id: domain_affinity.path_id,
-                    inserted_at: domain_affinity.inserted_at
-                  })
-
-                {:error, changeset} ->
-                  conn
-                  |> put_status(422)
-                  |> json(%{
-                    error: "Validation failed",
-                    details: translate_changeset_errors(changeset)
-                  })
-              end
-            else
-              conn
-              |> put_status(400)
-              |> json(%{error: "Path must be a mount point"})
-            end
-        end
-
+    # Verify path exists and is a mount point
+    case Paths.get_path(path_id) do
       nil ->
         conn
-        |> put_status(403)
-        |> json(%{error: "You do not have access to this path"})
+        |> put_status(404)
+        |> json(%{error: "Path not found"})
 
-      _role ->
-        conn
-        |> put_status(403)
-        |> json(%{error: "Requires owner or maintainer role"})
+      path ->
+        if path.mount_point do
+          attrs = Map.put(domain_params, "path_id", path_id)
+
+          case DomainAffinities.create_domain_affinity(user.id, attrs) do
+            {:ok, domain_affinity} ->
+              conn
+              |> put_status(201)
+              |> json(%{
+                id: domain_affinity.id,
+                domain: domain_affinity.domain,
+                path_id: domain_affinity.path_id,
+                inserted_at: domain_affinity.inserted_at
+              })
+
+            {:error, :unauthorized} ->
+              conn
+              |> put_status(403)
+              |> json(%{error: "Requires owner or maintainer role"})
+
+            {:error, changeset} ->
+              conn
+              |> put_status(422)
+              |> json(%{
+                error: "Validation failed",
+                details: translate_changeset_errors(changeset)
+              })
+          end
+        else
+          conn
+          |> put_status(400)
+          |> json(%{error: "Path must be a mount point"})
+        end
     end
   end
 
@@ -113,38 +104,26 @@ defmodule PlugboardWeb.Api.DomainAffinityController do
   def delete(conn, %{"id" => id}) do
     user = conn.assigns.current_scope.user
 
-    case DomainAffinities.get_domain_affinity(id) do
-      nil ->
+    case DomainAffinities.delete_domain_affinity(user.id, id) do
+      {:ok, _domain_affinity} ->
+        conn
+        |> put_status(200)
+        |> json(%{message: "Domain affinity deleted successfully"})
+
+      {:error, :not_found} ->
         conn
         |> put_status(404)
         |> json(%{error: "Domain affinity not found"})
 
-      domain_affinity ->
-        # Check user has permission
-        case Paths.get_user_role(user.id, domain_affinity.path_id) do
-          role when role in ["owner", "maintainer"] ->
-            case DomainAffinities.delete_domain_affinity(id) do
-              {:ok, _domain_affinity} ->
-                conn
-                |> put_status(200)
-                |> json(%{message: "Domain affinity deleted successfully"})
+      {:error, :unauthorized} ->
+        conn
+        |> put_status(403)
+        |> json(%{error: "Requires owner or maintainer role"})
 
-              {:error, _reason} ->
-                conn
-                |> put_status(500)
-                |> json(%{error: "Failed to delete domain affinity"})
-            end
-
-          nil ->
-            conn
-            |> put_status(403)
-            |> json(%{error: "You do not have access to this path"})
-
-          _role ->
-            conn
-            |> put_status(403)
-            |> json(%{error: "Requires owner or maintainer role"})
-        end
+      {:error, _reason} ->
+        conn
+        |> put_status(500)
+        |> json(%{error: "Failed to delete domain affinity"})
     end
   end
 

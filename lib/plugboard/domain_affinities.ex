@@ -11,6 +11,7 @@ defmodule Plugboard.DomainAffinities do
 
   import Ecto.Query
   alias Plugboard.Repo
+  alias Plugboard.Paths
   alias Plugboard.DomainAffinities.DomainAffinity
 
   @doc """
@@ -89,63 +90,92 @@ defmodule Plugboard.DomainAffinities do
   @doc """
   Creates a domain affinity.
 
+  Requires owner or maintainer role on the path.
+
   ## Examples
 
-      iex> create_domain_affinity(%{domain: "users.example.com", path_id: path_id})
+      iex> create_domain_affinity(user_id, %{domain: "users.example.com", path_id: path_id})
       {:ok, %DomainAffinity{}}
 
-      iex> create_domain_affinity(%{domain: "invalid"})
+      iex> create_domain_affinity(user_id, %{domain: "invalid"})
       {:error, %Ecto.Changeset{}}
   """
-  def create_domain_affinity(attrs) do
-    %DomainAffinity{}
-    |> DomainAffinity.changeset(attrs)
-    |> Repo.insert()
+  def create_domain_affinity(user_id, attrs) do
+    path_id = Map.get(attrs, :path_id) || Map.get(attrs, "path_id")
+
+    case Paths.get_user_role(user_id, path_id) do
+      role when role in ["owner", "maintainer"] ->
+        %DomainAffinity{}
+        |> DomainAffinity.changeset(attrs)
+        |> Repo.insert()
+
+      "viewer" ->
+        {:error, :unauthorized}
+
+      nil ->
+        {:error, :unauthorized}
+    end
   end
 
   @doc """
   Updates a domain affinity.
 
+  Requires owner or maintainer role on the path.
+
   ## Examples
 
-      iex> update_domain_affinity(id, %{domain: "new.example.com"})
+      iex> update_domain_affinity(user_id, id, %{domain: "new.example.com"})
       {:ok, %DomainAffinity{}}
 
-      iex> update_domain_affinity("nonexistent", %{})
+      iex> update_domain_affinity(user_id, "nonexistent", %{})
       {:error, :not_found}
   """
-  def update_domain_affinity(id, attrs) do
+  def update_domain_affinity(user_id, id, attrs) do
     case get_domain_affinity(id) do
       nil ->
         {:error, :not_found}
 
       domain_affinity ->
-        domain_affinity
-        |> DomainAffinity.changeset(attrs)
-        |> Repo.update()
+        case Paths.get_user_role(user_id, domain_affinity.path_id) do
+          role when role in ["owner", "maintainer"] ->
+            domain_affinity
+            |> DomainAffinity.changeset(attrs)
+            |> Repo.update()
+
+          _role ->
+            {:error, :unauthorized}
+        end
     end
   end
 
   @doc """
   Soft-deletes a domain affinity.
 
+  Requires owner or maintainer role on the path.
+
   ## Examples
 
-      iex> delete_domain_affinity(id)
+      iex> delete_domain_affinity(user_id, id)
       {:ok, %DomainAffinity{}}
 
-      iex> delete_domain_affinity("nonexistent")
+      iex> delete_domain_affinity(user_id, "nonexistent")
       {:error, :not_found}
   """
-  def delete_domain_affinity(id) do
+  def delete_domain_affinity(user_id, id) do
     case get_domain_affinity(id) do
       nil ->
         {:error, :not_found}
 
       domain_affinity ->
-        domain_affinity
-        |> Ecto.Changeset.change(deleted_at: DateTime.utc_now() |> DateTime.truncate(:second))
-        |> Repo.update()
+        case Paths.get_user_role(user_id, domain_affinity.path_id) do
+          role when role in ["owner", "maintainer"] ->
+            domain_affinity
+            |> Ecto.Changeset.change(deleted_at: DateTime.utc_now() |> DateTime.truncate(:second))
+            |> Repo.update()
+
+          _role ->
+            {:error, :unauthorized}
+        end
     end
   end
 

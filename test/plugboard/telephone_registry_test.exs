@@ -82,25 +82,34 @@ defmodule Plugboard.TelephoneRegistryTest do
       path_id = Ecto.UUID.generate()
       test_pid = self()
 
-      spawn_link(fn ->
-        :ok = TelephoneRegistry.register(path_id, self())
-        send(test_pid, :registered)
+      child_pid =
+        spawn_link(fn ->
+          :ok = TelephoneRegistry.register(path_id, self())
+          send(test_pid, {:registered, self()})
 
-        receive do
-          :unregister ->
-            TelephoneRegistry.unregister(path_id, self())
-            send(test_pid, :unregistered)
-        end
+          receive do
+            :unregister ->
+              TelephoneRegistry.unregister(path_id, self())
+              send(test_pid, :unregistered)
+          end
 
-        Process.sleep(100)
-      end)
+          Process.sleep(100)
+        end)
 
-      assert_receive :registered, 1000
+      assert_receive {:registered, ^child_pid}, 1000
+
+      # Wait for Horde CRDT propagation
+      Process.sleep(50)
+
       assert TelephoneRegistry.count_telephones(path_id) == 1
 
-      send(test_pid, :unregister)
-      # Note: we need to send to the spawned process, not test_pid
-      # Let's refactor this test
+      send(child_pid, :unregister)
+      assert_receive :unregistered, 1000
+
+      # Wait for Horde CRDT propagation
+      Process.sleep(50)
+
+      assert TelephoneRegistry.count_telephones(path_id) == 0
     end
 
     test "handles unregister for non-existent registration gracefully" do
@@ -126,6 +135,9 @@ defmodule Plugboard.TelephoneRegistryTest do
         end)
 
       assert_receive {:registered, ^child_pid}, 1000
+
+      # Wait for Horde CRDT propagation
+      Process.sleep(50)
 
       # Should find the telephone
       assert {:ok, pid} = TelephoneRegistry.get_telephone(path_id)

@@ -33,16 +33,37 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
-  config :plugboard, Plugboard.Repo,
-    # ssl: true,
+  # Database SSL configuration
+  # DATABASE_SSL: Enable SSL for database connections. Default: true
+  # Set to "false" only for local development or trusted networks
+  db_ssl = System.get_env("DATABASE_SSL", "true") == "true"
+
+  db_opts = [
     url: database_url,
     pool_size: String.to_integer(System.get_env("DB_POOL_SIZE")),
-    # For machines with several cores, consider starting multiple pools of `pool_size`
-    # pool_count: 4,
     socket_options: maybe_ipv6,
     # Query and connection timeouts for production
     timeout: String.to_integer(System.get_env("DB_QUERY_TIMEOUT")),
     connect_timeout: String.to_integer(System.get_env("DB_CONNECT_TIMEOUT"))
+  ]
+
+  db_opts =
+    if db_ssl do
+      Keyword.merge(db_opts,
+        ssl: true,
+        ssl_opts: [
+          verify: :verify_peer,
+          cacerts: :public_key.cacerts_get(),
+          customize_hostname_check: [
+            match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+          ]
+        ]
+      )
+    else
+      db_opts
+    end
+
+  config :plugboard, Plugboard.Repo, db_opts
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
@@ -61,7 +82,30 @@ if config_env() == :prod do
 
   config :plugboard, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
-  config :plugboard, PlugboardWeb.Endpoint,
+  # Session and LiveView signing salts - required in production
+  session_signing_salt =
+    System.get_env("SESSION_SIGNING_SALT") ||
+      raise """
+      environment variable SESSION_SIGNING_SALT is missing.
+      You can generate one by calling: mix phx.gen.secret 32
+      """
+
+  live_view_signing_salt =
+    System.get_env("LIVE_VIEW_SIGNING_SALT") ||
+      raise """
+      environment variable LIVE_VIEW_SIGNING_SALT is missing.
+      You can generate one by calling: mix phx.gen.secret 32
+      """
+
+  # Optional: Session encryption salt for additional security
+  session_encryption_salt = System.get_env("SESSION_ENCRYPTION_SALT")
+
+  # HTTPS enforcement: redirect all HTTP traffic to HTTPS
+  # FORCE_SSL: Enable force_ssl. Default: true
+  # Set to "false" only if running behind a TLS-terminating load balancer
+  force_ssl = System.get_env("FORCE_SSL", "true") == "true"
+
+  endpoint_opts = [
     url: [host: host, port: 443, scheme: "https"],
     http: [
       # Enable IPv6 and bind on all interfaces.
@@ -71,7 +115,28 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
-    secret_key_base: secret_key_base
+    secret_key_base: secret_key_base,
+    live_view: [signing_salt: live_view_signing_salt]
+  ]
+
+  endpoint_opts =
+    if force_ssl do
+      Keyword.put(endpoint_opts, :force_ssl,
+        hsts: true,
+        rewrite_on: [:x_forwarded_proto]
+      )
+    else
+      endpoint_opts
+    end
+
+  config :plugboard, PlugboardWeb.Endpoint, endpoint_opts
+
+  config :plugboard, :session,
+    signing_salt: session_signing_salt,
+    encryption_salt: session_encryption_salt
+
+  # Mark as production environment for secure cookie flag
+  config :plugboard, :env, :prod
 
   # ## SSL Support
   #

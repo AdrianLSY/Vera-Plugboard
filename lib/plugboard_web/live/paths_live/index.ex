@@ -314,7 +314,7 @@ defmodule PlugboardWeb.PathsLive.Index do
 
           # Toggle mount_point
           true ->
-            case Paths.update_path(path, %{mount_point: !path.mount_point}) do
+            case Paths.update_path(user.id, path, %{mount_point: !path.mount_point}) do
               {:ok, _updated_path} ->
                 # Reload paths for current context
                 parent_id =
@@ -332,6 +332,10 @@ defmodule PlugboardWeb.PathsLive.Index do
                    :info,
                    if(path.mount_point, do: "Unmounted path.", else: "Mounted path.")
                  )}
+
+              {:error, :unauthorized} ->
+                {:noreply,
+                 put_flash(socket, :error, "You don't have permission to modify this path")}
 
               {:error, _changeset} ->
                 {:noreply, put_flash(socket, :error, "Failed to update path")}
@@ -363,7 +367,7 @@ defmodule PlugboardWeb.PathsLive.Index do
     user = socket.assigns.current_scope.user
     path = socket.assigns.editing_path
 
-    case Paths.update_path(path, %{path: String.trim(new_path_name)}) do
+    case Paths.update_path(user.id, path, %{path: String.trim(new_path_name)}) do
       {:ok, _updated_path} ->
         # Reload paths for current context
         parent_id =
@@ -376,6 +380,12 @@ defmodule PlugboardWeb.PathsLive.Index do
          |> assign(paths_empty?: paths == [], editing_path: nil, edit_form: nil)
          |> stream(:paths, paths, reset: true)
          |> put_flash(:info, "Path updated successfully")}
+
+      {:error, :unauthorized} ->
+        {:noreply,
+         socket
+         |> assign(editing_path: nil, edit_form: nil)
+         |> put_flash(:error, "You don't have permission to modify this path")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply,
@@ -409,7 +419,7 @@ defmodule PlugboardWeb.PathsLive.Index do
     path = socket.assigns.deleting_path
 
     if String.trim(confirmation) == path.full_path do
-      case Paths.delete_path(path) do
+      case Paths.delete_path(user.id, path) do
         {:ok, _deleted_path} ->
           # Reload paths for current context
           parent_id =
@@ -422,6 +432,12 @@ defmodule PlugboardWeb.PathsLive.Index do
            |> assign(paths_empty?: paths == [], deleting_path: nil, delete_form: nil)
            |> stream(:paths, paths, reset: true)
            |> put_flash(:info, "Path deleted successfully")}
+
+        {:error, :unauthorized} ->
+          {:noreply,
+           socket
+           |> assign(deleting_path: nil, delete_form: nil)
+           |> put_flash(:error, "You don't have permission to delete this path")}
 
         {:error, _changeset} ->
           {:noreply, put_flash(socket, :error, "Failed to delete path")}

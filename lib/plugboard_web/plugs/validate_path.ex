@@ -74,17 +74,114 @@ defmodule PlugboardWeb.Plugs.ValidatePath do
   end
 
   defp validate_segment(segment) do
+    # First check the raw segment
+    case validate_raw_segment(segment) do
+      :ok ->
+        # Also validate the decoded version to catch encoded attacks
+        # We decode recursively to handle double/triple encoding
+        case validate_decoded_segment(segment, 3) do
+          :ok -> :ok
+          error -> error
+        end
+
+      error ->
+        error
+    end
+  end
+
+  # Validate raw segment (before decoding)
+  defp validate_raw_segment(segment) do
     cond do
-      # Check for encoded path traversal (check this first before decoding happens)
-      String.contains?(segment, ["%2e%2e", "%2E%2E", "%2e%2E", "%2E%2e"]) ->
+      # Check for path traversal patterns
+      String.contains?(segment, ["../", ".."]) ->
+        {:error, "Path traversal not allowed"}
+
+      # Check for null bytes
+      String.contains?(segment, <<0>>) ->
+        {:error, "Null bytes not allowed in path"}
+
+      # Check for backslash path traversal (Windows-style)
+      String.contains?(segment, ["..\\", "..\\"]) ->
+        {:error, "Path traversal not allowed"}
+
+      true ->
+        :ok
+    end
+  end
+
+  # Recursively decode and validate to catch multi-level encoding attacks
+  # Continue decoding until the string no longer changes (fully decoded)
+  defp validate_decoded_segment(segment, max_iterations) do
+    do_validate_decoded(segment, segment, max_iterations)
+  end
+
+  defp do_validate_decoded(_original, _current, 0) do
+    # Maximum iterations reached without stabilizing - suspicious input
+    {:error, "Excessive URL encoding detected"}
+  end
+
+  defp do_validate_decoded(original, current, iterations_left) do
+    # Decode the segment
+    decoded =
+      try do
+        URI.decode(current)
+      rescue
+        _ -> current
+      end
+
+    # If decoding didn't change anything, we've fully decoded
+    if decoded == current do
+      # Now validate the fully decoded segment
+      validate_fully_decoded_segment(decoded)
+    else
+      # Validate intermediate state for early rejection
+      case validate_intermediate_segment(decoded) do
+        :ok ->
+          # Continue decoding
+          do_validate_decoded(original, decoded, iterations_left - 1)
+
+        error ->
+          error
+      end
+    end
+  end
+
+  # Validate intermediate decoding state
+  defp validate_intermediate_segment(segment) do
+    cond do
+      # Check for path traversal patterns
+      segment == ".." ->
         {:error, "Encoded path traversal not allowed"}
 
-      # Check for encoded null bytes
-      String.contains?(segment, "%00") ->
+      String.contains?(segment, ["../", "..\\", "..\\"]) ->
+        {:error, "Encoded path traversal not allowed"}
+
+      # Check for null bytes
+      String.contains?(segment, <<0>>) ->
         {:error, "Encoded null bytes not allowed"}
 
-      # Check for path traversal
-      String.contains?(segment, ["../", ".."]) ->
+      true ->
+        :ok
+    end
+  end
+
+  # Validate the fully decoded segment
+  defp validate_fully_decoded_segment(segment) do
+    cond do
+      # Exact match for ".."
+      segment == ".." ->
+        {:error, "Path traversal not allowed"}
+
+      # Check for traversal patterns
+      String.contains?(segment, ["../", "..\\", "..\\"]) ->
+        {:error, "Path traversal not allowed"}
+
+      # Starts with ".." followed by any separator
+      String.starts_with?(segment, "..") ->
+        {:error, "Path traversal not allowed"}
+
+      # Ends with ".." 
+      String.ends_with?(segment, "/..") or String.ends_with?(segment, "\\..") ->
         {:error, "Path traversal not allowed"}
 
       # Check for null bytes

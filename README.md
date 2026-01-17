@@ -82,7 +82,13 @@ TELEPHONE_TOKEN_EXPIRY=3600          # Optional: Token expiry (1 hour default)
 TELEPHONE_TOKEN_REFRESH_INTERVAL=1800  # Optional: Token refresh (30 min default)
 TELEPHONE_HEARTBEAT_TIMEOUT_MS=60000   # Optional: Heartbeat timeout (60 sec default)
 
-# Production Clustering (Optional)
+# Security (Required in Production)
+SESSION_SIGNING_SALT=random_salt_here    # Required in prod: Salt for session signing
+LIVE_VIEW_SIGNING_SALT=random_salt_here  # Required in prod: Salt for LiveView signing
+
+# Production Settings (Optional)
+DATABASE_SSL=true                    # Optional: Enable database SSL (default: true in prod)
+FORCE_SSL=true                       # Optional: Force HTTPS redirect (default: true in prod)
 DNS_CLUSTER_QUERY=                   # DNS query for clustering in Kubernetes
 ```
 
@@ -340,15 +346,16 @@ Plugboard supports transparent WebSocket proxying, allowing clients to establish
 
 **TelephoneTokens Context** (`lib/plugboard/telephone_tokens.ex`)
 - JWT token generation for telephone authentication
-- SHA256 hash storage (tokens never stored in plain text)
+- Argon2 hash storage (tokens never stored in plain text)
+- Derived JWT signing key (separate from SECRET_KEY_BASE)
 - Configurable expiry via `TELEPHONE_TOKEN_EXPIRY`
-- Token validation and revocation
+- Token validation and revocation (returns generic errors to prevent info leakage)
 - Tracks `last_used_at` for usage monitoring
 
 **ServiceAccounts Context** (`lib/plugboard/service_accounts.ex`)
-- API key generation for Token Vending Machine
+- API key generation for Token Vending Machine (prefix: `pb_sa_`)
 - Enables auto-scaling scenarios (e.g., Kubernetes HPA)
-- SHA256 hash storage (API keys never stored in plain text)
+- Argon2 hash storage (API keys never stored in plain text)
 - Scoped to specific paths
 - Role-based access control (owner/maintainer)
 
@@ -371,6 +378,9 @@ Plugboard supports transparent WebSocket proxying, allowing clients to establish
 - Merges hook responses into request body at root level
 - Rejects requests when hooks return non-whitelisted status codes
 - Configurable timeout per hook (1ms - 60s)
+- Request body size limit enforcement
+- SSRF protection: blocks requests to localhost, 127.x.x.x, 10.x.x.x, 172.16-31.x.x, 192.168.x.x, and IPv6 loopback
+- Header blocklist: sensitive headers (cookie, authorization, x-api-key, etc.) are never forwarded to hooks
 
 **HookStore** (`lib/plugboard/hook_store.ex`)
 - GenServer maintaining ETS table `:plugboard_hooks`
@@ -502,7 +512,7 @@ Each proxied request receives a unique correlation ID, allowing multiple concurr
 | `id` | UUID | Primary key |
 | `path_id` | UUID | Reference to paths table |
 | `user_id` | UUID | Reference to users table (creator) |
-| `token_hash` | String | SHA256 hash of JWT token |
+| `token_hash` | String | Argon2 hash of JWT token |
 | `name` | String | Optional token name |
 | `description` | String | Optional description |
 | `expires_at` | Timestamp | Token expiration time |
@@ -520,7 +530,7 @@ Each proxied request receives a unique correlation ID, allowing multiple concurr
 | `path_id` | UUID | Reference to paths table |
 | `name` | String | Service account name |
 | `description` | String | Optional description |
-| `api_key_hash` | String | SHA256 hash of API key |
+| `api_key_hash` | String | Argon2 hash of API key |
 | `revoked_at` | Timestamp | Revocation timestamp (NULL if active) |
 | `last_used_at` | Timestamp | Last use time |
 | `inserted_at` | Timestamp | Creation time |
@@ -635,6 +645,8 @@ docker run --rm -it \
 | `DB_POOL_SIZE`                                 | Connection pool size                  | `10`                                  | ✅       |
 | `DB_QUERY_TIMEOUT`                             | Max query time (ms)                   | `15000`                               | ✅       |
 | `DB_CONNECT_TIMEOUT`                           | Max connection time (ms)              | `5000`                                | ✅       |
+| `SESSION_SIGNING_SALT`                         | Salt for session cookie signing       | Random string                         | ✅ (prod)|
+| `LIVE_VIEW_SIGNING_SALT`                       | Salt for LiveView socket signing      | Random string                         | ✅ (prod)|
 | `PHX_SERVER`                                   | Start Phoenix server on boot          | `true`                                | ❌       |
 | `POSTGRES_PORT`                                | Database port                         | `5432`                                | ❌       |
 | `MAX_REQUEST_BODY_SIZE`                        | Max request body (bytes)              | `10485760` (10MB)                     | ❌       |
@@ -648,6 +660,9 @@ docker run --rm -it \
 | `WEBSOCKET_CONNECT_TIMEOUT_MS`                 | Backend WebSocket connect timeout     | `5000` (5 sec)                        | ❌       |
 | `WEBSOCKET_MAX_FRAME_SIZE`                     | Max WebSocket frame size (bytes)      | `1048576` (1MB)                       | ❌       |
 | `WEBSOCKET_IDLE_TIMEOUT_MS`                    | WebSocket idle timeout                | `300000` (5 min)                      | ❌       |
+| `SESSION_ENCRYPTION_SALT`                      | Salt for session cookie encryption    | Random string                         | ❌       |
+| `DATABASE_SSL`                                 | Enable SSL for database connections   | `true` (prod)                         | ❌       |
+| `FORCE_SSL`                                    | Force HTTPS redirect                  | `true` (prod)                         | ❌       |
 
 ---
 
@@ -752,7 +767,7 @@ Authorization: Bearer <session_token>
 **Response:**
 ```json
 {
-  "api_key": "sa_...",  // Store securely, cannot be retrieved again
+  "api_key": "pb_sa_...",  // Store securely, cannot be retrieved again
   "id": "uuid",
   "name": "k8s-autoscaler",
   "description": "Kubernetes HPA integration",
@@ -1198,6 +1213,17 @@ wss://api.example.com/graphql  # Sec-WebSocket-Protocol: graphql-ws
 - ETS cache for high-performance lookups
 - Soft-delete support
 - Automatic cache synchronization
+
+### Security
+- **Token Security**: Argon2 password hashing for all tokens and API keys (not SHA256)
+- **JWT Key Derivation**: Telephone JWT signing uses a derived key (HKDF) separate from `SECRET_KEY_BASE`
+- **No Information Leakage**: Invalid/revoked/expired tokens return generic errors
+- **SSRF Protection**: Hook executor blocks requests to internal networks (localhost, 127.x, 10.x, 172.16-31.x, 192.168.x, IPv6 loopback)
+- **Header Blocklist**: Sensitive headers (cookie, authorization, x-api-key, proxy-authorization, etc.) are never forwarded to hooks
+- **Request Size Limits**: Configurable body size limits at both endpoint and hook executor levels
+- **ETS Table Protection**: Registry tables use `:protected` access (only owning process can write)
+- **Path Traversal Protection**: Validates paths to prevent directory traversal attacks
+- **Role-Based Authorization**: Owner role required for user management operations on paths
 
 ---
 

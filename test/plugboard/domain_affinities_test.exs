@@ -22,15 +22,15 @@ defmodule Plugboard.DomainAffinitiesTest do
   end
 
   describe "list_domain_affinities/0" do
-    test "returns all active domain affinities", %{path: path} do
+    test "returns all active domain affinities", %{path: path, user: user} do
       {:ok, da1} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
 
       {:ok, da2} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "*.api.example.com",
           path_id: path.id
         })
@@ -42,14 +42,14 @@ defmodule Plugboard.DomainAffinitiesTest do
       assert Enum.any?(result, &(&1.id == da2.id))
     end
 
-    test "does not return soft-deleted domain affinities", %{path: path} do
+    test "does not return soft-deleted domain affinities", %{path: path, user: user} do
       {:ok, da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
 
-      {:ok, _deleted} = DomainAffinities.delete_domain_affinity(da.id)
+      {:ok, _deleted} = DomainAffinities.delete_domain_affinity(user.id, da.id)
 
       result = DomainAffinities.list_domain_affinities()
 
@@ -73,13 +73,13 @@ defmodule Plugboard.DomainAffinitiesTest do
         })
 
       {:ok, da1} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
 
       {:ok, _da2} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "users.example.com",
           path_id: other_path.id
         })
@@ -90,16 +90,16 @@ defmodule Plugboard.DomainAffinitiesTest do
       assert hd(result).id == da1.id
     end
 
-    test "returns empty list for path with no domain affinities", %{path: path} do
+    test "returns empty list for path with no domain affinities", %{path: path, user: _user} do
       result = DomainAffinities.list_domain_affinities_for_path(path.id)
       assert result == []
     end
   end
 
   describe "get_domain_affinity/1" do
-    test "returns domain affinity by id", %{path: path} do
+    test "returns domain affinity by id", %{path: path, user: user} do
       {:ok, da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
@@ -115,23 +115,23 @@ defmodule Plugboard.DomainAffinitiesTest do
       assert DomainAffinities.get_domain_affinity(fake_id) == nil
     end
 
-    test "returns nil for soft-deleted domain affinity", %{path: path} do
+    test "returns nil for soft-deleted domain affinity", %{path: path, user: user} do
       {:ok, da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
 
-      {:ok, _deleted} = DomainAffinities.delete_domain_affinity(da.id)
+      {:ok, _deleted} = DomainAffinities.delete_domain_affinity(user.id, da.id)
 
       assert DomainAffinities.get_domain_affinity(da.id) == nil
     end
   end
 
   describe "get_by_domain/1" do
-    test "returns domain affinity by domain string", %{path: path} do
+    test "returns domain affinity by domain string", %{path: path, user: user} do
       {:ok, da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
@@ -142,9 +142,9 @@ defmodule Plugboard.DomainAffinitiesTest do
       assert result.domain == "api.example.com"
     end
 
-    test "normalizes domain before lookup", %{path: path} do
+    test "normalizes domain before lookup", %{path: path, user: user} do
       {:ok, da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
@@ -155,9 +155,9 @@ defmodule Plugboard.DomainAffinitiesTest do
       assert result.id == da.id
     end
 
-    test "strips port before lookup", %{path: path} do
+    test "strips port before lookup", %{path: path, user: user} do
       {:ok, da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
@@ -173,39 +173,39 @@ defmodule Plugboard.DomainAffinitiesTest do
     end
   end
 
-  describe "create_domain_affinity/1" do
-    test "creates domain affinity with valid attributes", %{path: path} do
+  describe "create_domain_affinity/2" do
+    test "creates domain affinity with valid attributes", %{path: path, user: user} do
       attrs = %{domain: "api.example.com", path_id: path.id}
 
-      {:ok, da} = DomainAffinities.create_domain_affinity(attrs)
+      {:ok, da} = DomainAffinities.create_domain_affinity(user.id, attrs)
 
       assert da.domain == "api.example.com"
       assert da.path_id == path.id
       assert da.deleted_at == nil
     end
 
-    test "creates wildcard domain affinity", %{path: path} do
+    test "creates wildcard domain affinity", %{path: path, user: user} do
       attrs = %{domain: "*.api.example.com", path_id: path.id}
 
-      {:ok, da} = DomainAffinities.create_domain_affinity(attrs)
+      {:ok, da} = DomainAffinities.create_domain_affinity(user.id, attrs)
 
       assert da.domain == "*.api.example.com"
     end
 
-    test "returns error for invalid domain format", %{path: path} do
+    test "returns error for invalid domain format", %{path: path, user: user} do
       attrs = %{domain: "invalid", path_id: path.id}
 
-      {:error, changeset} = DomainAffinities.create_domain_affinity(attrs)
+      {:error, changeset} = DomainAffinities.create_domain_affinity(user.id, attrs)
 
       refute changeset.valid?
       assert "invalid domain format" in errors_on(changeset).domain
     end
 
-    test "returns error for duplicate domain", %{path: path} do
+    test "returns error for duplicate domain", %{path: path, user: user} do
       attrs = %{domain: "api.example.com", path_id: path.id}
 
-      {:ok, _da1} = DomainAffinities.create_domain_affinity(attrs)
-      {:error, changeset} = DomainAffinities.create_domain_affinity(attrs)
+      {:ok, _da1} = DomainAffinities.create_domain_affinity(user.id, attrs)
+      {:error, changeset} = DomainAffinities.create_domain_affinity(user.id, attrs)
 
       refute changeset.valid?
       assert "has already been taken" in errors_on(changeset).domain
@@ -222,57 +222,57 @@ defmodule Plugboard.DomainAffinitiesTest do
 
       attrs = %{domain: "api.example.com", path_id: non_mount.id}
 
-      {:error, changeset} = DomainAffinities.create_domain_affinity(attrs)
+      {:error, changeset} = DomainAffinities.create_domain_affinity(user.id, attrs)
 
       refute changeset.valid?
     end
   end
 
-  describe "update_domain_affinity/2" do
-    test "updates domain affinity", %{path: path} do
+  describe "update_domain_affinity/3" do
+    test "updates domain affinity", %{path: path, user: user} do
       {:ok, da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
 
       {:ok, updated} =
-        DomainAffinities.update_domain_affinity(da.id, %{domain: "newapi.example.com"})
+        DomainAffinities.update_domain_affinity(user.id, da.id, %{domain: "newapi.example.com"})
 
       assert updated.domain == "newapi.example.com"
       assert updated.id == da.id
     end
 
-    test "returns error for invalid domain", %{path: path} do
+    test "returns error for invalid domain", %{path: path, user: user} do
       {:ok, da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
 
       {:error, changeset} =
-        DomainAffinities.update_domain_affinity(da.id, %{domain: "invalid"})
+        DomainAffinities.update_domain_affinity(user.id, da.id, %{domain: "invalid"})
 
       refute changeset.valid?
     end
 
-    test "returns error for non-existent id" do
+    test "returns error for non-existent id", %{user: user} do
       fake_id = Ecto.UUID.generate()
 
       {:error, :not_found} =
-        DomainAffinities.update_domain_affinity(fake_id, %{domain: "api.example.com"})
+        DomainAffinities.update_domain_affinity(user.id, fake_id, %{domain: "api.example.com"})
     end
   end
 
-  describe "delete_domain_affinity/1" do
-    test "soft-deletes domain affinity", %{path: path} do
+  describe "delete_domain_affinity/2" do
+    test "soft-deletes domain affinity", %{path: path, user: user} do
       {:ok, da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
 
-      {:ok, deleted} = DomainAffinities.delete_domain_affinity(da.id)
+      {:ok, deleted} = DomainAffinities.delete_domain_affinity(user.id, da.id)
 
       assert deleted.id == da.id
       assert deleted.deleted_at != nil
@@ -281,21 +281,21 @@ defmodule Plugboard.DomainAffinitiesTest do
       assert DomainAffinities.get_domain_affinity(da.id) == nil
     end
 
-    test "returns error for non-existent id" do
+    test "returns error for non-existent id", %{user: user} do
       fake_id = Ecto.UUID.generate()
 
-      {:error, :not_found} = DomainAffinities.delete_domain_affinity(fake_id)
+      {:error, :not_found} = DomainAffinities.delete_domain_affinity(user.id, fake_id)
     end
 
-    test "returns error when already deleted", %{path: path} do
+    test "returns error when already deleted", %{path: path, user: user} do
       {:ok, da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })
 
-      {:ok, _deleted} = DomainAffinities.delete_domain_affinity(da.id)
-      {:error, :not_found} = DomainAffinities.delete_domain_affinity(da.id)
+      {:ok, _deleted} = DomainAffinities.delete_domain_affinity(user.id, da.id)
+      {:error, :not_found} = DomainAffinities.delete_domain_affinity(user.id, da.id)
     end
   end
 

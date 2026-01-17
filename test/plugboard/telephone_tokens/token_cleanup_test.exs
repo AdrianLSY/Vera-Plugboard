@@ -16,7 +16,7 @@ defmodule Plugboard.TelephoneTokens.TokenCleanupTest do
           user_id: user.id
         })
 
-      {:ok, mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Create 3 tokens
       tokens =
@@ -58,7 +58,7 @@ defmodule Plugboard.TelephoneTokens.TokenCleanupTest do
           user_id: user.id
         })
 
-      {:ok, mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Create 2 valid tokens
       for _i <- 1..2 do
@@ -86,7 +86,7 @@ defmodule Plugboard.TelephoneTokens.TokenCleanupTest do
           user_id: user.id
         })
 
-      {:ok, mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Create an expired token
       {:ok, _jwt, token} = TelephoneTokens.generate_token(mount, user)

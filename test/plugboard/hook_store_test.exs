@@ -32,7 +32,7 @@ defmodule Plugboard.HookStoreTest do
   # Helper to create a mount point
   defp create_mount_point(user, attrs \\ %{}) do
     path = create_path(user, attrs)
-    {:ok, mount} = Paths.update_path(path, %{mount_point: true})
+    {:ok, mount} = Paths.update_path(user.id, path, %{mount_point: true})
     mount
   end
 

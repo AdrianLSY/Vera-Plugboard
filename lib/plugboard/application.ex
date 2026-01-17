@@ -19,6 +19,8 @@ defmodule Plugboard.Application do
       Plugboard.Repo,
       {DNSCluster, query: Application.get_env(:plugboard, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Plugboard.PubSub},
+      # Start the RateLimiter for request throttling
+      Plugboard.RateLimiter,
       # Start the MountStore for in-memory mount point routing
       Plugboard.MountStore,
       # Start the MountNotifier to listen for PostgreSQL NOTIFY events

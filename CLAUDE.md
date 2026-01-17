@@ -52,9 +52,11 @@ mix precommit                # compile --warnings-as-errors + deps.unlock --unus
 - **HookStore** (`hook_store.ex`) - ETS-backed cache for hooks with O(1) lookups by path_id.
 - **HookNotifier** (`hook_notifier.ex`) - PostgreSQL LISTEN/NOTIFY for real-time hook updates.
 - **Hooks** (`hooks.ex`) - Context for managing request hooks/middleware with role-based access.
-- **Hooks.Executor** (`hooks/executor.ex`) - Executes hooks sequentially, merges responses into request body.
+- **Hooks.Executor** (`hooks/executor.ex`) - Executes hooks sequentially, merges responses into request body. Includes SSRF protection and header blocklist.
 - **TokenCleanup** (`telephone_tokens/token_cleanup.ex`) - Periodic cleanup of expired telephone tokens (hourly).
 - **WebSocketProxyRegistry** (`websocket_proxy_registry.ex`) - ETS-based registry tracking active WebSocket proxy connections.
+- **Crypto** (`crypto.ex`) - Cryptographic utilities: Argon2 hashing for tokens/API keys, HKDF key derivation for JWT signing, constant-time secure comparison.
+- **RateLimiter** (`rate_limiter.ex`) - ETS-based rate limiting GenServer with configurable windows and limits.
 
 ### Web Layer (lib/plugboard_web/)
 
@@ -65,6 +67,7 @@ mix precommit                # compile --warnings-as-errors + deps.unlock --unus
 - **Plugs.ValidatePath** (`plugs/validate_path.ex`) - Path validation with traversal protection.
 - **Plugs.DomainAffinityRouter** (`plugs/domain_affinity_router.ex`) - Domain-based routing plug for custom domain routing.
 - **Plugs.WebSocketProxyPlug** (`plugs/websocket_proxy_plug.ex`) - Detects WebSocket upgrade requests and proxies them through Telephone sidecars.
+- **Plugs.RateLimiter** (`plugs/rate_limiter.ex`) - Rate limiting plug for protecting endpoints against abuse.
 - **WebSocket.ProxyHandler** (`websocket/proxy_handler.ex`) - WebSock handler managing individual proxied WebSocket connections.
 
 ### Request Flow
@@ -104,6 +107,8 @@ Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneC
 | `DB_POOL_SIZE` | Connection pool size |
 | `DB_QUERY_TIMEOUT` | Max query time (ms) |
 | `DB_CONNECT_TIMEOUT` | Max connection time (ms) |
+| `SESSION_SIGNING_SALT` | Salt for session cookie signing |
+| `LIVE_VIEW_SIGNING_SALT` | Salt for LiveView socket signing |
 
 **Optional (with defaults):**
 | Variable | Description | Default |
@@ -122,6 +127,9 @@ Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneC
 | `WEBSOCKET_CONNECT_TIMEOUT_MS` | WebSocket backend connect timeout | `5000` (5 sec) |
 | `WEBSOCKET_MAX_FRAME_SIZE` | Max WebSocket frame size (bytes) | `1048576` (1MB) |
 | `WEBSOCKET_IDLE_TIMEOUT_MS` | WebSocket idle timeout | `300000` (5 min) |
+| `SESSION_ENCRYPTION_SALT` | Salt for session cookie encryption | - |
+| `DATABASE_SSL` | Enable SSL for database connections | `true` (prod) |
+| `FORCE_SSL` | Force HTTPS redirect | `true` (prod) |
 
 ## LiveView Patterns
 

@@ -31,6 +31,10 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
 
   alias Plugboard.WebSocketProxyRegistry
 
+  # Buffer limits to prevent memory exhaustion attacks
+  @max_buffer_frames 100
+  @max_buffer_bytes 1_048_576
+
   @doc """
   Initializes the WebSocket proxy handler.
 
@@ -96,9 +100,49 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
       forward_frame_to_telephone(state, opcode, data)
       {:ok, state}
     else
-      # Buffer frame until backend connects
-      Logger.debug("Buffering frame for connection #{state.connection_id} (not yet connected)")
-      {:ok, %{state | buffer: state.buffer ++ [{opcode, data}]}}
+      # Buffer frame until backend connects (with limits to prevent memory exhaustion)
+      buffer_frame(state, opcode, data)
+    end
+  end
+
+  # Buffer frame with size limits to prevent memory exhaustion attacks
+  defp buffer_frame(state, opcode, data) do
+    current_buffer_bytes =
+      Enum.reduce(state.buffer, 0, fn {_op, d}, acc -> acc + byte_size(d) end)
+
+    new_buffer_bytes = current_buffer_bytes + byte_size(data)
+    new_buffer_count = length(state.buffer) + 1
+
+    cond do
+      new_buffer_count > @max_buffer_frames ->
+        Logger.warning(
+          "WebSocket buffer frame limit exceeded for #{state.connection_id} (#{new_buffer_count} frames)"
+        )
+
+        :telemetry.execute(
+          [:plugboard, :websocket_proxy, :buffer_overflow],
+          %{count: 1},
+          %{connection_id: state.connection_id, path_id: state.path_id, reason: :frame_count}
+        )
+
+        {:stop, :normal, {1009, "Buffer overflow: too many frames"}, state}
+
+      new_buffer_bytes > @max_buffer_bytes ->
+        Logger.warning(
+          "WebSocket buffer size limit exceeded for #{state.connection_id} (#{new_buffer_bytes} bytes)"
+        )
+
+        :telemetry.execute(
+          [:plugboard, :websocket_proxy, :buffer_overflow],
+          %{count: 1},
+          %{connection_id: state.connection_id, path_id: state.path_id, reason: :byte_size}
+        )
+
+        {:stop, :normal, {1009, "Buffer overflow: message too large"}, state}
+
+      true ->
+        Logger.debug("Buffering frame for connection #{state.connection_id} (not yet connected)")
+        {:ok, %{state | buffer: state.buffer ++ [{opcode, data}]}}
     end
   end
 

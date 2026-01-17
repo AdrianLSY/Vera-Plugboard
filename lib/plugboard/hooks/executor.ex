@@ -41,22 +41,37 @@ defmodule Plugboard.Hooks.Executor do
     if Enum.empty?(hooks) do
       {:ok, conn}
     else
-      # Read original request body
-      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      # Read original request body with size limit to prevent memory exhaustion
+      max_body_size = Application.get_env(:plugboard, :max_request_body_length, 10_485_760)
 
-      # Parse JSON (or use empty map if body is empty)
-      initial_body = parse_body(body)
+      case Plug.Conn.read_body(conn, length: max_body_size) do
+        {:ok, body, conn} ->
+          execute_hooks_with_body(conn, hooks, body)
 
-      # Execute hooks sequentially
-      case execute_hook_chain(conn, hooks, initial_body) do
-        {:ok, final_body} ->
-          # Replace conn body with merged result
-          modified_conn = put_modified_body(conn, final_body)
-          {:ok, modified_conn}
+        {:more, _partial, _conn} ->
+          # Body exceeds max size
+          {:error, :body_too_large, nil, %{status: 413, body: "Request body too large"}}
 
-        error ->
-          error
+        {:error, reason} ->
+          {:error, :body_read_error, nil,
+           %{status: 400, body: "Failed to read request body: #{inspect(reason)}"}}
       end
+    end
+  end
+
+  defp execute_hooks_with_body(conn, hooks, body) do
+    # Parse JSON (or use empty map if body is empty)
+    initial_body = parse_body(body)
+
+    # Execute hooks sequentially
+    case execute_hook_chain(conn, hooks, initial_body) do
+      {:ok, final_body} ->
+        # Replace conn body with merged result
+        modified_conn = put_modified_body(conn, final_body)
+        {:ok, modified_conn}
+
+      error ->
+        error
     end
   end
 

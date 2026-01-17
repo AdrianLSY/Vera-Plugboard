@@ -175,21 +175,7 @@ defmodule PlugboardWeb.Api.HookController do
         |> json(%{error: "Hook not found"})
 
       hook ->
-        attrs =
-          params
-          |> Map.take([
-            "name",
-            "description",
-            "target_type",
-            "target_path_id",
-            "target_url",
-            "execution_order",
-            "timeout_ms",
-            "allowed_status_codes",
-            "forward_headers",
-            "forward_query_params"
-          ])
-          |> Enum.into(%{}, fn {k, v} -> {String.to_existing_atom(k), v} end)
+        attrs = sanitize_hook_params(params)
 
         case Hooks.update_hook(user.id, hook, attrs) do
           {:ok, updated_hook} ->
@@ -307,5 +293,30 @@ defmodule PlugboardWeb.Api.HookController do
         |> put_status(:unprocessable_entity)
         |> json(%{error: "Failed to reorder hooks"})
     end
+  end
+
+  # Safely convert string keys to atoms using a predefined whitelist
+  # This prevents atom exhaustion attacks by only using known atoms
+  @allowed_hook_keys %{
+    "name" => :name,
+    "description" => :description,
+    "target_type" => :target_type,
+    "target_path_id" => :target_path_id,
+    "target_url" => :target_url,
+    "execution_order" => :execution_order,
+    "timeout_ms" => :timeout_ms,
+    "allowed_status_codes" => :allowed_status_codes,
+    "forward_headers" => :forward_headers,
+    "forward_query_params" => :forward_query_params
+  }
+
+  defp sanitize_hook_params(params) do
+    params
+    |> Enum.reduce(%{}, fn {key, value}, acc ->
+      case Map.get(@allowed_hook_keys, key) do
+        nil -> acc
+        atom_key -> Map.put(acc, atom_key, value)
+      end
+    end)
   end
 end

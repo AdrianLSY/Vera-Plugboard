@@ -17,7 +17,7 @@ defmodule PlugboardWeb.TelephoneChannelWebSocketTest do
         user_id: user.id
       })
 
-    {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+    {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
     {:ok, jwt, token} = TelephoneTokens.generate_token(mount_path, user)
 
     # Connect socket

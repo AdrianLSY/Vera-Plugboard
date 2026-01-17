@@ -78,8 +78,10 @@ defmodule Plugboard.TelephoneRegistry do
     - {:error, reason} on failure
   """
   @spec register(path_id(), pid()) :: :ok | {:error, term()}
-  def register(path_id, telephone_pid) when is_binary(path_id) and is_pid(telephone_pid) do
-    case DistributedRegistry.register(path_id, telephone_pid) do
+  def register(path_id, _telephone_pid) when is_binary(path_id) do
+    # Note: telephone_pid is ignored - Horde can only register self()
+    # The calling process (TelephoneChannel) registers itself
+    case DistributedRegistry.register(path_id) do
       {:ok, _pid} -> :ok
       error -> error
     end
@@ -95,8 +97,10 @@ defmodule Plugboard.TelephoneRegistry do
     - telephone_pid: The PID of the telephone channel process
   """
   @spec unregister(path_id(), pid()) :: :ok | {:error, term()}
-  def unregister(path_id, telephone_pid) when is_binary(path_id) and is_pid(telephone_pid) do
-    DistributedRegistry.unregister(path_id, telephone_pid)
+  def unregister(path_id, _telephone_pid) when is_binary(path_id) do
+    # Note: telephone_pid is ignored - Horde can only unregister self()
+    # The calling process (TelephoneChannel) unregisters itself
+    DistributedRegistry.unregister(path_id)
   end
 
   @doc """

@@ -5,18 +5,18 @@ defmodule Plugboard.Paths.UserPathTest do
   alias Plugboard.Paths.UserPath
   alias Plugboard.Accounts
 
-  describe "add_user_to_path/3" do
+  describe "add_user_to_path/4" do
     setup do
       user = user_fixture()
       {:ok, path} = Paths.create_path(%{path: "test-path", user_id: user.id})
       %{user: user, path: path}
     end
 
-    test "associates user with path with owner role", %{path: path} do
+    test "associates user with path with owner role", %{user: user, path: path} do
       new_user = user_fixture()
 
       assert {:ok, %UserPath{} = user_path} =
-               Paths.add_user_to_path(new_user.id, path.id, "owner")
+               Paths.add_user_to_path(user.id, new_user.id, path.id, "owner")
 
       assert user_path.user_id == new_user.id
       assert user_path.path_id == path.id
@@ -25,69 +25,73 @@ defmodule Plugboard.Paths.UserPathTest do
       assert user_path.updated_at
     end
 
-    test "associates user with path with maintainer role", %{path: path} do
+    test "associates user with path with maintainer role", %{user: user, path: path} do
       new_user = user_fixture()
 
       assert {:ok, %UserPath{} = user_path} =
-               Paths.add_user_to_path(new_user.id, path.id, "maintainer")
+               Paths.add_user_to_path(user.id, new_user.id, path.id, "maintainer")
 
       assert user_path.role == "maintainer"
     end
 
-    test "associates user with path with viewer role", %{path: path} do
+    test "associates user with path with viewer role", %{user: user, path: path} do
       new_user = user_fixture()
 
       assert {:ok, %UserPath{} = user_path} =
-               Paths.add_user_to_path(new_user.id, path.id, "viewer")
+               Paths.add_user_to_path(user.id, new_user.id, path.id, "viewer")
 
       assert user_path.role == "viewer"
     end
 
-    test "returns error for invalid role", %{path: path} do
+    test "returns error for invalid role", %{user: user, path: path} do
       new_user = user_fixture()
 
-      assert {:error, changeset} = Paths.add_user_to_path(new_user.id, path.id, "admin")
+      assert {:error, changeset} = Paths.add_user_to_path(user.id, new_user.id, path.id, "admin")
       assert "is invalid" in errors_on(changeset).role
     end
 
-    test "returns error for empty role", %{path: path} do
+    test "returns error for empty role", %{user: user, path: path} do
       new_user = user_fixture()
 
-      assert {:error, changeset} = Paths.add_user_to_path(new_user.id, path.id, "")
+      assert {:error, changeset} = Paths.add_user_to_path(user.id, new_user.id, path.id, "")
       errors = errors_on(changeset)
       assert "can't be blank" in errors.role or "is invalid" in errors.role
     end
 
-    test "returns error for nil role", %{path: path} do
+    test "returns error for nil role", %{user: user, path: path} do
       new_user = user_fixture()
 
-      assert {:error, changeset} = Paths.add_user_to_path(new_user.id, path.id, nil)
+      assert {:error, changeset} = Paths.add_user_to_path(user.id, new_user.id, path.id, nil)
       errors = errors_on(changeset)
       assert "can't be blank" in errors.role
     end
 
-    test "returns error for non-existent user", %{path: path} do
+    test "returns error for non-existent user", %{user: user, path: path} do
       fake_user_id = Ecto.UUID.generate()
 
-      assert {:error, changeset} = Paths.add_user_to_path(fake_user_id, path.id, "viewer")
+      assert {:error, changeset} =
+               Paths.add_user_to_path(user.id, fake_user_id, path.id, "viewer")
+
       assert %{user_id: ["does not exist"]} = errors_on(changeset)
     end
 
     test "returns error for non-existent path", %{user: user} do
       fake_path_id = Ecto.UUID.generate()
+      new_user = user_fixture()
 
-      assert {:error, changeset} = Paths.add_user_to_path(user.id, fake_path_id, "viewer")
-      assert %{path_id: ["does not exist"]} = errors_on(changeset)
+      # Returns :unauthorized because the acting user cannot be an owner of a non-existent path
+      assert {:error, :unauthorized} =
+               Paths.add_user_to_path(user.id, new_user.id, fake_path_id, "viewer")
     end
 
-    test "prevents duplicate user-path associations", %{path: path} do
+    test "prevents duplicate user-path associations", %{user: user, path: path} do
       new_user = user_fixture()
 
       # First association succeeds
-      assert {:ok, _} = Paths.add_user_to_path(new_user.id, path.id, "viewer")
+      assert {:ok, _} = Paths.add_user_to_path(user.id, new_user.id, path.id, "viewer")
 
       # Duplicate association fails
-      assert {:error, changeset} = Paths.add_user_to_path(new_user.id, path.id, "owner")
+      assert {:error, changeset} = Paths.add_user_to_path(user.id, new_user.id, path.id, "owner")
 
       errors = errors_on(changeset)
       # Either user_id or path_id should show "has already been taken"
@@ -100,19 +104,19 @@ defmodule Plugboard.Paths.UserPathTest do
       {:ok, path1} = Paths.create_path(%{path: "path1", user_id: user.id})
       {:ok, path2} = Paths.create_path(%{path: "path2", user_id: user.id})
 
-      assert {:ok, user_path1} = Paths.add_user_to_path(new_user.id, path1.id, "viewer")
-      assert {:ok, user_path2} = Paths.add_user_to_path(new_user.id, path2.id, "owner")
+      assert {:ok, user_path1} = Paths.add_user_to_path(user.id, new_user.id, path1.id, "viewer")
+      assert {:ok, user_path2} = Paths.add_user_to_path(user.id, new_user.id, path2.id, "owner")
 
       assert user_path1.role == "viewer"
       assert user_path2.role == "owner"
     end
 
-    test "allows multiple users to have same role on same path", %{path: path} do
+    test "allows multiple users to have same role on same path", %{user: user, path: path} do
       user1 = user_fixture()
       user2 = user_fixture()
 
-      assert {:ok, _} = Paths.add_user_to_path(user1.id, path.id, "viewer")
-      assert {:ok, _} = Paths.add_user_to_path(user2.id, path.id, "viewer")
+      assert {:ok, _} = Paths.add_user_to_path(user.id, user1.id, path.id, "viewer")
+      assert {:ok, _} = Paths.add_user_to_path(user.id, user2.id, path.id, "viewer")
 
       # Both should have access
       assert Paths.has_role?(user1.id, path.id, "viewer")
@@ -120,21 +124,22 @@ defmodule Plugboard.Paths.UserPathTest do
     end
   end
 
-  describe "update_user_path_role/2" do
+  describe "update_user_path_role/3" do
     setup do
       user = user_fixture()
       {:ok, path} = Paths.create_path(%{path: "test-path", user_id: user.id})
       new_user = user_fixture()
-      {:ok, user_path} = Paths.add_user_to_path(new_user.id, path.id, "viewer")
+      {:ok, user_path} = Paths.add_user_to_path(user.id, new_user.id, path.id, "viewer")
       %{user: user, path: path, user_path: user_path, new_user: new_user}
     end
 
     test "updates role from viewer to maintainer", %{
+      user: user,
       user_path: user_path,
       new_user: new_user,
       path: path
     } do
-      assert {:ok, updated} = Paths.update_user_path_role(user_path, "maintainer")
+      assert {:ok, updated} = Paths.update_user_path_role(user.id, user_path, "maintainer")
       assert updated.role == "maintainer"
 
       # Verify in database
@@ -143,41 +148,42 @@ defmodule Plugboard.Paths.UserPathTest do
     end
 
     test "updates role from maintainer to owner", %{
+      user: user,
       user_path: user_path,
       new_user: new_user,
       path: path
     } do
-      {:ok, user_path} = Paths.update_user_path_role(user_path, "maintainer")
-      assert {:ok, updated} = Paths.update_user_path_role(user_path, "owner")
+      {:ok, user_path} = Paths.update_user_path_role(user.id, user_path, "maintainer")
+      assert {:ok, updated} = Paths.update_user_path_role(user.id, user_path, "owner")
       assert updated.role == "owner"
 
       # Verify in database
       assert Paths.has_role?(new_user.id, path.id, "owner")
     end
 
-    test "updates role from owner to viewer", %{user_path: user_path} do
-      {:ok, user_path} = Paths.update_user_path_role(user_path, "owner")
-      assert {:ok, updated} = Paths.update_user_path_role(user_path, "viewer")
+    test "updates role from owner to viewer", %{user: user, user_path: user_path} do
+      {:ok, user_path} = Paths.update_user_path_role(user.id, user_path, "owner")
+      assert {:ok, updated} = Paths.update_user_path_role(user.id, user_path, "viewer")
       assert updated.role == "viewer"
     end
 
-    test "returns error for invalid role", %{user_path: user_path} do
-      assert {:error, changeset} = Paths.update_user_path_role(user_path, "admin")
+    test "returns error for invalid role", %{user: user, user_path: user_path} do
+      assert {:error, changeset} = Paths.update_user_path_role(user.id, user_path, "admin")
       assert "is invalid" in errors_on(changeset).role
     end
 
-    test "returns error for nil role", %{user_path: user_path} do
-      assert {:error, changeset} = Paths.update_user_path_role(user_path, nil)
+    test "returns error for nil role", %{user: user, user_path: user_path} do
+      assert {:error, changeset} = Paths.update_user_path_role(user.id, user_path, nil)
       assert "can't be blank" in errors_on(changeset).role
     end
 
-    test "returns error for empty role", %{user_path: user_path} do
-      assert {:error, changeset} = Paths.update_user_path_role(user_path, "")
+    test "returns error for empty role", %{user: user, user_path: user_path} do
+      assert {:error, changeset} = Paths.update_user_path_role(user.id, user_path, "")
       errors = errors_on(changeset)
       assert "can't be blank" in errors.role or "is invalid" in errors.role
     end
 
-    test "updates updated_at timestamp", %{user_path: user_path} do
+    test "updates updated_at timestamp", %{user: user, user_path: user_path} do
       # Force a timestamp difference by manually setting the original to the past
       past_time = DateTime.add(DateTime.utc_now(), -2, :second) |> DateTime.truncate(:second)
 
@@ -186,23 +192,28 @@ defmodule Plugboard.Paths.UserPathTest do
         |> Ecto.Changeset.change(updated_at: past_time)
         |> Repo.update!()
 
-      {:ok, updated} = Paths.update_user_path_role(user_path_with_old_time, "maintainer")
+      {:ok, updated} = Paths.update_user_path_role(user.id, user_path_with_old_time, "maintainer")
 
       assert DateTime.compare(updated.updated_at, past_time) == :gt
     end
   end
 
-  describe "remove_user_from_path/1" do
+  describe "remove_user_from_path/2" do
     setup do
       user = user_fixture()
       {:ok, path} = Paths.create_path(%{path: "test-path", user_id: user.id})
       new_user = user_fixture()
-      {:ok, user_path} = Paths.add_user_to_path(new_user.id, path.id, "viewer")
+      {:ok, user_path} = Paths.add_user_to_path(user.id, new_user.id, path.id, "viewer")
       %{user: user, path: path, user_path: user_path, new_user: new_user}
     end
 
-    test "removes user-path association", %{user_path: user_path, new_user: new_user, path: path} do
-      assert {:ok, _} = Paths.remove_user_from_path(user_path)
+    test "removes user-path association", %{
+      user: user,
+      user_path: user_path,
+      new_user: new_user,
+      path: path
+    } do
+      assert {:ok, _} = Paths.remove_user_from_path(user.id, user_path)
 
       # Verify user no longer has access
       refute Paths.has_role?(new_user.id, path.id, "viewer")
@@ -210,26 +221,27 @@ defmodule Plugboard.Paths.UserPathTest do
     end
 
     test "allows path to be re-associated after removal", %{
+      user: user,
       user_path: user_path,
       new_user: new_user,
       path: path
     } do
-      assert {:ok, _} = Paths.remove_user_from_path(user_path)
+      assert {:ok, _} = Paths.remove_user_from_path(user.id, user_path)
 
       # Re-associate with different role
-      assert {:ok, new_user_path} = Paths.add_user_to_path(new_user.id, path.id, "owner")
+      assert {:ok, new_user_path} = Paths.add_user_to_path(user.id, new_user.id, path.id, "owner")
       assert new_user_path.role == "owner"
     end
 
-    test "does not affect other users' access to the same path", %{path: path} do
+    test "does not affect other users' access to the same path", %{user: user, path: path} do
       user2 = user_fixture()
       user3 = user_fixture()
 
-      {:ok, user_path2} = Paths.add_user_to_path(user2.id, path.id, "viewer")
-      {:ok, _user_path3} = Paths.add_user_to_path(user3.id, path.id, "maintainer")
+      {:ok, user_path2} = Paths.add_user_to_path(user.id, user2.id, path.id, "viewer")
+      {:ok, _user_path3} = Paths.add_user_to_path(user.id, user3.id, path.id, "maintainer")
 
       # Remove user2
-      assert {:ok, _} = Paths.remove_user_from_path(user_path2)
+      assert {:ok, _} = Paths.remove_user_from_path(user.id, user_path2)
 
       # user3 should still have access
       assert Paths.has_role?(user3.id, path.id, "maintainer")
@@ -241,7 +253,7 @@ defmodule Plugboard.Paths.UserPathTest do
       user_path: user_path
     } do
       # Remove the viewer
-      {:ok, _} = Paths.remove_user_from_path(user_path)
+      {:ok, _} = Paths.remove_user_from_path(owner.id, user_path)
 
       # Owner should still have access
       paths = Paths.list_paths(owner.id)
@@ -254,7 +266,7 @@ defmodule Plugboard.Paths.UserPathTest do
       user = user_fixture()
       {:ok, path} = Paths.create_path(%{path: "test-path", user_id: user.id})
       new_user = user_fixture()
-      {:ok, user_path} = Paths.add_user_to_path(new_user.id, path.id, "viewer")
+      {:ok, user_path} = Paths.add_user_to_path(user.id, new_user.id, path.id, "viewer")
       %{user: user, path: path, user_path: user_path, new_user: new_user}
     end
 
@@ -296,9 +308,9 @@ defmodule Plugboard.Paths.UserPathTest do
       user2 = user_fixture()
       user3 = user_fixture()
 
-      Paths.add_user_to_path(user1.id, path.id, "viewer")
-      Paths.add_user_to_path(user2.id, path.id, "maintainer")
-      Paths.add_user_to_path(user3.id, path.id, "viewer")
+      Paths.add_user_to_path(owner.id, user1.id, path.id, "viewer")
+      Paths.add_user_to_path(owner.id, user2.id, path.id, "maintainer")
+      Paths.add_user_to_path(owner.id, user3.id, path.id, "viewer")
 
       user_paths = Paths.list_path_users(path.id)
 
@@ -313,12 +325,12 @@ defmodule Plugboard.Paths.UserPathTest do
       assert user3.id in user_ids
     end
 
-    test "includes role information", %{path: path} do
+    test "includes role information", %{user: user, path: path} do
       user1 = user_fixture()
       user2 = user_fixture()
 
-      Paths.add_user_to_path(user1.id, path.id, "viewer")
-      Paths.add_user_to_path(user2.id, path.id, "maintainer")
+      Paths.add_user_to_path(user.id, user1.id, path.id, "viewer")
+      Paths.add_user_to_path(user.id, user2.id, path.id, "maintainer")
 
       user_paths = Paths.list_path_users(path.id)
 
@@ -329,9 +341,9 @@ defmodule Plugboard.Paths.UserPathTest do
       assert maintainer.role == "maintainer"
     end
 
-    test "preloads user data", %{path: path} do
+    test "preloads user data", %{user: user, path: path} do
       user1 = user_fixture()
-      Paths.add_user_to_path(user1.id, path.id, "viewer")
+      Paths.add_user_to_path(user.id, user1.id, path.id, "viewer")
 
       user_paths = Paths.list_path_users(path.id)
 
@@ -344,7 +356,7 @@ defmodule Plugboard.Paths.UserPathTest do
     test "returns empty list for path with no users", %{user: owner, path: path} do
       # Remove owner association
       user_path = Paths.get_user_path(owner.id, path.id)
-      Paths.remove_user_from_path(user_path)
+      Paths.remove_user_from_path(owner.id, user_path)
 
       user_paths = Paths.list_path_users(path.id)
       assert user_paths == []
@@ -362,7 +374,7 @@ defmodule Plugboard.Paths.UserPathTest do
       user = user_fixture()
       {:ok, path} = Paths.create_path(%{path: "test-path", user_id: user.id})
       new_user = user_fixture()
-      {:ok, _user_path} = Paths.add_user_to_path(new_user.id, path.id, "viewer")
+      {:ok, _user_path} = Paths.add_user_to_path(user.id, new_user.id, path.id, "viewer")
       %{user: user, path: path, new_user: new_user}
     end
 
@@ -401,7 +413,7 @@ defmodule Plugboard.Paths.UserPathTest do
       user = user_fixture()
       {:ok, path} = Paths.create_path(%{path: "test-path", user_id: user.id})
       viewer = user_fixture()
-      {:ok, user_path} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, user_path} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       # Delete the viewer user
       Repo.delete!(viewer)
@@ -414,7 +426,7 @@ defmodule Plugboard.Paths.UserPathTest do
       user = user_fixture()
       {:ok, path} = Paths.create_path(%{path: "test-path", user_id: user.id})
       viewer = user_fixture()
-      {:ok, user_path} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, user_path} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       # Hard delete the path (bypass soft-delete)
       Repo.delete!(path)
@@ -427,10 +439,10 @@ defmodule Plugboard.Paths.UserPathTest do
       user = user_fixture()
       {:ok, path} = Paths.create_path(%{path: "test-path", user_id: user.id})
       viewer = user_fixture()
-      {:ok, user_path} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, user_path} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       # Soft-delete the path
-      Paths.delete_path(path)
+      Paths.delete_path(user.id, path)
 
       # user_path should still exist
       assert Repo.get(UserPath, user_path.id)

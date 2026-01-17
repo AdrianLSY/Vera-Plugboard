@@ -19,7 +19,7 @@ defmodule PlugboardWeb.TelephoneChannelTest do
         user_id: user.id
       })
 
-    {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+    {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
     {:ok, jwt, token} = TelephoneTokens.generate_token(mount_path, user)
 
     # Connect socket
@@ -145,9 +145,9 @@ defmodule PlugboardWeb.TelephoneChannelTest do
       # We can't easily compare but we know it was generated
     end
 
-    test "handles refresh failure for revoked token", %{socket: socket, token: token} do
+    test "handles refresh failure for revoked token", %{socket: socket, token: token, user: user} do
       # Revoke the token
-      {:ok, _revoked} = TelephoneTokens.revoke_token(token.id)
+      {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token.id)
 
       # Capture expected error log
       log =
@@ -339,7 +339,7 @@ defmodule PlugboardWeb.TelephoneChannelTest do
           user_id: user.id
         })
 
-      {:ok, mount_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount_path} = Paths.update_path(user.id, path, %{mount_point: true})
       {:ok, jwt, _token} = TelephoneTokens.generate_token(mount_path, user)
 
       {:ok, socket} = connect(TelephoneSocket, %{"token" => jwt})

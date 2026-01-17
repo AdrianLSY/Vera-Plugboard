@@ -46,3 +46,15 @@ config :phoenix_live_view,
 
 # Note: MountStore, telephone, and max_request_body_length configuration
 # is now consolidated in config/runtime.exs for all environments
+
+# Test session salts - DO NOT use these in production
+config :plugboard, :session,
+  signing_salt: "test_signing_salt_not_for_production",
+  encryption_salt: nil
+
+# Mark as test environment for secure cookie flag
+config :plugboard, :env, :test
+
+# Allow localhost hooks in test environment (for Bypass)
+# This disables SSRF protection for localhost/127.0.0.1 but still blocks cloud metadata endpoints
+config :plugboard, :allow_localhost_hooks, true

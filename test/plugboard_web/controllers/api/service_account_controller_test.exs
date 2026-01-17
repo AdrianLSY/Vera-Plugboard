@@ -31,7 +31,7 @@ defmodule PlugboardWeb.Api.ServiceAccountControllerTest do
                "message" => message
              } = json_response(conn, 201)
 
-      assert String.starts_with?(api_key, "sa_live_")
+      assert String.starts_with?(api_key, "pb_sa_")
       assert is_binary(id)
       assert path_id == path.id
       assert message =~ "Store this API key securely"
@@ -73,9 +73,9 @@ defmodule PlugboardWeb.Api.ServiceAccountControllerTest do
       assert details["name"] != nil
     end
 
-    test "requires owner or maintainer role", %{conn: _conn, path: path} do
+    test "requires owner or maintainer role", %{conn: _conn, user: user, path: path} do
       viewer = Plugboard.AccountsFixtures.user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       conn = build_conn() |> log_in_user(viewer)
 
@@ -88,9 +88,9 @@ defmodule PlugboardWeb.Api.ServiceAccountControllerTest do
       assert error =~ "Requires owner or maintainer role"
     end
 
-    test "allows maintainer to create", %{path: path} do
+    test "allows maintainer to create", %{user: user, path: path} do
       maintainer = Plugboard.AccountsFixtures.user_fixture()
-      {:ok, _} = Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(user.id, maintainer.id, path.id, "maintainer")
 
       conn = build_conn() |> log_in_user(maintainer)
 
@@ -110,7 +110,7 @@ defmodule PlugboardWeb.Api.ServiceAccountControllerTest do
       {:ok, _, sa3} = ServiceAccounts.generate_service_account(user, path.id, "sa3", nil)
 
       # Revoke one
-      {:ok, _} = ServiceAccounts.revoke_service_account(sa3.id)
+      {:ok, _} = ServiceAccounts.revoke_service_account(user.id, sa3.id)
 
       %{sa1: sa1, sa2: sa2}
     end
@@ -205,9 +205,9 @@ defmodule PlugboardWeb.Api.ServiceAccountControllerTest do
       assert %{"error" => "Service account not found"} = json_response(conn, 404)
     end
 
-    test "requires owner or maintainer role", %{path: path, service_account: sa} do
+    test "requires owner or maintainer role", %{user: user, path: path, service_account: sa} do
       viewer = Plugboard.AccountsFixtures.user_fixture()
-      {:ok, _} = Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       conn = build_conn() |> log_in_user(viewer)
       conn = delete(conn, ~p"/api/service-accounts/#{sa.id}")
@@ -215,9 +215,9 @@ defmodule PlugboardWeb.Api.ServiceAccountControllerTest do
       assert %{"error" => "Requires owner or maintainer role"} = json_response(conn, 403)
     end
 
-    test "allows maintainer to revoke", %{path: path, service_account: sa} do
+    test "allows maintainer to revoke", %{user: user, path: path, service_account: sa} do
       maintainer = Plugboard.AccountsFixtures.user_fixture()
-      {:ok, _} = Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(user.id, maintainer.id, path.id, "maintainer")
 
       conn = build_conn() |> log_in_user(maintainer)
       conn = delete(conn, ~p"/api/service-accounts/#{sa.id}")

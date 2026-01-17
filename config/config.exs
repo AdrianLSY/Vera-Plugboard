@@ -51,6 +51,8 @@ config :plugboard, Plugboard.Repo,
   queue_interval: 1_000
 
 # Configures the endpoint
+# Note: Signing salts should be overridden via environment variables in production
+# See config/runtime.exs for production configuration
 config :plugboard, PlugboardWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
@@ -59,7 +61,12 @@ config :plugboard, PlugboardWeb.Endpoint,
     layout: false
   ],
   pubsub_server: Plugboard.PubSub,
-  live_view: [signing_salt: "Zq65T5uC"]
+  live_view: [signing_salt: "CHANGE_ME_IN_PRODUCTION"]
+
+# Session configuration - these should be overridden in production
+config :plugboard, :session,
+  signing_salt: "CHANGE_ME_IN_PRODUCTION",
+  encryption_salt: nil
 
 # Configures the mailer
 #

@@ -8,6 +8,7 @@ defmodule Plugboard.ServiceAccounts do
 
   import Ecto.Query, warn: false
 
+  alias Plugboard.Crypto
   alias Plugboard.Paths
   alias Plugboard.Repo
   alias Plugboard.ServiceAccounts.ServiceAccount
@@ -88,9 +89,7 @@ defmodule Plugboard.ServiceAccounts do
     - {:error, reason} on failure
   """
   def validate_api_key(api_key_string) when is_binary(api_key_string) do
-    api_key_hash = hash_api_key(api_key_string)
-
-    with {:ok, service_account} <- get_service_account_by_api_key_hash(api_key_hash),
+    with {:ok, service_account} <- find_service_account_by_api_key(api_key_string),
          :ok <- validate_service_account_active(service_account),
          {:ok, path} <- validate_path(service_account.path_id) do
       {:ok, %{service_account: service_account, path: path, user_id: service_account.user_id}}
@@ -113,9 +112,7 @@ defmodule Plugboard.ServiceAccounts do
   """
   def validate_and_mark_used(api_key_string) when is_binary(api_key_string) do
     Repo.transaction(fn ->
-      api_key_hash = hash_api_key(api_key_string)
-
-      with {:ok, service_account} <- get_service_account_by_api_key_hash(api_key_hash),
+      with {:ok, service_account} <- find_service_account_by_api_key(api_key_string),
            :ok <- validate_service_account_active(service_account),
            {:ok, path} <- validate_path(service_account.path_id),
            {:ok, _updated} <- mark_service_account_used(service_account.id) do
@@ -144,30 +141,39 @@ defmodule Plugboard.ServiceAccounts do
 
   @doc """
   Revokes a service account, preventing it from generating new tokens.
+
+  Requires owner or maintainer role on the path.
   """
-  def revoke_service_account(service_account_id) do
+  def revoke_service_account(user_id, service_account_id) do
     case get_service_account(service_account_id) do
       nil ->
         {:error, :not_found}
 
       service_account ->
-        result =
-          service_account
-          |> ServiceAccount.revoke_changeset()
-          |> Repo.update()
+        # Check user has permission on the path
+        case Paths.get_user_role(user_id, service_account.path_id) do
+          role when role in ["owner", "maintainer"] ->
+            result =
+              service_account
+              |> ServiceAccount.revoke_changeset()
+              |> Repo.update()
 
-        case result do
-          {:ok, revoked_sa} ->
-            :telemetry.execute(
-              [:plugboard, :service_account, :revoked],
-              %{count: 1},
-              %{service_account_id: service_account_id, path_id: service_account.path_id}
-            )
+            case result do
+              {:ok, revoked_sa} ->
+                :telemetry.execute(
+                  [:plugboard, :service_account, :revoked],
+                  %{count: 1},
+                  %{service_account_id: service_account_id, path_id: service_account.path_id}
+                )
 
-            {:ok, revoked_sa}
+                {:ok, revoked_sa}
 
-          error ->
-            error
+              error ->
+                error
+            end
+
+          _role ->
+            {:error, :unauthorized}
         end
     end
   end
@@ -205,7 +211,10 @@ defmodule Plugboard.ServiceAccounts do
   @doc """
   Updates a service account's name and description.
 
+  Requires owner or maintainer role on the path.
+
   ## Parameters
+    - user_id: The ID of the user performing the update
     - service_account_id: The ID of the service account to update
     - attrs: Map with :name and/or :description keys
 
@@ -213,16 +222,24 @@ defmodule Plugboard.ServiceAccounts do
     - {:ok, updated_service_account} on success
     - {:error, changeset} on validation failure
     - {:error, :not_found} if service account doesn't exist
+    - {:error, :unauthorized} if user lacks permission
   """
-  def update_service_account(service_account_id, attrs) do
+  def update_service_account(user_id, service_account_id, attrs) do
     case get_service_account(service_account_id) do
       nil ->
         {:error, :not_found}
 
       service_account ->
-        service_account
-        |> ServiceAccount.update_changeset(attrs)
-        |> Repo.update()
+        # Check user has permission on the path
+        case Paths.get_user_role(user_id, service_account.path_id) do
+          role when role in ["owner", "maintainer"] ->
+            service_account
+            |> ServiceAccount.update_changeset(attrs)
+            |> Repo.update()
+
+          _role ->
+            {:error, :unauthorized}
+        end
     end
   end
 
@@ -234,11 +251,22 @@ defmodule Plugboard.ServiceAccounts do
     |> Repo.insert()
   end
 
-  defp get_service_account_by_api_key_hash(api_key_hash) do
-    case Repo.get_by(ServiceAccount, api_key_hash: api_key_hash) do
-      nil -> {:error, :api_key_not_found}
-      service_account -> {:ok, service_account}
-    end
+  # Find service account by verifying API key against stored Argon2 hashes
+  defp find_service_account_by_api_key(api_key_string) do
+    # Get all active service accounts (not revoked)
+    active_accounts =
+      ServiceAccount
+      |> where([sa], is_nil(sa.revoked_at))
+      |> Repo.all()
+
+    # Find the account whose hash matches the API key
+    Enum.find_value(active_accounts, {:error, :api_key_not_found}, fn account ->
+      if Crypto.verify_token(api_key_string, account.api_key_hash) do
+        {:ok, account}
+      else
+        nil
+      end
+    end)
   end
 
   defp validate_service_account_active(service_account) do
@@ -284,14 +312,14 @@ defmodule Plugboard.ServiceAccounts do
 
   defp generate_api_key do
     # Generate 32 bytes of random data and encode as base64
-    # Format: sa_live_<base64>
+    # Format: pb_sa_<base64> (environment-agnostic prefix)
     random_bytes = :crypto.strong_rand_bytes(32)
     encoded = Base.url_encode64(random_bytes, padding: false)
-    "sa_live_#{encoded}"
+    "pb_sa_#{encoded}"
   end
 
   defp hash_api_key(api_key) do
-    :crypto.hash(:sha256, api_key)
-    |> Base.encode16(case: :lower)
+    # Use Argon2 for secure API key hashing
+    Crypto.hash_token(api_key)
   end
 end

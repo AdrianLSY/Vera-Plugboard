@@ -287,6 +287,7 @@ defmodule Plugboard.Hooks.ExecutorTest do
     end
 
     test "forwards configured headers", %{user: user, path: path, bypass: bypass} do
+      # Note: Authorization is now a blocked header for security, so we test with safe headers
       {:ok, _hook} =
         Hooks.create_hook(user.id, %{
           path_id: path.id,
@@ -296,17 +297,17 @@ defmodule Plugboard.Hooks.ExecutorTest do
           execution_order: 0,
           timeout_ms: 5000,
           allowed_status_codes: [200],
-          forward_headers: ["Authorization", "X-Custom-Header"]
+          forward_headers: ["X-Request-Id", "X-Custom-Header"]
         })
 
       HookStore.reload_all()
 
       Bypass.expect_once(bypass, "POST", "/hook", fn conn ->
         # Check that configured headers were forwarded
-        auth = Plug.Conn.get_req_header(conn, "authorization")
+        request_id = Plug.Conn.get_req_header(conn, "x-request-id")
         custom = Plug.Conn.get_req_header(conn, "x-custom-header")
 
-        assert auth == ["Bearer token123"]
+        assert request_id == ["req-123"]
         assert custom == ["custom-value"]
 
         conn
@@ -316,7 +317,7 @@ defmodule Plugboard.Hooks.ExecutorTest do
 
       conn =
         Plug.Test.conn(:post, "/test", ~s({}))
-        |> Plug.Conn.put_req_header("authorization", "Bearer token123")
+        |> Plug.Conn.put_req_header("x-request-id", "req-123")
         |> Plug.Conn.put_req_header("x-custom-header", "custom-value")
 
       assert {:ok, _result_conn} = Executor.execute_hooks(conn, path.id)
@@ -423,7 +424,7 @@ defmodule Plugboard.Hooks.ExecutorTest do
         })
 
       # Delete the target path to simulate "not found"
-      {:ok, _} = Paths.delete_path(target_path)
+      {:ok, _} = Paths.delete_path(user.id, target_path)
 
       HookStore.reload_all()
       MountStore.reload_all()

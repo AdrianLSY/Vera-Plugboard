@@ -26,7 +26,7 @@ defmodule PlugboardWeb.Api.HookControllerTest do
         user_id: user.id
       })
 
-    {:ok, target_mount} = Paths.update_path(target, %{mount_point: true})
+    {:ok, target_mount} = Paths.update_path(user.id, target, %{mount_point: true})
 
     %{conn: conn, user: user, path: path, target: target_mount}
   end
@@ -69,9 +69,9 @@ defmodule PlugboardWeb.Api.HookControllerTest do
       assert json["target_url"] == "https://example.com/webhook"
     end
 
-    test "creates hook with maintainer role", %{path: path, target: target} do
+    test "creates hook with maintainer role", %{user: user, path: path, target: target} do
       maintainer = user_fixture()
-      Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(user.id, maintainer.id, path.id, "maintainer")
 
       conn = log_in_user(build_conn(), maintainer)
 
@@ -88,9 +88,9 @@ defmodule PlugboardWeb.Api.HookControllerTest do
       assert json["name"] == "Maintainer Hook"
     end
 
-    test "rejects creation with viewer role", %{path: path, target: target} do
+    test "rejects creation with viewer role", %{user: user, path: path, target: target} do
       viewer = user_fixture()
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
 
@@ -221,7 +221,7 @@ defmodule PlugboardWeb.Api.HookControllerTest do
         })
 
       viewer = user_fixture()
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
       conn = get(conn, ~p"/api/paths/#{path.id}/hooks")
@@ -313,9 +313,9 @@ defmodule PlugboardWeb.Api.HookControllerTest do
       assert json["timeout_ms"] == 10_000
     end
 
-    test "updates hook with maintainer role", %{path: path, hook: hook} do
+    test "updates hook with maintainer role", %{user: user, path: path, hook: hook} do
       maintainer = user_fixture()
-      Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(user.id, maintainer.id, path.id, "maintainer")
 
       conn = log_in_user(build_conn(), maintainer)
 
@@ -328,9 +328,9 @@ defmodule PlugboardWeb.Api.HookControllerTest do
       assert json["name"] == "Maintainer Update"
     end
 
-    test "rejects update with viewer role", %{path: path, hook: hook} do
+    test "rejects update with viewer role", %{user: user, path: path, hook: hook} do
       viewer = user_fixture()
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
 
@@ -391,9 +391,9 @@ defmodule PlugboardWeb.Api.HookControllerTest do
       assert Hooks.get_hook(hook.id) == nil
     end
 
-    test "deletes hook with maintainer role", %{path: path, hook: hook} do
+    test "deletes hook with maintainer role", %{user: user, path: path, hook: hook} do
       maintainer = user_fixture()
-      Paths.add_user_to_path(maintainer.id, path.id, "maintainer")
+      {:ok, _} = Paths.add_user_to_path(user.id, maintainer.id, path.id, "maintainer")
 
       conn = log_in_user(build_conn(), maintainer)
       conn = delete(conn, ~p"/api/hooks/#{hook.id}")
@@ -402,9 +402,9 @@ defmodule PlugboardWeb.Api.HookControllerTest do
       assert json["message"] == "Hook deleted successfully"
     end
 
-    test "rejects deletion with viewer role", %{path: path, hook: hook} do
+    test "rejects deletion with viewer role", %{user: user, path: path, hook: hook} do
       viewer = user_fixture()
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
       conn = delete(conn, ~p"/api/hooks/#{hook.id}")
@@ -465,9 +465,9 @@ defmodule PlugboardWeb.Api.HookControllerTest do
       assert Enum.at(hooks, 1).id == hook0.id
     end
 
-    test "rejects reorder with viewer role", %{path: path, hooks: [hook0, hook1]} do
+    test "rejects reorder with viewer role", %{user: user, path: path, hooks: [hook0, hook1]} do
       viewer = user_fixture()
-      Paths.add_user_to_path(viewer.id, path.id, "viewer")
+      {:ok, _} = Paths.add_user_to_path(user.id, viewer.id, path.id, "viewer")
 
       conn = log_in_user(build_conn(), viewer)
 
@@ -502,7 +502,7 @@ defmodule PlugboardWeb.Api.HookControllerTest do
           user_id: user.id
         })
 
-      {:ok, other_mount} = Paths.update_path(other_target, %{mount_point: true})
+      {:ok, other_mount} = Paths.update_path(user.id, other_target, %{mount_point: true})
 
       {:ok, other_hook} =
         Hooks.create_hook(user.id, %{

@@ -272,7 +272,7 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
 
       # Create a domain affinity
       {:ok, _da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "ws.example.com",
           path_id: path.id
         })
@@ -318,6 +318,9 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
   end
 
   describe "WebSocket header detection" do
+    # Use unique paths that won't conflict with mount points created by other tests
+    @unique_test_path "/call/ws-header-detection-test-#{:erlang.phash2(__MODULE__)}/ws"
+
     test "detects valid WebSocket upgrade", %{conn: conn} do
       conn =
         conn
@@ -329,7 +332,7 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
       # by checking if it tries to match paths
       conn =
         conn
-        |> Map.put(:request_path, "/call/api/ws")
+        |> Map.put(:request_path, @unique_test_path)
         |> WebSocketProxyPlug.call([])
 
       # With no mount point, it passes through (proving it detected the upgrade
@@ -342,7 +345,7 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
         conn
         |> put_req_header("upgrade", "WebSocket")
         |> put_req_header("connection", "Upgrade")
-        |> Map.put(:request_path, "/call/api/ws")
+        |> Map.put(:request_path, @unique_test_path)
         |> WebSocketProxyPlug.call([])
 
       refute conn.halted
@@ -353,7 +356,7 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
         conn
         |> put_req_header("upgrade", "websocket")
         |> put_req_header("connection", "keep-alive, upgrade")
-        |> Map.put(:request_path, "/call/api/ws")
+        |> Map.put(:request_path, @unique_test_path)
         |> WebSocketProxyPlug.call([])
 
       refute conn.halted
@@ -363,7 +366,7 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
       conn =
         conn
         |> put_req_header("connection", "upgrade")
-        |> Map.put(:request_path, "/call/api/ws")
+        |> Map.put(:request_path, @unique_test_path)
         |> WebSocketProxyPlug.call([])
 
       refute conn.halted
@@ -373,7 +376,7 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
       conn =
         conn
         |> put_req_header("upgrade", "websocket")
-        |> Map.put(:request_path, "/call/api/ws")
+        |> Map.put(:request_path, @unique_test_path)
         |> WebSocketProxyPlug.call([])
 
       refute conn.halted

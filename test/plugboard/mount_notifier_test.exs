@@ -49,7 +49,7 @@ defmodule Plugboard.MountNotifierTest do
       assert {:error, :not_found} = MountStore.match("/notify-added")
 
       # Mark as mount (this sends NOTIFY)
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Wait for NOTIFY to propagate and process
       # Note: In test environment, NOTIFY is slow, so we use a reasonable timeout
@@ -68,14 +68,14 @@ defmodule Plugboard.MountNotifierTest do
           user_id: user.id
         })
 
-      {:ok, mounted_path} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mounted_path} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Ensure it's in ETS
       MountStore.reload_all()
       assert {:ok, _} = MountStore.match("/notify-removed")
 
       # Unmark as mount (this sends NOTIFY with mount_removed)
-      {:ok, _unmounted} = Paths.update_path(mounted_path, %{mount_point: false})
+      {:ok, _unmounted} = Paths.update_path(user.id, mounted_path, %{mount_point: false})
 
       # Wait for NOTIFY to propagate
       :timer.sleep(200)
@@ -98,7 +98,7 @@ defmodule Plugboard.MountNotifierTest do
       # System should still be operational
       user = user_fixture()
       {:ok, path} = Paths.create_path(%{path: "test-after-error", user_id: user.id})
-      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
       assert {:ok, _} = MountStore.match("/test-after-error")
     end
@@ -166,7 +166,7 @@ defmodule Plugboard.MountNotifierTest do
       # Should still process valid messages
       user = user_fixture()
       {:ok, path} = Paths.create_path(%{path: "after-spam", user_id: user.id})
-      {:ok, _} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
       assert {:ok, _} = MountStore.match("/after-spam")
     end
@@ -196,11 +196,11 @@ defmodule Plugboard.MountNotifierTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
       MountStore.reload_all()
 
       # Delete it
-      {:ok, _} = Paths.delete_path(path)
+      {:ok, _} = Paths.delete_path(user.id, path)
       MountStore.reload_all()
 
       # Manually send NOTIFY (race condition simulation)
@@ -252,7 +252,7 @@ defmodule Plugboard.MountNotifierTest do
       # Create multiple paths and mark as mounts
       for i <- 1..5 do
         {:ok, path} = Paths.create_path(%{path: "concurrent#{i}", user_id: user.id})
-        {:ok, _} = Paths.update_path(path, %{mount_point: true})
+        {:ok, _} = Paths.update_path(user.id, path, %{mount_point: true})
       end
 
       # All should process eventually (NOTIFY sent automatically)
@@ -281,7 +281,7 @@ defmodule Plugboard.MountNotifierTest do
         })
 
       # Mark as mount - this sends NOTIFY
-      {:ok, mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Wait for NOTIFY processing
       wait_for_mount("/integration-test", timeout: 2000)
@@ -302,14 +302,14 @@ defmodule Plugboard.MountNotifierTest do
           user_id: user.id
         })
 
-      {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
+      {:ok, _mount} = Paths.update_path(user.id, path, %{mount_point: true})
 
       # Ensure it's in ETS
       MountStore.reload_all()
       assert {:ok, _} = MountStore.match("/to-be-deleted")
 
       # Delete the path - this sends NOTIFY
-      {:ok, _} = Paths.delete_path(path)
+      {:ok, _} = Paths.delete_path(user.id, path)
 
       # Wait for NOTIFY processing
       :timer.sleep(200)

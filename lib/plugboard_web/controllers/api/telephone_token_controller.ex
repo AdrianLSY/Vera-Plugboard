@@ -94,28 +94,24 @@ defmodule PlugboardWeb.Api.TelephoneTokenController do
         |> put_status(:not_found)
         |> json(%{error: "Token not found"})
 
-      token ->
-        # Check user has appropriate role on the path
-        case Paths.get_user_role(user.id, token.path_id) do
-          role when role in ["owner", "maintainer"] ->
-            case TelephoneTokens.revoke_token(token_id) do
-              {:ok, _revoked_token} ->
-                Logger.info("Token #{token_id} revoked by user #{user.id}")
+      _token ->
+        case TelephoneTokens.revoke_token(user.id, token_id) do
+          {:ok, _revoked_token} ->
+            Logger.info("Token #{token_id} revoked by user #{user.id}")
 
-                conn
-                |> put_status(:ok)
-                |> json(%{message: "Token revoked successfully"})
+            conn
+            |> put_status(:ok)
+            |> json(%{message: "Token revoked successfully"})
 
-              {:error, changeset} ->
-                conn
-                |> put_status(:unprocessable_entity)
-                |> json(%{error: "Failed to revoke token", details: changeset})
-            end
-
-          _ ->
+          {:error, :unauthorized} ->
             conn
             |> put_status(:forbidden)
             |> json(%{error: "Requires owner or maintainer role"})
+
+          {:error, changeset} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: "Failed to revoke token", details: changeset})
         end
     end
   end

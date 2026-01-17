@@ -25,10 +25,14 @@ defmodule PlugboardWeb.Plugs.DomainAffinityRouterTest do
       %{user: user, path: path}
     end
 
-    test "passes through unchanged when domain has affinity", %{conn: conn, path: path} do
+    test "passes through unchanged when domain has affinity", %{
+      conn: conn,
+      path: path,
+      user: user
+    } do
       # Create a domain affinity
       {:ok, _da} =
-        DomainAffinities.create_domain_affinity(%{
+        DomainAffinities.create_domain_affinity(user.id, %{
           domain: "api.example.com",
           path_id: path.id
         })

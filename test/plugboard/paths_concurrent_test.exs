@@ -21,7 +21,7 @@ defmodule Plugboard.PathsConcurrentTest do
         })
 
       original_id = original.id
-      {:ok, _deleted} = Paths.delete_path(original)
+      {:ok, _deleted} = Paths.delete_path(user.id, original)
 
       # Try to restore concurrently from multiple tasks
       attrs = %{
@@ -73,7 +73,7 @@ defmodule Plugboard.PathsConcurrentTest do
               created_by_user_id: user.id
             })
 
-          {:ok, _deleted} = Paths.delete_path(path)
+          {:ok, _deleted} = Paths.delete_path(user.id, path)
           {path.id, "path_#{i}"}
         end
 
@@ -103,7 +103,7 @@ defmodule Plugboard.PathsConcurrentTest do
           user_id: user.id
         })
 
-      {:ok, deleted} = Paths.delete_path(original)
+      {:ok, deleted} = Paths.delete_path(user.id, original)
 
       # Restore once
       changeset1 = Path.restore_changeset(deleted, %{})
@@ -142,7 +142,7 @@ defmodule Plugboard.PathsConcurrentTest do
         Task.async(fn ->
           try do
             Process.sleep(1)
-            Paths.update_path(parent, %{mount_point: true})
+            Paths.update_path(user.id, parent, %{mount_point: true})
           rescue
             e in Postgrex.Error -> {:error, e}
           end
@@ -233,7 +233,7 @@ defmodule Plugboard.PathsConcurrentTest do
       # One task updates path segment, another checks mount status
       update_task =
         Task.async(fn ->
-          Paths.update_path(path, %{path: "updated"})
+          Paths.update_path(user.id, path, %{path: "updated"})
         end)
 
       check_task =
@@ -260,7 +260,7 @@ defmodule Plugboard.PathsConcurrentTest do
           Task.async(fn ->
             # Reload path each time to get fresh record
             fresh_path = Repo.get!(Path, path.id)
-            Paths.delete_path(fresh_path)
+            Paths.delete_path(user.id, fresh_path)
           end)
         end
 
@@ -289,7 +289,7 @@ defmodule Plugboard.PathsConcurrentTest do
           user_id: user.id
         })
 
-      {:ok, _deleted} = Paths.delete_path(original)
+      {:ok, _deleted} = Paths.delete_path(user.id, original)
 
       # First restoration succeeds
       {:ok, _restored} =
@@ -353,7 +353,7 @@ defmodule Plugboard.PathsConcurrentTest do
       end
 
       # Measure delete time - should be fast with parent_id index
-      {time_us, {:ok, _}} = :timer.tc(fn -> Paths.delete_path(root) end)
+      {time_us, {:ok, _}} = :timer.tc(fn -> Paths.delete_path(user.id, root) end)
 
       # Should complete in under 500ms even with 100 nodes
       assert time_us < 500_000, "Delete took #{time_us}μs (expected < 500ms)"
@@ -367,17 +367,17 @@ defmodule Plugboard.PathsConcurrentTest do
       %{user: user, path: path}
     end
 
-    test "concurrent role updates on same user_path", %{path: path} do
+    test "concurrent role updates on same user_path", %{user: user, path: path} do
       test_user = user_fixture()
-      {:ok, _user_path} = Paths.add_user_to_path(test_user.id, path.id, "viewer")
+      {:ok, _user_path} = Paths.add_user_to_path(user.id, test_user.id, path.id, "viewer")
 
-      # Try to update role concurrently
+      # Try to update role concurrently (user is owner, so authorized)
       tasks =
         for role <- ["maintainer", "owner", "viewer", "maintainer", "owner"] do
           Task.async(fn ->
             # Reload to get fresh record
             fresh_user_path = Paths.get_user_path(test_user.id, path.id)
-            Paths.update_user_path_role(fresh_user_path, role)
+            Paths.update_user_path_role(user.id, fresh_user_path, role)
           end)
         end
 
@@ -392,13 +392,13 @@ defmodule Plugboard.PathsConcurrentTest do
       assert final_user_path.role in ["owner", "maintainer", "viewer"]
     end
 
-    test "concurrent additions of different users to same path", %{path: path} do
+    test "concurrent additions of different users to same path", %{user: owner, path: path} do
       users = for _ <- 1..10, do: user_fixture()
 
       tasks =
         for user <- users do
           Task.async(fn ->
-            Paths.add_user_to_path(user.id, path.id, "viewer")
+            Paths.add_user_to_path(owner.id, user.id, path.id, "viewer")
           end)
         end
 
@@ -414,16 +414,19 @@ defmodule Plugboard.PathsConcurrentTest do
       assert length(path_users) == 11
     end
 
-    test "concurrent removal and role update", %{path: path} do
+    test "concurrent removal and role update", %{user: user, path: path} do
       test_user = user_fixture()
-      {:ok, _user_path} = Paths.add_user_to_path(test_user.id, path.id, "viewer")
+      {:ok, _user_path} = Paths.add_user_to_path(user.id, test_user.id, path.id, "viewer")
 
-      # One task removes, another updates role
+      # One task removes, another updates role (user is owner, so authorized)
       remove_task =
         Task.async(fn ->
           Process.sleep(1)
           user_path = Paths.get_user_path(test_user.id, path.id)
-          if user_path, do: Paths.remove_user_from_path(user_path), else: {:ok, :already_removed}
+
+          if user_path,
+            do: Paths.remove_user_from_path(user.id, user_path),
+            else: {:ok, :already_removed}
         end)
 
       update_task =
@@ -434,7 +437,7 @@ defmodule Plugboard.PathsConcurrentTest do
           if user_path do
             # Wrap in try/catch to handle stale entry errors gracefully
             try do
-              Paths.update_user_path_role(user_path, "maintainer")
+              Paths.update_user_path_role(user.id, user_path, "maintainer")
             rescue
               Ecto.StaleEntryError -> {:error, :stale_entry}
             end
@@ -464,14 +467,14 @@ defmodule Plugboard.PathsConcurrentTest do
       assert final_user_path == nil or final_user_path.role == "maintainer"
     end
 
-    test "concurrent duplicate user_path creation", %{path: path} do
+    test "concurrent duplicate user_path creation", %{user: user, path: path} do
       test_user = user_fixture()
 
       # Try to add same user to same path concurrently
       tasks =
         for _ <- 1..10 do
           Task.async(fn ->
-            Paths.add_user_to_path(test_user.id, path.id, "viewer")
+            Paths.add_user_to_path(user.id, test_user.id, path.id, "viewer")
           end)
         end
 

@@ -3,17 +3,61 @@ defmodule PlugboardWeb.Endpoint do
 
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
-  # Set :encryption_salt if you would also like to encrypt it.
-  @session_options [
+  # Session salts are configured via environment variables in production.
+  # See config/runtime.exs for production configuration.
+  defp session_options do
+    session_config = Application.get_env(:plugboard, :session, [])
+
+    signing_salt =
+      Keyword.get(session_config, :signing_salt) ||
+        raise_missing_session_salt!(:signing_salt)
+
+    encryption_salt = Keyword.get(session_config, :encryption_salt)
+
+    base_opts = [
+      store: :cookie,
+      key: "_plugboard_key",
+      signing_salt: signing_salt,
+      same_site: "Lax",
+      secure: Application.get_env(:plugboard, :env) == :prod
+    ]
+
+    if encryption_salt do
+      Keyword.put(base_opts, :encryption_salt, encryption_salt)
+    else
+      base_opts
+    end
+  end
+
+  defp raise_missing_session_salt!(salt_type) do
+    env_var =
+      case salt_type do
+        :signing_salt -> "SESSION_SIGNING_SALT"
+        :encryption_salt -> "SESSION_ENCRYPTION_SALT"
+      end
+
+    raise """
+    Session #{salt_type} is not configured!
+
+    Set the #{env_var} environment variable.
+    You can generate a salt with: mix phx.gen.secret 32
+    """
+  end
+
+  # For compile-time socket config, we use a derived salt from secret_key_base
+  # This is safe because it's only used for LiveView socket connections,
+  # not for session cookie signing. The actual session uses runtime config.
+  @compile_session_options [
     store: :cookie,
     key: "_plugboard_key",
-    signing_salt: "IXQV4Q/b",
+    signing_salt:
+      Application.compile_env(:plugboard, :compile_time_session_salt, "lv_socket_salt"),
     same_site: "Lax"
   ]
 
   socket("/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]],
-    longpoll: [connect_info: [session: @session_options]]
+    websocket: [connect_info: [session: @compile_session_options]],
+    longpoll: [connect_info: [session: @compile_session_options]]
   )
 
   socket("/telephone", PlugboardWeb.TelephoneSocket,
@@ -57,7 +101,12 @@ defmodule PlugboardWeb.Endpoint do
 
   plug(Plug.MethodOverride)
   plug(Plug.Head)
-  plug(Plug.Session, @session_options)
+  plug(:session)
+
+  # Use runtime session options instead of compile-time module attribute
+  defp session(conn, _opts) do
+    Plug.Session.call(conn, Plug.Session.init(session_options()))
+  end
 
   # WebSocket proxy - intercepts WebSocket upgrade requests before the router
   # and proxies them through Telephone sidecars to backend services

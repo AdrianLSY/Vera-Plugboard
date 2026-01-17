@@ -291,16 +291,34 @@ defmodule Plugboard.Paths do
   Note: Updating the path segment will trigger full_path recomputation for the path
   and all its descendants.
 
+  Requires owner or maintainer role on the path.
+
   ## Examples
 
-      iex> update_path(path, %{mount_point: true})
+      iex> update_path(user_id, path, %{mount_point: true})
       {:ok, %Path{}}
 
-      iex> update_path(path, %{path: ""})
+      iex> update_path(user_id, path, %{path: ""})
       {:error, %Ecto.Changeset{}}
 
+      iex> update_path(unauthorized_user_id, path, %{})
+      {:error, :unauthorized}
+
   """
-  def update_path(%Path{} = path, attrs) do
+  def update_path(user_id, %Path{} = path, attrs) do
+    case get_user_role(user_id, path.id) do
+      role when role in ["owner", "maintainer"] ->
+        do_update_path(path, attrs)
+
+      "viewer" ->
+        {:error, :unauthorized}
+
+      nil ->
+        {:error, :unauthorized}
+    end
+  end
+
+  defp do_update_path(path, attrs) do
     result =
       Repo.transaction(fn ->
         case path
@@ -328,13 +346,31 @@ defmodule Plugboard.Paths do
 
   Children are also soft-deleted recursively.
 
+  Requires owner role on the path.
+
   ## Examples
 
-      iex> delete_path(path)
+      iex> delete_path(user_id, path)
       {:ok, %Path{}}
 
+      iex> delete_path(unauthorized_user_id, path)
+      {:error, :unauthorized}
+
   """
-  def delete_path(%Path{} = path) do
+  def delete_path(user_id, %Path{} = path) do
+    case get_user_role(user_id, path.id) do
+      "owner" ->
+        do_delete_path(path)
+
+      role when role in ["maintainer", "viewer"] ->
+        {:error, :unauthorized}
+
+      nil ->
+        {:error, :unauthorized}
+    end
+  end
+
+  defp do_delete_path(path) do
     deleted_at = DateTime.utc_now() |> DateTime.truncate(:second)
 
     result =
@@ -409,44 +445,92 @@ defmodule Plugboard.Paths do
   @doc """
   Associates a user with a path with a specific role.
 
+  Requires the acting user to have owner role on the path.
+
+  ## Parameters
+    - acting_user_id: The user performing the action (must be owner)
+    - user_id: The user to associate with the path
+    - path_id: The path ID
+    - role: The role to assign ("owner", "maintainer", "viewer")
+
   ## Examples
 
-      iex> add_user_to_path(user_id, path_id, "viewer")
+      iex> add_user_to_path(owner_id, user_id, path_id, "viewer")
       {:ok, %UserPath{}}
 
+      iex> add_user_to_path(non_owner_id, user_id, path_id, "viewer")
+      {:error, :unauthorized}
+
   """
-  def add_user_to_path(user_id, path_id, role) do
-    %UserPath{}
-    |> UserPath.changeset(%{user_id: user_id, path_id: path_id, role: role})
-    |> Repo.insert()
+  def add_user_to_path(acting_user_id, user_id, path_id, role) do
+    case get_user_role(acting_user_id, path_id) do
+      "owner" ->
+        %UserPath{}
+        |> UserPath.changeset(%{user_id: user_id, path_id: path_id, role: role})
+        |> Repo.insert()
+
+      _ ->
+        {:error, :unauthorized}
+    end
   end
 
   @doc """
   Updates a user's role for a path.
 
+  Requires the acting user to have owner role on the path.
+
+  ## Parameters
+    - acting_user_id: The user performing the action (must be owner)
+    - user_path: The UserPath to update
+    - role: The new role
+
   ## Examples
 
-      iex> update_user_path_role(user_path, "maintainer")
+      iex> update_user_path_role(owner_id, user_path, "maintainer")
       {:ok, %UserPath{}}
 
+      iex> update_user_path_role(non_owner_id, user_path, "maintainer")
+      {:error, :unauthorized}
+
   """
-  def update_user_path_role(%UserPath{} = user_path, role) do
-    user_path
-    |> UserPath.changeset(%{role: role})
-    |> Repo.update()
+  def update_user_path_role(acting_user_id, %UserPath{} = user_path, role) do
+    case get_user_role(acting_user_id, user_path.path_id) do
+      "owner" ->
+        user_path
+        |> UserPath.changeset(%{role: role})
+        |> Repo.update()
+
+      _ ->
+        {:error, :unauthorized}
+    end
   end
 
   @doc """
   Removes a user's association with a path.
 
+  Requires the acting user to have owner role on the path.
+
+  ## Parameters
+    - acting_user_id: The user performing the action (must be owner)
+    - user_path: The UserPath to remove
+
   ## Examples
 
-      iex> remove_user_from_path(user_path)
+      iex> remove_user_from_path(owner_id, user_path)
       {:ok, %UserPath{}}
 
+      iex> remove_user_from_path(non_owner_id, user_path)
+      {:error, :unauthorized}
+
   """
-  def remove_user_from_path(%UserPath{} = user_path) do
-    Repo.delete(user_path)
+  def remove_user_from_path(acting_user_id, %UserPath{} = user_path) do
+    case get_user_role(acting_user_id, user_path.path_id) do
+      "owner" ->
+        Repo.delete(user_path)
+
+      _ ->
+        {:error, :unauthorized}
+    end
   end
 
   @doc """

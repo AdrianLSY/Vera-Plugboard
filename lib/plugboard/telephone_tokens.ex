@@ -8,6 +8,7 @@ defmodule Plugboard.TelephoneTokens do
 
   import Ecto.Query, warn: false
 
+  alias Plugboard.Crypto
   alias Plugboard.Paths
   alias Plugboard.Paths.Path
   alias Plugboard.Repo
@@ -29,16 +30,26 @@ defmodule Plugboard.TelephoneTokens do
     - {:error, reason} on failure
   """
   def generate_token(%Path{} = path, user, name \\ nil, description \\ nil) do
-    # Validate path is a mount point
-    cond do
-      not path.mount_point ->
-        {:error, "Path must be a mount point"}
+    # Check user has permission on the path
+    case Paths.get_user_role(user.id, path.id) do
+      role when role in ["owner", "maintainer"] ->
+        # Validate path is a mount point
+        cond do
+          not path.mount_point ->
+            {:error, "Path must be a mount point"}
 
-      not is_nil(path.deleted_at) ->
-        {:error, "Path is deleted"}
+          not is_nil(path.deleted_at) ->
+            {:error, "Path is deleted"}
 
-      true ->
-        do_generate_token(path, user, name, description)
+          true ->
+            do_generate_token(path, user, name, description)
+        end
+
+      "viewer" ->
+        {:error, :unauthorized}
+
+      nil ->
+        {:error, :unauthorized}
     end
   end
 
@@ -103,8 +114,7 @@ defmodule Plugboard.TelephoneTokens do
   """
   def validate_jwt(jwt_string) when is_binary(jwt_string) do
     with {:ok, claims} <- verify_jwt(jwt_string),
-         token_hash <- hash_token(jwt_string),
-         {:ok, token} <- get_token_by_hash(token_hash),
+         {:ok, token} <- find_token_by_jwt(jwt_string),
          :ok <- validate_token_active(token),
          {:ok, path} <- validate_path(claims["path_id"]) do
       {:ok, %{token: token, path: path, user_id: claims["sub"]}}
@@ -131,8 +141,7 @@ defmodule Plugboard.TelephoneTokens do
   def validate_and_mark_used(jwt_string) when is_binary(jwt_string) do
     Repo.transaction(fn ->
       with {:ok, claims} <- verify_jwt(jwt_string),
-           token_hash <- hash_token(jwt_string),
-           {:ok, token} <- get_token_by_hash(token_hash),
+           {:ok, token} <- find_token_by_jwt(jwt_string),
            :ok <- validate_token_active(token),
            {:ok, path} <- validate_path(claims["path_id"]),
            {:ok, _updated_token} <- mark_token_used(token.id) do
@@ -162,31 +171,40 @@ defmodule Plugboard.TelephoneTokens do
 
   @doc """
   Revokes a token, preventing it from being used for future connections.
+
+  Requires owner or maintainer role on the path.
   """
-  def revoke_token(token_id) do
+  def revoke_token(user_id, token_id) do
     case get_token(token_id) do
       nil ->
         {:error, :not_found}
 
       token ->
-        result =
-          token
-          |> TelephoneToken.revoke_changeset()
-          |> Repo.update()
+        # Check user has permission on the path
+        case Paths.get_user_role(user_id, token.path_id) do
+          role when role in ["owner", "maintainer"] ->
+            result =
+              token
+              |> TelephoneToken.revoke_changeset()
+              |> Repo.update()
 
-        case result do
-          {:ok, revoked_token} ->
-            # Emit telemetry for token revocation
-            :telemetry.execute(
-              [:plugboard, :telephone_token, :revoked],
-              %{count: 1},
-              %{token_id: token_id, path_id: token.path_id}
-            )
+            case result do
+              {:ok, revoked_token} ->
+                # Emit telemetry for token revocation
+                :telemetry.execute(
+                  [:plugboard, :telephone_token, :revoked],
+                  %{count: 1},
+                  %{token_id: token_id, path_id: token.path_id}
+                )
 
-            {:ok, revoked_token}
+                {:ok, revoked_token}
 
-          error ->
-            error
+              error ->
+                error
+            end
+
+          _role ->
+            {:error, :unauthorized}
         end
     end
   end
@@ -293,7 +311,10 @@ defmodule Plugboard.TelephoneTokens do
 
   @doc """
   Deletes expired tokens (cleanup job).
+
+  Returns `{:ok, count}` on success or `{:error, reason}` on failure.
   """
+  @spec delete_expired_tokens() :: {:ok, non_neg_integer()} | {:error, term()}
   def delete_expired_tokens do
     now = DateTime.utc_now()
 
@@ -311,6 +332,14 @@ defmodule Plugboard.TelephoneTokens do
 
     Logger.info("Deleted #{count} expired telephone tokens")
     {:ok, count}
+  rescue
+    e in Ecto.QueryError ->
+      Logger.error("Failed to delete expired tokens: #{inspect(e)}")
+      {:error, e}
+
+    e in DBConnection.ConnectionError ->
+      Logger.error("Database connection error during token cleanup: #{inspect(e)}")
+      {:error, e}
   end
 
   @doc """
@@ -352,11 +381,31 @@ defmodule Plugboard.TelephoneTokens do
     |> Repo.insert()
   end
 
-  defp get_token_by_hash(token_hash) do
-    case Repo.get_by(TelephoneToken, token_hash: token_hash) do
-      nil -> {:error, :token_not_found}
-      token -> {:ok, token}
-    end
+  # Find token by verifying JWT against stored Argon2 hashes
+  # This is necessary because Argon2 hashes include random salts,
+  # so we can't do a direct hash lookup
+  defp find_token_by_jwt(jwt_string) do
+    # Get all active tokens (not revoked, not expired)
+    # This is acceptable because:
+    # 1. Active token count per path is typically small
+    # 2. Argon2 verification is fast for correct tokens (early exit)
+    # 3. Security benefit of salted hashes outweighs performance cost
+    now = DateTime.utc_now()
+
+    active_tokens =
+      TelephoneToken
+      |> where([t], is_nil(t.revoked_at))
+      |> where([t], t.expires_at > ^now)
+      |> Repo.all()
+
+    # Find the token whose hash matches the JWT
+    Enum.find_value(active_tokens, {:error, :token_not_found}, fn token ->
+      if Crypto.verify_token(jwt_string, token.token_hash) do
+        {:ok, token}
+      else
+        nil
+      end
+    end)
   end
 
   defp validate_token_active(token) do
@@ -424,12 +473,13 @@ defmodule Plugboard.TelephoneTokens do
   end
 
   defp get_jwt_secret do
-    # Use the application's secret_key_base for JWT signing
-    Application.get_env(:plugboard, PlugboardWeb.Endpoint)[:secret_key_base]
+    # Derive a separate key for JWT signing from the application secret
+    # This ensures compromise of JWT key doesn't compromise other uses of secret_key_base
+    Crypto.derive_jwt_secret("telephone_jwt")
   end
 
   defp hash_token(token) do
-    :crypto.hash(:sha256, token)
-    |> Base.encode16(case: :lower)
+    # Use Argon2 for secure token hashing
+    Crypto.hash_token(token)
   end
 end

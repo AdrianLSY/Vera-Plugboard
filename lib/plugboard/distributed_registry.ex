@@ -29,6 +29,9 @@ defmodule Plugboard.DistributedRegistry do
 
   require Logger
 
+  # ETS table for round-robin counters
+  @counter_table :plugboard_telephone_rr_counters
+
   # Type definitions
   @type path_id :: String.t()
   @type registration_value :: map()
@@ -51,6 +54,15 @@ defmodule Plugboard.DistributedRegistry do
   - Delta CRDT synchronization
   """
   def init(opts) do
+    # Create ETS table for atomic round-robin counters
+    # This provides better distribution than timestamp-based selection
+    :ets.new(@counter_table, [
+      :named_table,
+      :public,
+      :set,
+      write_concurrency: true
+    ])
+
     members = get_cluster_members()
 
     [members: members]
@@ -61,8 +73,7 @@ defmodule Plugboard.DistributedRegistry do
   @doc """
   Registers the calling process for the given path_id.
 
-  IMPORTANT: Horde.Registry.register can ONLY register self() (the calling process).
-  The pid parameter is ignored - it exists for API compatibility with Phase 5.
+  IMPORTANT: Horde.Registry can ONLY register self() (the calling process).
   The calling process (self()) will always be registered.
 
   Multiple processes can register for the same path_id by using unique
@@ -71,7 +82,6 @@ defmodule Plugboard.DistributedRegistry do
 
   ## Parameters
     - path_id: The path ID this telephone serves
-    - _pid: Ignored - kept for API compatibility (Horde only registers self())
     - value: Optional metadata to store with registration
 
   ## Returns
@@ -83,8 +93,8 @@ defmodule Plugboard.DistributedRegistry do
       iex> DistributedRegistry.register("path-123")
       {:ok, #PID<0.234.0>}  # where #PID<0.234.0> is self()
   """
-  @spec register(path_id(), pid() | nil, map() | nil) :: {:ok, pid()} | {:error, term()}
-  def register(path_id, _pid \\ nil, value \\ nil) do
+  @spec register(path_id(), map() | nil) :: {:ok, pid()} | {:error, term()}
+  def register(path_id, value \\ nil) do
     # Horde.Registry.register ONLY registers self(), not arbitrary PIDs
     # This is by design - processes must register themselves
     calling_pid = self()
@@ -143,20 +153,18 @@ defmodule Plugboard.DistributedRegistry do
   @doc """
   Unregisters the calling process from the given path_id.
 
-  IMPORTANT: The pid parameter is ignored for API compatibility.
   Only the calling process (self()) can unregister itself.
 
   ## Parameters
     - path_id: The path ID to unregister from
-    - _pid: Ignored - kept for API compatibility
 
   ## Examples
 
       iex> DistributedRegistry.unregister("path-123")
       :ok
   """
-  @spec unregister(path_id(), pid() | nil) :: :ok | {:error, term()}
-  def unregister(path_id, _pid \\ nil) do
+  @spec unregister(path_id()) :: :ok | {:error, term()}
+  def unregister(path_id) do
     calling_pid = self()
     unique_key = {path_id, calling_pid}
 
@@ -240,8 +248,10 @@ defmodule Plugboard.DistributedRegistry do
         {:error, :no_telephone}
 
       telephones when is_list(telephones) ->
-        # Simple round-robin based on timestamp
-        index = rem(System.system_time(:microsecond), length(telephones))
+        # Use atomic counter for true round-robin distribution
+        # This prevents hotspots from sequential requests hitting the same telephone
+        count = :ets.update_counter(@counter_table, path_id, {2, 1}, {path_id, 0})
+        index = rem(count, length(telephones))
         {pid, _value} = Enum.at(telephones, index)
 
         {:ok, pid}

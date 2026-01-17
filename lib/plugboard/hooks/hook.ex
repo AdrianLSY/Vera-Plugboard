@@ -20,6 +20,43 @@ defmodule Plugboard.Hooks.Hook do
   @target_types ~w(mount_point http_url)
   @default_allowed_status_codes [200, 201, 202, 204]
 
+  # Blocked hosts for SSRF protection (can be disabled in test via config)
+  # In test environment, set config :plugboard, :allow_localhost_hooks, true
+  @blocked_hosts_production [
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "0.0.0.0",
+    # AWS metadata
+    "169.254.169.254",
+    # GCP metadata
+    "metadata.google.internal",
+    # Alibaba metadata
+    "100.100.100.200",
+    # ECS task metadata
+    "169.254.170.2"
+  ]
+
+  # Hosts blocked even in test mode (cloud metadata endpoints)
+  @blocked_hosts_always [
+    "169.254.169.254",
+    "metadata.google.internal",
+    "100.100.100.200",
+    "169.254.170.2"
+  ]
+
+  # Sensitive headers that cannot be forwarded to hooks
+  @blocked_headers [
+    "cookie",
+    "set-cookie",
+    "authorization",
+    "x-api-key",
+    "x-auth-token",
+    "proxy-authorization",
+    "x-forwarded-for",
+    "x-real-ip"
+  ]
+
   schema "hooks" do
     field :name, :string
     field :description, :string
@@ -155,14 +192,69 @@ defmodule Plugboard.Hooks.Hook do
   defp validate_target_url_format(changeset, target_url) when is_binary(target_url) do
     uri = URI.parse(target_url)
 
-    if uri.scheme in ["http", "https"] and uri.host do
-      changeset
-    else
-      add_error(changeset, :target_url, "must be a valid HTTP or HTTPS URL")
+    cond do
+      uri.scheme not in ["http", "https"] ->
+        add_error(changeset, :target_url, "must use HTTP or HTTPS scheme")
+
+      is_nil(uri.host) or uri.host == "" ->
+        add_error(changeset, :target_url, "must have a valid host")
+
+      blocked_host?(uri.host) ->
+        add_error(changeset, :target_url, "cannot target internal or metadata hosts")
+
+      internal_ip?(uri.host) ->
+        add_error(changeset, :target_url, "cannot target private IP addresses")
+
+      true ->
+        changeset
     end
   end
 
-  defp validate_target_url_format(changeset, _), do: changeset
+  # Check if host is in the blocked list
+  # In test mode with allow_localhost_hooks: true, only block cloud metadata endpoints
+  defp blocked_host?(host) when is_binary(host) do
+    host_lower = String.downcase(host)
+
+    if Application.get_env(:plugboard, :allow_localhost_hooks, false) do
+      # In test mode, only block cloud metadata endpoints
+      host_lower in @blocked_hosts_always
+    else
+      # In production, block all internal hosts
+      host_lower in @blocked_hosts_production
+    end
+  end
+
+  defp blocked_host?(_), do: false
+
+  # Check if host resolves to a private/internal IP address
+  # In test mode with allow_localhost_hooks: true, allow private IPs
+  defp internal_ip?(host) when is_binary(host) do
+    if Application.get_env(:plugboard, :allow_localhost_hooks, false) do
+      # In test mode, allow private IPs (for Bypass)
+      false
+    else
+      case :inet.parse_address(String.to_charlist(host)) do
+        {:ok, ip} -> private_ip?(ip)
+        # Not an IP address, might be a hostname
+        {:error, _} -> false
+      end
+    end
+  end
+
+  defp internal_ip?(_), do: false
+
+  # Check if IP is in private ranges (RFC 1918, link-local, etc.)
+  defp private_ip?({10, _, _, _}), do: true
+  defp private_ip?({172, b, _, _}) when b >= 16 and b <= 31, do: true
+  defp private_ip?({192, 168, _, _}), do: true
+  defp private_ip?({127, _, _, _}), do: true
+  # Link-local
+  defp private_ip?({169, 254, _, _}), do: true
+  defp private_ip?({0, 0, 0, 0}), do: true
+  # IPv6 loopback and link-local
+  defp private_ip?({0, 0, 0, 0, 0, 0, 0, 1}), do: true
+  defp private_ip?({0xFE80, _, _, _, _, _, _, _}), do: true
+  defp private_ip?(_), do: false
 
   defp ensure_target_url_nil(changeset) do
     if get_field(changeset, :target_url) do
@@ -213,14 +305,36 @@ defmodule Plugboard.Hooks.Hook do
         changeset
 
       headers when is_list(headers) ->
-        if Enum.all?(headers, &is_binary/1) do
-          changeset
-        else
-          add_error(changeset, :forward_headers, "must be a list of strings")
+        cond do
+          not Enum.all?(headers, &is_binary/1) ->
+            add_error(changeset, :forward_headers, "must be a list of strings")
+
+          has_blocked_headers?(headers) ->
+            blocked = get_blocked_headers(headers)
+
+            add_error(
+              changeset,
+              :forward_headers,
+              "cannot forward sensitive headers: #{Enum.join(blocked, ", ")}"
+            )
+
+          true ->
+            changeset
         end
 
       _ ->
         add_error(changeset, :forward_headers, "must be a list of strings")
     end
+  end
+
+  defp has_blocked_headers?(headers) do
+    Enum.any?(headers, fn h -> String.downcase(h) in @blocked_headers end)
+  end
+
+  defp get_blocked_headers(headers) do
+    headers
+    |> Enum.filter(fn h -> String.downcase(h) in @blocked_headers end)
+    |> Enum.map(&String.downcase/1)
+    |> Enum.uniq()
   end
 end

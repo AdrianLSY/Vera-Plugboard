@@ -110,9 +110,14 @@ defmodule PlugboardWeb.Api.TokenVendingControllerTest do
       assert %{"error" => "Invalid or revoked service account API key"} = json_response(conn, 401)
     end
 
-    test "rejects revoked service account", %{conn: conn, api_key: api_key, service_account: sa} do
+    test "rejects revoked service account", %{
+      conn: conn,
+      api_key: api_key,
+      service_account: sa,
+      user: user
+    } do
       # Revoke the service account
-      {:ok, _} = ServiceAccounts.revoke_service_account(sa.id)
+      {:ok, _} = ServiceAccounts.revoke_service_account(user.id, sa.id)
 
       conn =
         conn
@@ -123,9 +128,9 @@ defmodule PlugboardWeb.Api.TokenVendingControllerTest do
       assert %{"error" => "Invalid or revoked service account API key"} = json_response(conn, 401)
     end
 
-    test "rejects when path is deleted", %{conn: conn, api_key: api_key, path: path} do
+    test "rejects when path is deleted", %{conn: conn, api_key: api_key, path: path, user: user} do
       # Delete the path
-      {:ok, _} = Paths.delete_path(path)
+      {:ok, _} = Paths.delete_path(user.id, path)
 
       conn =
         conn

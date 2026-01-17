@@ -305,14 +305,21 @@ defmodule Plugboard.MountStore do
 
     Logger.info("MountStore: ETS tables created")
 
-    # Load initial data from database
+    # Use handle_continue to defer database loading
+    # This prevents blocking the supervisor during startup
+    {:ok, %{}, {:continue, :load_initial_data}}
+  end
+
+  @impl true
+  def handle_continue(:load_initial_data, state) do
+    # Load initial data from database (non-blocking)
     {_count, _duration} = load_mounts_from_db(:startup)
     {_domain_count, _domain_duration} = load_domain_affinities_from_db(:startup)
 
     # Schedule periodic reconciliation
     schedule_reconciliation()
 
-    {:ok, %{}}
+    {:noreply, state}
   end
 
   @impl true
@@ -419,9 +426,23 @@ defmodule Plugboard.MountStore do
             select: {p.full_path, {p.id, p.updated_at}}
         )
 
-      # Clear and repopulate ETS table
-      :ets.delete_all_objects(@table_name)
+      # Atomic update: insert new data first, then remove stale entries
+      # This avoids the race condition where the table is briefly empty
+      new_keys = MapSet.new(mounts, fn {full_path, _value} -> full_path end)
+
+      # Insert all new/updated mounts (ETS insert is upsert for :set tables)
       :ets.insert(@table_name, mounts)
+
+      # Get all current keys and remove those not in the new dataset
+      current_keys =
+        :ets.select(@table_name, [{{:"$1", :_}, [], [:"$1"]}])
+        |> MapSet.new()
+
+      stale_keys = MapSet.difference(current_keys, new_keys)
+
+      Enum.each(stale_keys, fn key ->
+        :ets.delete(@table_name, key)
+      end)
 
       count = length(mounts)
       duration = System.monotonic_time() - start_time
@@ -487,8 +508,12 @@ defmodule Plugboard.MountStore do
   end
 
   defp schedule_reconciliation do
-    interval = Application.get_env(:plugboard, __MODULE__, [])[:reconcile_interval] || 300_000
-    Process.send_after(self(), :reconcile, interval)
+    base_interval =
+      Application.get_env(:plugboard, __MODULE__, [])[:reconcile_interval] || 300_000
+
+    # Add 0-10% jitter to prevent thundering herd across cluster nodes
+    jitter = :rand.uniform(div(base_interval, 10))
+    Process.send_after(self(), :reconcile, base_interval + jitter)
   end
 
   defp load_domain_affinities_from_db(trigger) do
@@ -515,9 +540,23 @@ defmodule Plugboard.MountStore do
           {domain, {path_id_string, full_path}}
         end)
 
-      # Clear and repopulate domain affinity ETS table
-      :ets.delete_all_objects(@domain_table)
+      # Atomic update: insert new data first, then remove stale entries
+      # This avoids the race condition where the table is briefly empty
+      new_keys = MapSet.new(domain_affinities, fn {domain, _value} -> domain end)
+
+      # Insert all new/updated domain affinities (ETS insert is upsert for :set tables)
       :ets.insert(@domain_table, domain_affinities)
+
+      # Get all current keys and remove those not in the new dataset
+      current_keys =
+        :ets.select(@domain_table, [{{:"$1", :_}, [], [:"$1"]}])
+        |> MapSet.new()
+
+      stale_keys = MapSet.difference(current_keys, new_keys)
+
+      Enum.each(stale_keys, fn key ->
+        :ets.delete(@domain_table, key)
+      end)
 
       count = length(domain_affinities)
       duration = System.monotonic_time() - start_time

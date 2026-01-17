@@ -105,13 +105,20 @@ defmodule Plugboard.HookStore do
 
     Logger.info("HookStore: ETS table created")
 
-    # Load initial data from database
+    # Use handle_continue to defer database loading
+    # This prevents blocking the supervisor during startup
+    {:ok, %{}, {:continue, :load_initial_data}}
+  end
+
+  @impl true
+  def handle_continue(:load_initial_data, state) do
+    # Load initial data from database (non-blocking)
     {_count, _duration} = load_hooks_from_db(:startup)
 
     # Schedule periodic reconciliation
     schedule_reconciliation()
 
-    {:ok, %{}}
+    {:noreply, state}
   end
 
   @impl true
@@ -198,12 +205,24 @@ defmodule Plugboard.HookStore do
         |> Repo.all()
         |> Enum.group_by(& &1.path_id)
 
-      # Clear and repopulate ETS table
-      :ets.delete_all_objects(@table_name)
+      # Atomic update: insert new data first, then remove stale entries
+      # This avoids the race condition where the table is briefly empty
+      new_keys = MapSet.new(Map.keys(hooks_by_path))
 
-      # Insert each path's hooks
+      # Insert each path's hooks (ETS insert is upsert for :set tables)
       Enum.each(hooks_by_path, fn {path_id, hooks} ->
         :ets.insert(@table_name, {path_id, hooks})
+      end)
+
+      # Get all current keys and remove those not in the new dataset
+      current_keys =
+        :ets.select(@table_name, [{{:"$1", :_}, [], [:"$1"]}])
+        |> MapSet.new()
+
+      stale_keys = MapSet.difference(current_keys, new_keys)
+
+      Enum.each(stale_keys, fn key ->
+        :ets.delete(@table_name, key)
       end)
 
       total_hooks = hooks_by_path |> Map.values() |> List.flatten() |> length()
@@ -274,7 +293,11 @@ defmodule Plugboard.HookStore do
 
   defp schedule_reconciliation do
     # Reconcile every 5 minutes (same as MountStore)
-    interval = Application.get_env(:plugboard, __MODULE__, [])[:reconcile_interval] || 300_000
-    Process.send_after(self(), :reconcile, interval)
+    base_interval =
+      Application.get_env(:plugboard, __MODULE__, [])[:reconcile_interval] || 300_000
+
+    # Add 0-10% jitter to prevent thundering herd across cluster nodes
+    jitter = :rand.uniform(div(base_interval, 10))
+    Process.send_after(self(), :reconcile, base_interval + jitter)
   end
 end
