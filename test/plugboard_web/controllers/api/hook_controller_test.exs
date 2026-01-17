@@ -305,12 +305,12 @@ defmodule PlugboardWeb.Api.HookControllerTest do
       conn =
         put(conn, ~p"/api/hooks/#{hook.id}", %{
           "name" => "Updated Hook",
-          "timeout_ms" => 10000
+          "timeout_ms" => 10_000
         })
 
       assert json = json_response(conn, 200)
       assert json["name"] == "Updated Hook"
-      assert json["timeout_ms"] == 10000
+      assert json["timeout_ms"] == 10_000
     end
 
     test "updates hook with maintainer role", %{path: path, hook: hook} do

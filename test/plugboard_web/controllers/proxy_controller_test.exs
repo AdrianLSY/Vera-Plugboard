@@ -525,9 +525,8 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
       {:ok, _mount} = Paths.update_path(path, %{mount_point: true})
 
-      # Wait for NOTIFY to propagate and update ETS
-      # For now, we use manual reload to ensure test reliability
-      # TODO: Investigate why NOTIFY propagation is slow in test environment
+      # Wait for NOTIFY to propagate and use manual reload to ensure test reliability
+      # NOTIFY propagation can be slower in test environment due to transaction isolation
       :timer.sleep(50)
       MountStore.reload_all()
 

@@ -7,10 +7,11 @@ defmodule Plugboard.TelephoneTokens do
   """
 
   import Ecto.Query, warn: false
-  alias Plugboard.Repo
-  alias Plugboard.TelephoneTokens.TelephoneToken
+
   alias Plugboard.Paths
   alias Plugboard.Paths.Path
+  alias Plugboard.Repo
+  alias Plugboard.TelephoneTokens.TelephoneToken
 
   require Logger
 

@@ -1,4 +1,12 @@
 defmodule Plugboard.Accounts.UserNotifier do
+  @moduledoc """
+  Sends email notifications to users.
+
+  Handles delivery of:
+  - Login/confirmation instructions (magic links)
+  - Email change instructions
+  """
+
   import Swoosh.Email
 
   alias Plugboard.Mailer

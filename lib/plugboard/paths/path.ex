@@ -1,4 +1,15 @@
 defmodule Plugboard.Paths.Path do
+  @moduledoc """
+  Schema for hierarchical path configuration.
+
+  Paths form a tree structure where each path segment can be either:
+  - A regular path node (can have children)
+  - A mount point (terminal node that accepts telephone connections)
+
+  The `full_path` field is auto-computed by database triggers based on
+  the path segment and parent hierarchy.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -11,7 +22,7 @@ defmodule Plugboard.Paths.Path do
     field :mount_point, :boolean, default: false
     field :deleted_at, :utc_datetime
 
-    field :request_timeout_ms, :integer, default: 60000
+    field :request_timeout_ms, :integer, default: 60_000
     field :connect_timeout_ms, :integer, default: 5000
 
     belongs_to :parent, __MODULE__

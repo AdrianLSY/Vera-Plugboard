@@ -164,15 +164,15 @@ defmodule Plugboard.DomainAffinities.DomainAffinityTest do
     end
   end
 
-  describe "is_wildcard?/1" do
+  describe "wildcard?/1" do
     test "returns true for wildcard domain" do
       domain_affinity = %DomainAffinity{domain: "*.example.com"}
-      assert DomainAffinity.is_wildcard?(domain_affinity)
+      assert DomainAffinity.wildcard?(domain_affinity)
     end
 
     test "returns false for exact domain" do
       domain_affinity = %DomainAffinity{domain: "api.example.com"}
-      refute DomainAffinity.is_wildcard?(domain_affinity)
+      refute DomainAffinity.wildcard?(domain_affinity)
     end
   end
 end

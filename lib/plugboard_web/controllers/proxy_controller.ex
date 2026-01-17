@@ -99,9 +99,9 @@ defmodule PlugboardWeb.ProxyController do
   use PlugboardWeb, :controller
   require Logger
 
-  alias Plugboard.TelephoneRegistry
-  alias Plugboard.Paths
   alias Plugboard.Hooks.Executor, as: HooksExecutor
+  alias Plugboard.Paths
+  alias Plugboard.TelephoneRegistry
   alias PlugboardWeb.HTTPError
 
   @doc """
@@ -504,10 +504,8 @@ defmodule PlugboardWeb.ProxyController do
   end
 
   defp send_chunked_response(conn, status, chunks) do
-    conn =
-      conn
-      |> put_status(status)
-      |> send_chunked(status)
+    # send_chunked/2 applies the status, no need for put_status first
+    conn = send_chunked(conn, status)
 
     # Send each chunk and handle errors
     result =

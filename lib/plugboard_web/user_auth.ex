@@ -1,4 +1,14 @@
 defmodule PlugboardWeb.UserAuth do
+  @moduledoc """
+  Handles user authentication for both Plug connections and LiveView sessions.
+
+  Provides plugs and on_mount callbacks for:
+  - Fetching current scope from session tokens
+  - Requiring authenticated users
+  - Managing session lifecycle (login, logout, token reissue)
+  - Remember-me cookie handling
+  """
+
   use PlugboardWeb, :verified_routes
 
   import Plug.Conn

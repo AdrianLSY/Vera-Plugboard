@@ -11,9 +11,10 @@ defmodule Plugboard.Paths do
   """
 
   import Ecto.Query, warn: false
-  alias Plugboard.Repo
+
   alias Plugboard.Paths.Path
   alias Plugboard.Paths.UserPath
+  alias Plugboard.Repo
 
   @doc """
   Returns the list of active paths for a given user.

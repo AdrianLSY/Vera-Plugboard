@@ -1,4 +1,13 @@
 defmodule Plugboard.TelephoneTokens.TelephoneToken do
+  @moduledoc """
+  Schema for telephone authentication tokens.
+
+  Telephone tokens are JWT-based credentials that allow Telephone sidecars
+  to connect to Plugboard via WebSocket and serve HTTP traffic for a specific path.
+
+  Token hashes are stored (never the raw JWT) for security.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 

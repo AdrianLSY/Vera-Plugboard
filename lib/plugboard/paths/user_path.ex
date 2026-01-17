@@ -1,4 +1,13 @@
 defmodule Plugboard.Paths.UserPath do
+  @moduledoc """
+  Schema for user-path associations with role-based access control.
+
+  Links users to paths with one of three roles:
+  - `owner` - Full control, can manage path and grant access
+  - `maintainer` - Can manage tokens and service accounts
+  - `viewer` - Read-only access to path information
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 

@@ -9,8 +9,8 @@ defmodule PlugboardWeb.Api.ServiceAccountController do
   use PlugboardWeb, :controller
   require Logger
 
-  alias Plugboard.ServiceAccounts
   alias Plugboard.Paths
+  alias Plugboard.ServiceAccounts
 
   @doc """
   Creates a new service account for a path.

@@ -7,9 +7,10 @@ defmodule Plugboard.ServiceAccounts do
   """
 
   import Ecto.Query, warn: false
+
+  alias Plugboard.Paths
   alias Plugboard.Repo
   alias Plugboard.ServiceAccounts.ServiceAccount
-  alias Plugboard.Paths
 
   require Logger
 

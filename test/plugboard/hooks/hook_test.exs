@@ -253,7 +253,7 @@ defmodule Plugboard.Hooks.HookTest do
         target_type: "http_url",
         target_url: "https://example.com/webhook",
         execution_order: 0,
-        timeout_ms: 60001
+        timeout_ms: 60_001
       }
 
       changeset = Hook.create_changeset(%Hook{}, attrs)
@@ -403,9 +403,9 @@ defmodule Plugboard.Hooks.HookTest do
     end
 
     test "updates timeout_ms", %{hook: hook} do
-      changeset = Hook.update_changeset(hook, %{timeout_ms: 10000})
+      changeset = Hook.update_changeset(hook, %{timeout_ms: 10_000})
       assert changeset.valid?
-      assert Ecto.Changeset.get_field(changeset, :timeout_ms) == 10000
+      assert Ecto.Changeset.get_field(changeset, :timeout_ms) == 10_000
     end
 
     test "updates target_type from http_url to mount_point", %{

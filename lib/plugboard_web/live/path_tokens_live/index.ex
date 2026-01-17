@@ -5,11 +5,11 @@ defmodule PlugboardWeb.PathTokensLive.Index do
 
   use PlugboardWeb, :live_view
 
-  alias Plugboard.Paths
-  alias Plugboard.TelephoneTokens
-  alias Plugboard.ServiceAccounts
   alias Plugboard.DomainAffinities
   alias Plugboard.Hooks
+  alias Plugboard.Paths
+  alias Plugboard.ServiceAccounts
+  alias Plugboard.TelephoneTokens
 
   @impl true
   def render(assigns) do

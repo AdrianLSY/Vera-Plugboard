@@ -1,4 +1,15 @@
 defmodule Plugboard.Accounts.UserToken do
+  @moduledoc """
+  Schema and functions for managing user session and email tokens.
+
+  Handles:
+  - Session tokens for authenticated users
+  - Magic link tokens for passwordless login
+  - Email change confirmation tokens
+
+  Session tokens are stored as-is (signed), while email tokens are hashed.
+  """
+
   use Ecto.Schema
   import Ecto.Query
   alias Plugboard.Accounts.UserToken

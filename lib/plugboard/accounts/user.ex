@@ -1,4 +1,11 @@
 defmodule Plugboard.Accounts.User do
+  @moduledoc """
+  Schema for user accounts.
+
+  Users authenticate via email and password. Passwords are hashed using Argon2.
+  Email confirmation is tracked via the `confirmed_at` timestamp.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 

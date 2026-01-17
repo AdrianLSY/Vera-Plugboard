@@ -364,11 +364,11 @@ defmodule Plugboard.HooksTest do
     end
 
     test "updates hook attributes", %{user: user, hook: hook} do
-      attrs = %{name: "Updated Hook", timeout_ms: 10000}
+      attrs = %{name: "Updated Hook", timeout_ms: 10_000}
 
       assert {:ok, updated} = Hooks.update_hook(user.id, hook, attrs)
       assert updated.name == "Updated Hook"
-      assert updated.timeout_ms == 10000
+      assert updated.timeout_ms == 10_000
     end
 
     test "requires owner or maintainer role", %{hook: hook} do

@@ -39,7 +39,8 @@ defmodule Plugboard.DomainAffinities.DomainAffinity do
   @doc """
   Returns true if the domain is a wildcard domain (starts with `*.`).
   """
-  def is_wildcard?(%__MODULE__{domain: domain}) do
+  @spec wildcard?(%__MODULE__{}) :: boolean()
+  def wildcard?(%__MODULE__{domain: domain}) do
     String.starts_with?(domain, "*.")
   end
 
