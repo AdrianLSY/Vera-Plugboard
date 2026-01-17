@@ -25,5 +25,12 @@ config :plugboard,
        :max_request_body_length,
        System.get_env("MAX_REQUEST_BODY_SIZE") |> String.to_integer()
 
+# Session configuration for compile-time (LiveView socket)
+# Must match the runtime config in config/runtime.exs
+# This ensures LiveView socket and Plug.Session use the same session options
+config :plugboard, :session,
+  signing_salt: System.get_env("SESSION_SIGNING_SALT") || raise("SESSION_SIGNING_SALT must be set at compile time for production"),
+  encryption_salt: System.get_env("SESSION_ENCRYPTION_SALT")
+
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.

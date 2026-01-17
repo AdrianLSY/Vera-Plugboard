@@ -44,20 +44,34 @@ defmodule PlugboardWeb.Endpoint do
     """
   end
 
-  # For compile-time socket config, we use a derived salt from secret_key_base
-  # This is safe because it's only used for LiveView socket connections,
-  # not for session cookie signing. The actual session uses runtime config.
-  @compile_session_options [
-    store: :cookie,
-    key: "_plugboard_key",
-    signing_salt:
-      Application.compile_env(:plugboard, :compile_time_session_salt, "lv_socket_salt"),
-    same_site: "Lax"
-  ]
+  # LiveView socket must use the same session options as Plug.Session
+  # We read from compile-time config to match what session_options() will use at runtime
+  # For production, session config must also be set in config/prod.exs (compile-time)
+  # in addition to config/runtime.exs (runtime)
+  @session_config Application.compile_env(:plugboard, :session, [])
+  @session_signing_salt Keyword.get(@session_config, :signing_salt, "dev_signing_salt_not_for_production")
+  @session_encryption_salt Keyword.get(@session_config, :encryption_salt)
+  @env Application.compile_env(:plugboard, :env, :dev)
+
+  @session_options (
+    base_opts = [
+      store: :cookie,
+      key: "_plugboard_key",
+      signing_salt: @session_signing_salt,
+      same_site: "Lax",
+      secure: @env == :prod
+    ]
+
+    if @session_encryption_salt do
+      Keyword.put(base_opts, :encryption_salt, @session_encryption_salt)
+    else
+      base_opts
+    end
+  )
 
   socket("/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @compile_session_options]],
-    longpoll: [connect_info: [session: @compile_session_options]]
+    websocket: [connect_info: [session: @session_options]],
+    longpoll: [connect_info: [session: @session_options]]
   )
 
   socket("/telephone", PlugboardWeb.TelephoneSocket,
@@ -103,7 +117,8 @@ defmodule PlugboardWeb.Endpoint do
   plug(Plug.Head)
   plug(:session)
 
-  # Use runtime session options instead of compile-time module attribute
+  # Use runtime session options for Plug.Session to support production runtime config
+  # The LiveView socket uses @session_options (compile-time) which must match
   defp session(conn, _opts) do
     Plug.Session.call(conn, Plug.Session.init(session_options()))
   end
