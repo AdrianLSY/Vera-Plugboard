@@ -21,9 +21,10 @@ defmodule Plugboard.HookStore do
   use GenServer
   require Logger
 
-  alias Plugboard.Repo
-  alias Plugboard.Hooks.Hook
   import Ecto.Query
+
+  alias Plugboard.Hooks.Hook
+  alias Plugboard.Repo
 
   @table_name :plugboard_hooks
 

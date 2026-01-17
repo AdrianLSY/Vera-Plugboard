@@ -2,9 +2,10 @@ defmodule PlugboardWeb.TelephoneChannelWebSocketTest do
   use PlugboardWeb.ChannelCase, async: false
 
   import Plugboard.AccountsFixtures
-  alias PlugboardWeb.TelephoneSocket
+
   alias Plugboard.Paths
   alias Plugboard.TelephoneTokens
+  alias PlugboardWeb.TelephoneSocket
 
   # Tests for WebSocket proxy message handling in TelephoneChannel
 

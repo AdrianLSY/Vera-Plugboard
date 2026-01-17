@@ -15,8 +15,8 @@ defmodule PlugboardWeb.ProxyControllerTest do
 
   import Plugboard.AccountsFixtures
 
-  alias Plugboard.Paths
   alias Plugboard.MountStore
+  alias Plugboard.Paths
   alias Plugboard.TelephoneRegistry
 
   setup do

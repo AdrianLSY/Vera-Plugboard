@@ -35,8 +35,11 @@ plugboard-*.tar
 npm-debug.log
 /assets/node_modules/
 
-# Ignore env files
-.env*
+# Ignore env files (but not .env.example)
+.env
+.env.local
+.env.*.local
+.envrc
 
 # Ignore .elixir_ls
 .elixir_ls

@@ -197,91 +197,83 @@ defmodule Plugboard.Paths do
     # First, validate the changeset
     changeset = Path.create_changeset(%Path{}, attrs)
 
-    if changeset.valid? && user_id do
-      # Wrap in transaction with row-level locking to prevent race conditions
-      Repo.transaction(fn ->
-        path_segment = Ecto.Changeset.get_field(changeset, :path)
-        parent_id = Ecto.Changeset.get_field(changeset, :parent_id)
-
-        # Lock any matching soft-deleted row to prevent concurrent restoration
-        query =
-          from p in Path,
-            where: p.path == ^path_segment,
-            where: not is_nil(p.deleted_at),
-            lock: "FOR UPDATE"
-
-        query =
-          if is_nil(parent_id) do
-            where(query, [p], is_nil(p.parent_id))
-          else
-            where(query, [p], p.parent_id == ^parent_id)
-          end
-
-        case Repo.one(query) do
-          nil ->
-            # No soft-deleted path exists, create new
-            case Repo.insert(changeset) do
-              {:ok, path} ->
-                # Create user_path association with owner role
-                user_path_attrs = %{
-                  user_id: user_id,
-                  path_id: path.id,
-                  role: "owner"
-                }
-
-                case UserPath.changeset(%UserPath{}, user_path_attrs) |> Repo.insert() do
-                  {:ok, _user_path} ->
-                    Repo.get!(Path, path.id)
-
-                  {:error, changeset} ->
-                    Repo.rollback(changeset)
-                end
-
-              {:error, changeset} ->
-                Repo.rollback(changeset)
-            end
-
-          path ->
-            # Restore the soft-deleted path
-            case Path.restore_changeset(path, attrs) |> Repo.update() do
-              {:ok, path} ->
-                # Check if user_path association already exists
-                existing_user_path =
-                  Repo.get_by(UserPath, user_id: user_id, path_id: path.id)
-
-                if existing_user_path do
-                  # User path already exists, just return the path
-                  Repo.get!(Path, path.id)
-                else
-                  # Create new user_path association with owner role
-                  user_path_attrs = %{
-                    user_id: user_id,
-                    path_id: path.id,
-                    role: "owner"
-                  }
-
-                  case UserPath.changeset(%UserPath{}, user_path_attrs) |> Repo.insert() do
-                    {:ok, _user_path} ->
-                      Repo.get!(Path, path.id)
-
-                    {:error, changeset} ->
-                      Repo.rollback(changeset)
-                  end
-                end
-
-              {:error, changeset} ->
-                Repo.rollback(changeset)
-            end
-        end
-      end)
-    else
-      if user_id do
-        {:error, changeset}
-      else
+    cond do
+      !user_id ->
         {:error,
          Path.create_changeset(%Path{}, attrs)
          |> Ecto.Changeset.add_error(:user_id, "can't be blank")}
+
+      !changeset.valid? ->
+        {:error, changeset}
+
+      true ->
+        do_create_path(changeset, user_id, attrs)
+    end
+  end
+
+  defp do_create_path(changeset, user_id, attrs) do
+    Repo.transaction(fn ->
+      path_segment = Ecto.Changeset.get_field(changeset, :path)
+      parent_id = Ecto.Changeset.get_field(changeset, :parent_id)
+
+      case find_soft_deleted_path(path_segment, parent_id) do
+        nil -> insert_new_path(changeset, user_id)
+        existing_path -> restore_soft_deleted_path(existing_path, user_id, attrs)
       end
+    end)
+  end
+
+  defp find_soft_deleted_path(path_segment, parent_id) do
+    # Lock any matching soft-deleted row to prevent concurrent restoration
+    query =
+      from p in Path,
+        where: p.path == ^path_segment,
+        where: not is_nil(p.deleted_at),
+        lock: "FOR UPDATE"
+
+    query =
+      if is_nil(parent_id) do
+        where(query, [p], is_nil(p.parent_id))
+      else
+        where(query, [p], p.parent_id == ^parent_id)
+      end
+
+    Repo.one(query)
+  end
+
+  defp insert_new_path(changeset, user_id) do
+    case Repo.insert(changeset) do
+      {:ok, path} ->
+        create_owner_user_path(path.id, user_id)
+
+      {:error, changeset} ->
+        Repo.rollback(changeset)
+    end
+  end
+
+  defp restore_soft_deleted_path(path, user_id, attrs) do
+    case Path.restore_changeset(path, attrs) |> Repo.update() do
+      {:ok, restored_path} ->
+        ensure_user_path_exists(restored_path.id, user_id)
+
+      {:error, changeset} ->
+        Repo.rollback(changeset)
+    end
+  end
+
+  defp create_owner_user_path(path_id, user_id) do
+    user_path_attrs = %{user_id: user_id, path_id: path_id, role: "owner"}
+
+    case UserPath.changeset(%UserPath{}, user_path_attrs) |> Repo.insert() do
+      {:ok, _user_path} -> Repo.get!(Path, path_id)
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  defp ensure_user_path_exists(path_id, user_id) do
+    case Repo.get_by(UserPath, user_id: user_id, path_id: path_id) do
+      nil -> create_owner_user_path(path_id, user_id)
+      _existing -> Repo.get!(Path, path_id)
     end
   end
 

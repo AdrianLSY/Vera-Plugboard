@@ -5,8 +5,8 @@ defmodule PlugboardWeb.PathTokensLive.IndexTest do
   import Plugboard.AccountsFixtures
 
   alias Plugboard.Paths
-  alias Plugboard.TelephoneTokens
   alias Plugboard.ServiceAccounts
+  alias Plugboard.TelephoneTokens
 
   defp create_user_and_login(%{conn: conn}) do
     user = user_fixture()

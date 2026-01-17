@@ -40,12 +40,10 @@ defmodule PlugboardWeb.Plugs.ValidatePath do
   end
 
   defp validate_path_params(%{"path" => path_segments}) when is_list(path_segments) do
-    cond do
-      length(path_segments) > @max_path_depth ->
-        {:error, "Path depth exceeds maximum of #{@max_path_depth} segments"}
-
-      true ->
-        validate_segments(path_segments)
+    if length(path_segments) > @max_path_depth do
+      {:error, "Path depth exceeds maximum of #{@max_path_depth} segments"}
+    else
+      validate_segments(path_segments)
     end
   end
 
@@ -180,7 +178,7 @@ defmodule PlugboardWeb.Plugs.ValidatePath do
       String.starts_with?(segment, "..") ->
         {:error, "Path traversal not allowed"}
 
-      # Ends with ".." 
+      # Ends with ".."
       String.ends_with?(segment, "/..") or String.ends_with?(segment, "\\..") ->
         {:error, "Path traversal not allowed"}
 

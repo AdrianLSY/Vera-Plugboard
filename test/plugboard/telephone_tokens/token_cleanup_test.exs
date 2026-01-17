@@ -2,9 +2,10 @@ defmodule Plugboard.TelephoneTokens.TokenCleanupTest do
   use Plugboard.DataCase, async: false
 
   import Plugboard.AccountsFixtures
+
+  alias Plugboard.Paths
   alias Plugboard.TelephoneTokens
   alias Plugboard.TelephoneTokens.TokenCleanup
-  alias Plugboard.Paths
 
   describe "cleanup_now/0" do
     test "removes expired tokens" do
@@ -111,7 +112,7 @@ defmodule Plugboard.TelephoneTokens.TokenCleanupTest do
 
       # Verify token was removed
       remaining_tokens = TelephoneTokens.list_tokens_for_path(mount.id)
-      assert length(remaining_tokens) == 0
+      assert remaining_tokens == []
     end
   end
 end

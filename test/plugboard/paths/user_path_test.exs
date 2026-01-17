@@ -1,9 +1,9 @@
 defmodule Plugboard.Paths.UserPathTest do
   use Plugboard.DataCase
 
+  alias Plugboard.Accounts
   alias Plugboard.Paths
   alias Plugboard.Paths.UserPath
-  alias Plugboard.Accounts
 
   describe "add_user_to_path/4" do
     setup do

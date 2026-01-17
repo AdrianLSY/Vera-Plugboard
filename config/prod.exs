@@ -29,7 +29,9 @@ config :plugboard,
 # Must match the runtime config in config/runtime.exs
 # This ensures LiveView socket and Plug.Session use the same session options
 config :plugboard, :session,
-  signing_salt: System.get_env("SESSION_SIGNING_SALT") || raise("SESSION_SIGNING_SALT must be set at compile time for production"),
+  signing_salt:
+    System.get_env("SESSION_SIGNING_SALT") ||
+      raise("SESSION_SIGNING_SALT must be set at compile time for production"),
   encryption_salt: System.get_env("SESSION_ENCRYPTION_SALT")
 
 # Runtime production configuration, including reading

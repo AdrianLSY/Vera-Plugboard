@@ -1,9 +1,9 @@
 defmodule Plugboard.PathsConcurrentTest do
   use Plugboard.DataCase, async: false
 
+  alias Plugboard.Accounts
   alias Plugboard.Paths
   alias Plugboard.Paths.Path
-  alias Plugboard.Accounts
 
   describe "concurrent soft-delete restoration" do
     setup do
@@ -179,10 +179,9 @@ defmodule Plugboard.PathsConcurrentTest do
       # If parent is mount, should have no children
       if updated_parent.mount_point do
         assert children == []
-      else
-        # If parent is not mount, child should exist
-        assert length(children) >= 0
       end
+
+      # If parent is not mount, child may or may not exist (no assertion needed)
     end
 
     test "concurrent child creations under same parent all succeed", %{user: user} do

@@ -5,10 +5,10 @@ defmodule Plugboard.TelephoneTokensTest do
 
   import Plugboard.AccountsFixtures
 
-  alias Plugboard.TelephoneTokens
-  alias Plugboard.TelephoneTokens.TelephoneToken
   alias Plugboard.Paths
   alias Plugboard.Repo
+  alias Plugboard.TelephoneTokens
+  alias Plugboard.TelephoneTokens.TelephoneToken
 
   describe "generate_token/3" do
     setup do

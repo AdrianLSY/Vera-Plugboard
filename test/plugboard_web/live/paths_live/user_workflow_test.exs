@@ -775,7 +775,7 @@ defmodule PlugboardWeb.PathsLive.UserWorkflowTest do
 
       # Verify user2 cannot see user1's paths via API
       user2_paths = Paths.list_paths(user2.id)
-      assert length(user2_paths) == 0
+      assert user2_paths == []
 
       # User 2 creates their own path
       create_path(lv2, "user2-private")

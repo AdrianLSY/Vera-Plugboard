@@ -9,8 +9,8 @@ defmodule PlugboardWeb.Api.TelephoneTokenController do
   use PlugboardWeb, :controller
   require Logger
 
-  alias Plugboard.TelephoneTokens
   alias Plugboard.Paths
+  alias Plugboard.TelephoneTokens
 
   @doc """
   Creates a new telephone token for a path.

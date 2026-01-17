@@ -28,6 +28,15 @@ defmodule PlugboardWeb.Router do
     plug :fetch_current_scope_for_user
   end
 
+  # Rate limiting pipelines
+  pipeline :rate_limit_auth do
+    plug PlugboardWeb.Plugs.RateLimiter, bucket: :auth, by: :ip
+  end
+
+  pipeline :rate_limit_api do
+    plug PlugboardWeb.Plugs.RateLimiter, bucket: :api, by: :api_key
+  end
+
   scope "/", PlugboardWeb do
     pipe_through :browser
 
@@ -41,6 +50,7 @@ defmodule PlugboardWeb.Router do
   pipeline :proxy do
     plug :accepts, ["json"]
     plug PlugboardWeb.Plugs.ValidatePath
+    plug PlugboardWeb.Plugs.RateLimiter, bucket: :proxy, by: :ip
   end
 
   # Proxy routes - must come after other routes to avoid conflicts
@@ -60,7 +70,7 @@ defmodule PlugboardWeb.Router do
 
   # API routes for telephone token management
   scope "/api", PlugboardWeb.Api do
-    pipe_through [:api, :require_authenticated_user]
+    pipe_through [:api, :require_authenticated_user, :rate_limit_api]
 
     # Telephone token endpoints
     post "/paths/:path_id/tokens", TelephoneTokenController, :create
@@ -89,7 +99,7 @@ defmodule PlugboardWeb.Router do
 
   # Token Vending Machine API (no user authentication required, uses service account API key)
   scope "/api/token-vending", PlugboardWeb.Api do
-    pipe_through :api
+    pipe_through [:api, :rate_limit_api]
 
     post "/generate", TokenVendingController, :generate
   end
@@ -128,7 +138,7 @@ defmodule PlugboardWeb.Router do
   end
 
   scope "/", PlugboardWeb do
-    pipe_through [:browser]
+    pipe_through [:browser, :rate_limit_auth]
 
     live_session :current_user,
       on_mount: [{PlugboardWeb.UserAuth, :mount_current_scope}] do
@@ -145,6 +155,7 @@ defmodule PlugboardWeb.Router do
   pipeline :domain_proxy do
     plug :accepts, ["json", "html"]
     plug PlugboardWeb.Plugs.DomainAffinityRouter
+    plug PlugboardWeb.Plugs.RateLimiter, bucket: :proxy, by: :ip
   end
 
   # Domain affinity routes - MUST come last as fallback

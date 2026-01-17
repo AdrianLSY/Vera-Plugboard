@@ -231,3 +231,19 @@ config :plugboard, :websocket_proxy,
     (System.get_env("WEBSOCKET_MAX_FRAME_SIZE") || "1048576") |> String.to_integer(),
   idle_timeout_ms:
     (System.get_env("WEBSOCKET_IDLE_TIMEOUT_MS") || "300000") |> String.to_integer()
+
+# Rate Limiting Configuration
+# RATE_LIMIT_AUTH_LIMIT: Max auth requests per window. Default: 5
+# RATE_LIMIT_AUTH_WINDOW_MS: Auth window duration (ms). Default: 60000 (1 min)
+# RATE_LIMIT_API_LIMIT: Max API requests per window. Default: 100
+# RATE_LIMIT_API_WINDOW_MS: API window duration (ms). Default: 60000 (1 min)
+# RATE_LIMIT_PROXY_LIMIT: Max proxy requests per window. Default: 10000
+# RATE_LIMIT_PROXY_WINDOW_MS: Proxy window duration (ms). Default: 60000 (1 min)
+config :plugboard, Plugboard.RateLimiter,
+  auth_limit: (System.get_env("RATE_LIMIT_AUTH_LIMIT") || "5") |> String.to_integer(),
+  auth_window_ms: (System.get_env("RATE_LIMIT_AUTH_WINDOW_MS") || "60000") |> String.to_integer(),
+  api_limit: (System.get_env("RATE_LIMIT_API_LIMIT") || "100") |> String.to_integer(),
+  api_window_ms: (System.get_env("RATE_LIMIT_API_WINDOW_MS") || "60000") |> String.to_integer(),
+  proxy_limit: (System.get_env("RATE_LIMIT_PROXY_LIMIT") || "10000") |> String.to_integer(),
+  proxy_window_ms:
+    (System.get_env("RATE_LIMIT_PROXY_WINDOW_MS") || "60000") |> String.to_integer()

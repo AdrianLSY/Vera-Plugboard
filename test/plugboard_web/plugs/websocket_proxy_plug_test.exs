@@ -3,8 +3,8 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
 
   import Plugboard.AccountsFixtures
 
-  alias Plugboard.Paths
   alias Plugboard.DomainAffinities
+  alias Plugboard.Paths
   alias Plugboard.TelephoneRegistry
   alias PlugboardWeb.Plugs.WebSocketProxyPlug
 

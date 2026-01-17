@@ -49,25 +49,29 @@ defmodule PlugboardWeb.Endpoint do
   # For production, session config must also be set in config/prod.exs (compile-time)
   # in addition to config/runtime.exs (runtime)
   @session_config Application.compile_env(:plugboard, :session, [])
-  @session_signing_salt Keyword.get(@session_config, :signing_salt, "dev_signing_salt_not_for_production")
+  @session_signing_salt Keyword.get(
+                          @session_config,
+                          :signing_salt,
+                          "dev_signing_salt_not_for_production"
+                        )
   @session_encryption_salt Keyword.get(@session_config, :encryption_salt)
   @env Application.compile_env(:plugboard, :env, :dev)
 
   @session_options (
-    base_opts = [
-      store: :cookie,
-      key: "_plugboard_key",
-      signing_salt: @session_signing_salt,
-      same_site: "Lax",
-      secure: @env == :prod
-    ]
+                     base_opts = [
+                       store: :cookie,
+                       key: "_plugboard_key",
+                       signing_salt: @session_signing_salt,
+                       same_site: "Lax",
+                       secure: @env == :prod
+                     ]
 
-    if @session_encryption_salt do
-      Keyword.put(base_opts, :encryption_salt, @session_encryption_salt)
-    else
-      base_opts
-    end
-  )
+                     if @session_encryption_salt do
+                       Keyword.put(base_opts, :encryption_salt, @session_encryption_salt)
+                     else
+                       base_opts
+                     end
+                   )
 
   socket("/live", Phoenix.LiveView.Socket,
     websocket: [connect_info: [session: @session_options]],

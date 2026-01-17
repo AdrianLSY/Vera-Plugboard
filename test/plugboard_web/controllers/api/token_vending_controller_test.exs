@@ -1,9 +1,9 @@
 defmodule PlugboardWeb.Api.TokenVendingControllerTest do
   use PlugboardWeb.ConnCase
 
+  alias Plugboard.Paths
   alias Plugboard.ServiceAccounts
   alias Plugboard.TelephoneTokens
-  alias Plugboard.Paths
 
   setup do
     user = Plugboard.AccountsFixtures.user_fixture()

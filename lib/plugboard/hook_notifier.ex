@@ -98,45 +98,43 @@ defmodule Plugboard.HookNotifier do
   # Private helpers
 
   defp connect do
-    try do
-      # Get database configuration
-      repo_config = Plugboard.Repo.config()
+    # Get database configuration
+    repo_config = Plugboard.Repo.config()
 
-      db_config = [
-        hostname: repo_config[:hostname] || "localhost",
-        port: repo_config[:port] || 5432,
-        database: repo_config[:database] || raise("Database not configured"),
-        username: repo_config[:username] || System.get_env("USER"),
-        password: repo_config[:password],
-        socket_options: repo_config[:socket_options] || []
-      ]
+    db_config = [
+      hostname: repo_config[:hostname] || "localhost",
+      port: repo_config[:port] || 5432,
+      database: repo_config[:database] || raise("Database not configured"),
+      username: repo_config[:username] || System.get_env("USER"),
+      password: repo_config[:password],
+      socket_options: repo_config[:socket_options] || []
+    ]
 
-      # Start Postgrex.Notifications connection
-      case Postgrex.Notifications.start_link(db_config) do
-        {:ok, pid} ->
-          # Monitor the connection so we get notified if it dies
-          _ref = Process.monitor(pid)
+    # Start Postgrex.Notifications connection
+    case Postgrex.Notifications.start_link(db_config) do
+      {:ok, pid} ->
+        # Monitor the connection so we get notified if it dies
+        _ref = Process.monitor(pid)
 
-          # Listen to the channel
-          case Postgrex.Notifications.listen(pid, @channel) do
-            {:ok, listen_ref} ->
-              Logger.info("HookNotifier: Listening on PostgreSQL channel '#{@channel}'")
-              {:ok, %{pid: pid, ref: listen_ref, reconnect_attempts: 0}}
+        # Listen to the channel
+        case Postgrex.Notifications.listen(pid, @channel) do
+          {:ok, listen_ref} ->
+            Logger.info("HookNotifier: Listening on PostgreSQL channel '#{@channel}'")
+            {:ok, %{pid: pid, ref: listen_ref, reconnect_attempts: 0}}
 
-            {:error, reason} ->
-              Logger.error("HookNotifier: Failed to listen on channel: #{inspect(reason)}")
-              {:error, reason}
-          end
+          {:error, reason} ->
+            Logger.error("HookNotifier: Failed to listen on channel: #{inspect(reason)}")
+            {:error, reason}
+        end
 
-        {:error, reason} ->
-          Logger.error("HookNotifier: Failed to connect to PostgreSQL: #{inspect(reason)}")
-          {:error, reason}
-      end
-    rescue
-      e ->
-        Logger.error("HookNotifier: Exception during connection: #{inspect(e)}")
-        {:error, e}
+      {:error, reason} ->
+        Logger.error("HookNotifier: Failed to connect to PostgreSQL: #{inspect(reason)}")
+        {:error, reason}
     end
+  rescue
+    e ->
+      Logger.error("HookNotifier: Exception during connection: #{inspect(e)}")
+      {:error, e}
   end
 
   defp calculate_backoff(attempts) do

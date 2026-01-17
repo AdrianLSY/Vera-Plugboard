@@ -4,9 +4,9 @@ defmodule Plugboard.Accounts do
   """
 
   import Ecto.Query, warn: false
-  alias Plugboard.Repo
 
-  alias Plugboard.Accounts.{User, UserToken, UserNotifier}
+  alias Plugboard.Accounts.{User, UserNotifier, UserToken}
+  alias Plugboard.Repo
 
   ## Database getters
 

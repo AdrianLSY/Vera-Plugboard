@@ -44,15 +44,23 @@ defmodule PlugboardWeb.TelephoneChannel do
       # Get token expiry config for response
       expiry_seconds = Application.get_env(:plugboard, :telephone)[:token_expiry] || 3600
 
+      # Get heartbeat config for scheduling checks
+      heartbeat_timeout_ms =
+        Application.get_env(:plugboard, :telephone)[:heartbeat_timeout_ms] || 60_000
+
+      # Check at half the timeout interval for better detection
+      heartbeat_check_interval = div(heartbeat_timeout_ms, 2)
+
       # Initialize waiting callers map, WebSocket connections map, and heartbeat tracking
       socket =
         socket
         |> assign(:waiting_callers, %{})
         |> assign(:ws_connections, %{})
         |> assign(:last_heartbeat, System.monotonic_time(:millisecond))
+        |> assign(:heartbeat_check_interval, heartbeat_check_interval)
 
-      # Schedule first heartbeat check
-      Process.send_after(self(), :check_heartbeat, 60_000)
+      # Schedule first heartbeat check at half the timeout interval
+      Process.send_after(self(), :check_heartbeat, heartbeat_check_interval)
 
       # Emit telemetry
       :telemetry.execute(
@@ -274,8 +282,9 @@ defmodule PlugboardWeb.TelephoneChannel do
 
       {:stop, :heartbeat_timeout, socket}
     else
-      # Schedule next check
-      Process.send_after(self(), :check_heartbeat, timeout_ms)
+      # Schedule next check at the stored interval (half of timeout)
+      check_interval = Map.get(socket.assigns, :heartbeat_check_interval, div(timeout_ms, 2))
+      Process.send_after(self(), :check_heartbeat, check_interval)
       {:noreply, socket}
     end
   end

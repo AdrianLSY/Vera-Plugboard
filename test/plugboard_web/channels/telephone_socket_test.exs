@@ -4,9 +4,9 @@ defmodule PlugboardWeb.TelephoneSocketTest do
   import Plugboard.AccountsFixtures
   import Ecto.Query
 
-  alias PlugboardWeb.TelephoneSocket
   alias Plugboard.Paths
   alias Plugboard.TelephoneTokens
+  alias PlugboardWeb.TelephoneSocket
 
   setup do
     user = user_fixture()

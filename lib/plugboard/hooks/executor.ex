@@ -7,14 +7,55 @@ defmodule Plugboard.Hooks.Executor do
 
   Hook responses are merged at the root level using Map.merge/2,
   with the hook response winning on key conflicts.
+
+  ## SSRF Protection
+
+  External HTTP hooks are validated against SSRF attacks. The following
+  targets are blocked by default:
+
+  - Localhost (127.x.x.x, ::1)
+  - Private networks (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
+  - Link-local addresses (169.254.x.x, fe80::)
+  - Cloud metadata endpoints (169.254.169.254)
+
+  In test environments, localhost can be allowed via the
+  `:allow_localhost_hooks` config option.
   """
 
   require Logger
+
+  alias Plugboard.Hooks.Hook
   alias Plugboard.HookStore
-  alias Plugboard.TelephoneRegistry
   alias Plugboard.MountStore
   alias Plugboard.Paths
-  alias Plugboard.Hooks.Hook
+  alias Plugboard.TelephoneRegistry
+
+  # SSRF protection: blocked network patterns
+  # These patterns identify internal/private networks that should not be
+  # accessible from external hook requests
+  @blocked_hosts ~w(localhost)
+  @blocked_ipv4_patterns [
+    # Loopback
+    ~r/^127\./,
+    # Private Class A
+    ~r/^10\./,
+    # Private Class B
+    ~r/^172\.(1[6-9]|2[0-9]|3[01])\./,
+    # Private Class C
+    ~r/^192\.168\./,
+    # Link-local
+    ~r/^169\.254\./
+  ]
+  @blocked_ipv6_patterns [
+    # Loopback
+    ~r/^::1$/,
+    ~r/^\[::1\]/,
+    # Link-local
+    ~r/^fe80:/i,
+    ~r/^\[fe80:/i
+  ]
+  # Cloud metadata endpoints (always blocked, even in test)
+  @cloud_metadata_ips ["169.254.169.254", "fd00:ec2::254"]
 
   # Type definitions
   @type path_id :: String.t()
@@ -150,6 +191,25 @@ defmodule Plugboard.Hooks.Executor do
   end
 
   defp execute_http_hook(conn, hook, body) do
+    # Validate URL against SSRF attacks before making request
+    case validate_target_url(hook.target_url) do
+      :ok ->
+        do_execute_http_hook(conn, hook, body)
+
+      {:error, :ssrf_blocked} ->
+        Logger.warning("Hook #{hook.name}: SSRF protection blocked request to #{hook.target_url}")
+
+        :telemetry.execute(
+          [:plugboard, :hook, :ssrf_blocked],
+          %{count: 1},
+          %{hook_id: hook.id, hook_name: hook.name, target_url: hook.target_url}
+        )
+
+        {:error, :unavailable}
+    end
+  end
+
+  defp do_execute_http_hook(conn, hook, body) do
     # Build HTTP request
     headers = build_http_headers(conn, hook)
     json_body = Jason.encode!(body)
@@ -174,6 +234,56 @@ defmodule Plugboard.Hooks.Executor do
       {:error, _reason} ->
         {:error, :unavailable}
     end
+  end
+
+  # SSRF Protection: Validates that the target URL is not pointing to
+  # internal/private networks or cloud metadata endpoints.
+  @spec validate_target_url(String.t()) :: :ok | {:error, :ssrf_blocked}
+  defp validate_target_url(url) do
+    uri = URI.parse(url)
+    host = uri.host || ""
+    host_lower = String.downcase(host)
+
+    cond do
+      # Always block cloud metadata endpoints (even in test)
+      host in @cloud_metadata_ips ->
+        {:error, :ssrf_blocked}
+
+      # Check if localhost is allowed (for testing)
+      allow_localhost?() and localhost?(host_lower) ->
+        :ok
+
+      # Block localhost
+      localhost?(host_lower) ->
+        {:error, :ssrf_blocked}
+
+      # Block private IPv4 ranges
+      blocked_ipv4?(host) ->
+        {:error, :ssrf_blocked}
+
+      # Block IPv6 loopback and link-local
+      blocked_ipv6?(host) ->
+        {:error, :ssrf_blocked}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp allow_localhost? do
+    Application.get_env(:plugboard, :allow_localhost_hooks, false)
+  end
+
+  defp localhost?(host) do
+    host in @blocked_hosts or String.starts_with?(host, "127.")
+  end
+
+  defp blocked_ipv4?(host) do
+    Enum.any?(@blocked_ipv4_patterns, &Regex.match?(&1, host))
+  end
+
+  defp blocked_ipv6?(host) do
+    Enum.any?(@blocked_ipv6_patterns, &Regex.match?(&1, host))
   end
 
   defp handle_hook_response({:ok, status, response_body}, hook, start_time) do

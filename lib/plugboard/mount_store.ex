@@ -25,11 +25,13 @@ defmodule Plugboard.MountStore do
 
   use GenServer
   require Logger
-  alias Plugboard.Repo
-  alias Plugboard.Paths.Path
+
+  import Ecto.Query
+
   alias Plugboard.DomainAffinities
   alias Plugboard.DomainAffinities.DomainAffinity
-  import Ecto.Query
+  alias Plugboard.Paths.Path
+  alias Plugboard.Repo
 
   @table_name :plugboard_mounts
   @domain_table :plugboard_domain_affinities

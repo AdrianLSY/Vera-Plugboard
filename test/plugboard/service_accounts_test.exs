@@ -1,8 +1,8 @@
 defmodule Plugboard.ServiceAccountsTest do
   use Plugboard.DataCase
 
-  alias Plugboard.ServiceAccounts
   alias Plugboard.Paths
+  alias Plugboard.ServiceAccounts
 
   describe "generate_service_account/4" do
     setup do

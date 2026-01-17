@@ -3,19 +3,30 @@ defmodule Plugboard.RateLimiter do
   ETS-based rate limiting infrastructure.
 
   Provides rate limiting for:
-  - Authentication endpoints (login, registration)
-  - API endpoints (token vending, etc.)
-  - Proxy requests per path
+  - Authentication endpoints (login, registration) - 5 requests/minute
+  - API endpoints (token vending, etc.) - 100 requests/minute
+  - Proxy requests per path - 10,000 requests/minute
 
   ## Configuration
 
-  Configure in `config/runtime.exs`:
+  Configure via environment variables:
+
+      RATE_LIMIT_AUTH_LIMIT=5           # Auth requests per window (default: 5)
+      RATE_LIMIT_AUTH_WINDOW_MS=60000   # Auth window in ms (default: 60000)
+      RATE_LIMIT_API_LIMIT=100          # API requests per window (default: 100)
+      RATE_LIMIT_API_WINDOW_MS=60000    # API window in ms (default: 60000)
+      RATE_LIMIT_PROXY_LIMIT=10000      # Proxy requests per window (default: 10000)
+      RATE_LIMIT_PROXY_WINDOW_MS=60000  # Proxy window in ms (default: 60000)
+
+  Or in `config/runtime.exs`:
 
       config :plugboard, Plugboard.RateLimiter,
-        auth_limit: 5,           # requests per window
-        auth_window_ms: 60_000,  # 1 minute window
+        auth_limit: 5,
+        auth_window_ms: 60_000,
         api_limit: 100,
-        api_window_ms: 60_000
+        api_window_ms: 60_000,
+        proxy_limit: 10_000,
+        proxy_window_ms: 60_000
 
   ## Usage
 
@@ -98,11 +109,29 @@ defmodule Plugboard.RateLimiter do
     :ok
   end
 
+  @doc """
+  Gets the rate limit configuration for a bucket type.
+
+  Returns a map with `:limit` and `:window_ms` keys.
+
+  ## Examples
+
+      iex> RateLimiter.get_bucket_config(:auth)
+      %{limit: 5, window_ms: 60000}
+  """
+  @spec get_bucket_config(atom()) :: %{limit: pos_integer(), window_ms: pos_integer()}
+  def get_bucket_config(bucket_type), do: get_config(bucket_type)
+
   ## Server Callbacks
 
   @impl true
   def init(_opts) do
     # Create ETS table for rate limit counters
+    # Using :public with write_concurrency for high-performance rate limiting
+    # This is acceptable because:
+    # 1. Rate limit counters are not security-sensitive data
+    # 2. The worst case of a race is slightly over/under counting
+    # 3. Performance is critical for rate limiting on every request
     :ets.new(@table, [
       :named_table,
       :public,
@@ -128,28 +157,56 @@ defmodule Plugboard.RateLimiter do
 
   ## Private Functions
 
+  # Rate limiting using a fixed window approach with atomic operations where possible.
+  #
+  # Note: This implementation prioritizes performance over strict accuracy.
+  # In high-concurrency scenarios, there's a small window between lookup and
+  # insert where race conditions could occur. For strict rate limiting in
+  # distributed systems, consider using Redis or a distributed rate limiter.
   defp check_rate(key, window_ms, limit) do
     now = System.system_time(:millisecond)
     window_start = now - window_ms
 
-    # Use atomic update to increment counter
     case :ets.lookup(@table, key) do
       [{^key, count, timestamp}] when timestamp > window_start ->
-        # Within window, increment
-        new_count = count + 1
-
-        if new_count > limit do
+        # Within current window
+        if count >= limit do
+          # Already at limit - deny without incrementing
           {:deny, limit}
         else
-          :ets.insert(@table, {key, new_count, timestamp})
-          {:allow, new_count}
+          # Try to increment atomically using update_counter
+          # The {2, 1} means: increment position 2 (count) by 1
+          # This is atomic and handles concurrent requests better
+          try do
+            new_count = :ets.update_counter(@table, key, {2, 1})
+
+            if new_count > limit do
+              # We went over the limit due to race - still deny
+              # but the count is already incremented (acceptable trade-off)
+              {:deny, limit}
+            else
+              {:allow, new_count}
+            end
+          rescue
+            ArgumentError ->
+              # Key was deleted between lookup and update_counter
+              # Start a new window
+              start_new_window(key, now)
+          end
         end
 
       _ ->
-        # New window or expired - start fresh
-        :ets.insert(@table, {key, 1, now})
-        {:allow, 1}
+        # No entry or expired window - start fresh
+        start_new_window(key, now)
     end
+  end
+
+  defp start_new_window(key, timestamp) do
+    # Insert new window entry
+    # Race condition here is acceptable - worst case is two processes
+    # both starting a new window, which just resets the counter
+    :ets.insert(@table, {key, 1, timestamp})
+    {:allow, 1}
   end
 
   defp get_config(:auth) do

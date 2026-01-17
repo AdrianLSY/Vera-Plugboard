@@ -116,49 +116,46 @@ defmodule Plugboard.MountNotifier do
   # Private helpers
 
   defp connect do
-    try do
-      # Get database configuration
-      repo_config = Plugboard.Repo.config()
+    # Get database configuration
+    repo_config = Plugboard.Repo.config()
 
-      db_config = [
-        hostname: repo_config[:hostname] || "localhost",
-        port: repo_config[:port] || 5432,
-        database: repo_config[:database] || raise("Database not configured"),
-        username: repo_config[:username] || System.get_env("USER"),
-        password: repo_config[:password],
-        socket_options: repo_config[:socket_options] || []
-      ]
+    db_config = [
+      hostname: repo_config[:hostname] || "localhost",
+      port: repo_config[:port] || 5432,
+      database: repo_config[:database] || raise("Database not configured"),
+      username: repo_config[:username] || System.get_env("USER"),
+      password: repo_config[:password],
+      socket_options: repo_config[:socket_options] || []
+    ]
 
-      # Start Postgrex.Notifications connection
-      case Postgrex.Notifications.start_link(db_config) do
-        {:ok, pid} ->
-          # Monitor the connection so we get notified if it dies
-          Process.monitor(pid)
+    # Start Postgrex.Notifications connection
+    case Postgrex.Notifications.start_link(db_config) do
+      {:ok, pid} ->
+        # Monitor the connection so we get notified if it dies
+        Process.monitor(pid)
 
-          # Listen to both channels
-          with {:ok, mount_ref} <- Postgrex.Notifications.listen(pid, @mount_channel),
-               {:ok, domain_ref} <- Postgrex.Notifications.listen(pid, @domain_channel) do
-            Logger.info(
-              "MountNotifier: Listening on PostgreSQL channels '#{@mount_channel}' and '#{@domain_channel}'"
-            )
+        # Listen to both channels
+        with {:ok, mount_ref} <- Postgrex.Notifications.listen(pid, @mount_channel),
+             {:ok, domain_ref} <- Postgrex.Notifications.listen(pid, @domain_channel) do
+          Logger.info(
+            "MountNotifier: Listening on PostgreSQL channels '#{@mount_channel}' and '#{@domain_channel}'"
+          )
 
-            {:ok,
-             %{pid: pid, mount_ref: mount_ref, domain_ref: domain_ref, reconnect_attempts: 0}}
-          else
-            {:error, reason} ->
-              Logger.error("MountNotifier: Failed to listen on channel: #{inspect(reason)}")
-              {:error, reason}
-          end
+          {:ok, %{pid: pid, mount_ref: mount_ref, domain_ref: domain_ref, reconnect_attempts: 0}}
+        else
+          {:error, reason} ->
+            Logger.error("MountNotifier: Failed to listen on channel: #{inspect(reason)}")
+            {:error, reason}
+        end
 
-        {:error, reason} ->
-          Logger.error("MountNotifier: Failed to connect to PostgreSQL: #{inspect(reason)}")
-          {:error, reason}
-      end
-    rescue
-      e ->
-        Logger.error("MountNotifier: Exception during connection: #{inspect(e)}")
-        {:error, e}
+      {:error, reason} ->
+        Logger.error("MountNotifier: Failed to connect to PostgreSQL: #{inspect(reason)}")
+        {:error, reason}
     end
+  rescue
+    e ->
+      Logger.error("MountNotifier: Exception during connection: #{inspect(e)}")
+      {:error, e}
   end
 
   defp calculate_backoff(attempts) do

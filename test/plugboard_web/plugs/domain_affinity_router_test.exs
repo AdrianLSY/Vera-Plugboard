@@ -3,8 +3,8 @@ defmodule PlugboardWeb.Plugs.DomainAffinityRouterTest do
 
   import Plugboard.AccountsFixtures
 
-  alias Plugboard.Paths
   alias Plugboard.DomainAffinities
+  alias Plugboard.Paths
   alias PlugboardWeb.Plugs.DomainAffinityRouter
 
   describe "call/2" do

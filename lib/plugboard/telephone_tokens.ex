@@ -175,37 +175,39 @@ defmodule Plugboard.TelephoneTokens do
   Requires owner or maintainer role on the path.
   """
   def revoke_token(user_id, token_id) do
+    with {:ok, token} <- fetch_token(token_id),
+         :ok <- authorize_token_action(user_id, token) do
+      do_revoke_token(token, token_id)
+    end
+  end
+
+  defp fetch_token(token_id) do
     case get_token(token_id) do
-      nil ->
-        {:error, :not_found}
+      nil -> {:error, :not_found}
+      token -> {:ok, token}
+    end
+  end
 
-      token ->
-        # Check user has permission on the path
-        case Paths.get_user_role(user_id, token.path_id) do
-          role when role in ["owner", "maintainer"] ->
-            result =
-              token
-              |> TelephoneToken.revoke_changeset()
-              |> Repo.update()
+  defp authorize_token_action(user_id, token) do
+    case Paths.get_user_role(user_id, token.path_id) do
+      role when role in ["owner", "maintainer"] -> :ok
+      _role -> {:error, :unauthorized}
+    end
+  end
 
-            case result do
-              {:ok, revoked_token} ->
-                # Emit telemetry for token revocation
-                :telemetry.execute(
-                  [:plugboard, :telephone_token, :revoked],
-                  %{count: 1},
-                  %{token_id: token_id, path_id: token.path_id}
-                )
+  defp do_revoke_token(token, token_id) do
+    case token |> TelephoneToken.revoke_changeset() |> Repo.update() do
+      {:ok, revoked_token} ->
+        :telemetry.execute(
+          [:plugboard, :telephone_token, :revoked],
+          %{count: 1},
+          %{token_id: token_id, path_id: token.path_id}
+        )
 
-                {:ok, revoked_token}
+        {:ok, revoked_token}
 
-              error ->
-                error
-            end
-
-          _role ->
-            {:error, :unauthorized}
-        end
+      error ->
+        error
     end
   end
 
@@ -217,56 +219,48 @@ defmodule Plugboard.TelephoneTokens do
     - {:error, reason} on failure
   """
   def refresh_token(token_id) do
-    case get_token(token_id) do
-      nil ->
-        {:error, :not_found}
-
-      token ->
-        # Check if token is revoked
-        if token.revoked_at do
-          {:error, :token_revoked}
-        else
-          # Get expiry from config
-          expiry_seconds = Application.get_env(:plugboard, :telephone)[:token_expiry] || 3600
-          new_expires_at = DateTime.utc_now() |> DateTime.add(expiry_seconds, :second)
-
-          # Generate new JWT with same claims but new expiry
-          claims = %{
-            "sub" => token.user_id,
-            "jti" => token.id,
-            "path_id" => token.path_id,
-            "iat" => DateTime.utc_now() |> DateTime.to_unix(),
-            "exp" => new_expires_at |> DateTime.to_unix()
-          }
-
-          case generate_jwt(claims) do
-            {:ok, new_jwt} ->
-              new_token_hash = hash_token(new_jwt)
-
-              # Update token record
-              token
-              |> TelephoneToken.refresh_changeset(new_expires_at, new_token_hash)
-              |> Repo.update()
-              |> case do
-                {:ok, _updated_token} ->
-                  # Emit telemetry for token refresh
-                  :telemetry.execute(
-                    [:plugboard, :telephone_token, :refreshed],
-                    %{count: 1},
-                    %{token_id: token_id, path_id: token.path_id}
-                  )
-
-                  {:ok, new_jwt, expiry_seconds}
-
-                {:error, changeset} ->
-                  {:error, changeset}
-              end
-
-            {:error, reason} ->
-              {:error, reason}
-          end
-        end
+    with {:ok, token} <- fetch_token(token_id),
+         :ok <- verify_token_not_revoked(token) do
+      do_refresh_token(token, token_id)
     end
+  end
+
+  defp verify_token_not_revoked(%{revoked_at: nil}), do: :ok
+  defp verify_token_not_revoked(_token), do: {:error, :token_revoked}
+
+  defp do_refresh_token(token, token_id) do
+    expiry_seconds = Application.get_env(:plugboard, :telephone)[:token_expiry] || 3600
+    new_expires_at = DateTime.utc_now() |> DateTime.add(expiry_seconds, :second)
+
+    claims = %{
+      "sub" => token.user_id,
+      "jti" => token.id,
+      "path_id" => token.path_id,
+      "iat" => DateTime.utc_now() |> DateTime.to_unix(),
+      "exp" => new_expires_at |> DateTime.to_unix()
+    }
+
+    with {:ok, new_jwt} <- generate_jwt(claims),
+         {:ok, _updated_token} <- update_token_with_new_jwt(token, new_expires_at, new_jwt) do
+      emit_token_refreshed_telemetry(token_id, token.path_id)
+      {:ok, new_jwt, expiry_seconds}
+    end
+  end
+
+  defp update_token_with_new_jwt(token, new_expires_at, new_jwt) do
+    new_token_hash = hash_token(new_jwt)
+
+    token
+    |> TelephoneToken.refresh_changeset(new_expires_at, new_token_hash)
+    |> Repo.update()
+  end
+
+  defp emit_token_refreshed_telemetry(token_id, path_id) do
+    :telemetry.execute(
+      [:plugboard, :telephone_token, :refreshed],
+      %{count: 1},
+      %{token_id: token_id, path_id: path_id}
+    )
   end
 
   @doc """

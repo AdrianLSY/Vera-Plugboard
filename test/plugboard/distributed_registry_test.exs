@@ -195,7 +195,7 @@ defmodule Plugboard.DistributedRegistryTest do
       members = DistributedRegistry.members()
 
       assert is_list(members)
-      assert length(members) >= 1
+      assert members != []
 
       # Should include this node
       assert {DistributedRegistry, node()} in members

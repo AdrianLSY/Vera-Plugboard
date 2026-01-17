@@ -1,9 +1,9 @@
 defmodule Plugboard.PathsTest do
   use Plugboard.DataCase
 
+  alias Plugboard.Accounts
   alias Plugboard.Paths
   alias Plugboard.Paths.Path
-  alias Plugboard.Accounts
 
   describe "list_paths/1" do
     setup do

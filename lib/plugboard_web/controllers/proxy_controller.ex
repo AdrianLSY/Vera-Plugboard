@@ -493,7 +493,7 @@ defmodule PlugboardWeb.ProxyController do
       end)
 
     # Handle chunked/streaming responses
-    if is_chunked and length(chunks) > 0 do
+    if is_chunked and chunks != [] do
       send_chunked_response(conn, status, chunks)
     else
       # Send regular response

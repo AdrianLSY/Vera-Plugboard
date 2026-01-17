@@ -12,9 +12,9 @@ defmodule Plugboard.Hooks do
   import Ecto.Query
   require Logger
 
-  alias Plugboard.Repo
   alias Plugboard.Hooks.Hook
   alias Plugboard.Paths
+  alias Plugboard.Repo
 
   @doc """
   Lists all active hooks for a given path, ordered by execution_order.
@@ -178,36 +178,34 @@ defmodule Plugboard.Hooks do
     Repo.transaction(fn ->
       changeset = Hook.create_changeset(%Hook{}, attrs)
 
-      # Validate the changeset first
-      if changeset.valid? do
-        target_type = Ecto.Changeset.get_field(changeset, :target_type)
-        target_path_id = Ecto.Changeset.get_field(changeset, :target_path_id)
-        path_id = Ecto.Changeset.get_field(changeset, :path_id)
-
-        # Additional validations for mount_point target
-        if target_type == "mount_point" do
-          case validate_mount_point_target(target_path_id) do
-            :ok ->
-              # Check for circular dependency
-              case check_circular_dependency(path_id, target_path_id) do
-                :ok ->
-                  insert_hook(changeset)
-
-                {:error, reason} ->
-                  Repo.rollback(reason)
-              end
-
-            {:error, reason} ->
-              Repo.rollback(reason)
-          end
-        else
-          # HTTP URL target - just insert
-          insert_hook(changeset)
-        end
+      with :ok <- validate_changeset(changeset),
+           :ok <- validate_hook_target(changeset) do
+        insert_hook(changeset)
       else
-        Repo.rollback(changeset)
+        {:error, reason} -> Repo.rollback(reason)
+        {:invalid, changeset} -> Repo.rollback(changeset)
       end
     end)
+  end
+
+  defp validate_changeset(changeset) do
+    if changeset.valid?, do: :ok, else: {:invalid, changeset}
+  end
+
+  defp validate_hook_target(changeset) do
+    target_type = Ecto.Changeset.get_field(changeset, :target_type)
+
+    if target_type == "mount_point" do
+      target_path_id = Ecto.Changeset.get_field(changeset, :target_path_id)
+      path_id = Ecto.Changeset.get_field(changeset, :path_id)
+
+      with :ok <- validate_mount_point_target(target_path_id) do
+        check_circular_dependency(path_id, target_path_id)
+      end
+    else
+      # HTTP URL target - no additional validation needed
+      :ok
+    end
   end
 
   defp validate_mount_point_target(target_path_id) do
@@ -260,17 +258,15 @@ defmodule Plugboard.Hooks do
 
       # Check each hook's target
       Enum.reduce_while(hooks, :ok, fn hook, :ok ->
-        cond do
-          # Direct circular dependency
-          hook.target_path_id == source_path_id ->
-            {:halt, {:error, "Circular dependency detected: hook would create an infinite loop"}}
-
+        # Direct circular dependency
+        if hook.target_path_id == source_path_id do
+          {:halt, {:error, "Circular dependency detected: hook would create an infinite loop"}}
+        else
           # Recursive check
-          true ->
-            case check_circular_recursive(source_path_id, hook.target_path_id, visited) do
-              :ok -> {:cont, :ok}
-              error -> {:halt, error}
-            end
+          case check_circular_recursive(source_path_id, hook.target_path_id, visited) do
+            :ok -> {:cont, :ok}
+            error -> {:halt, error}
+          end
         end
       end)
     end
@@ -298,37 +294,31 @@ defmodule Plugboard.Hooks do
     Repo.transaction(fn ->
       changeset = Hook.update_changeset(hook, attrs)
 
-      if changeset.valid? do
-        # Check if target_type or target_path_id changed
-        target_type = Ecto.Changeset.get_field(changeset, :target_type)
-        target_path_id = Ecto.Changeset.get_field(changeset, :target_path_id)
-
-        target_type_changed = Ecto.Changeset.changed?(changeset, :target_type)
-        target_path_changed = Ecto.Changeset.changed?(changeset, :target_path_id)
-
-        # Re-validate if target changed
-        if (target_type_changed or target_path_changed) and target_type == "mount_point" do
-          case validate_mount_point_target(target_path_id) do
-            :ok ->
-              # Check for circular dependency
-              case check_circular_dependency(hook.path_id, target_path_id) do
-                :ok ->
-                  update_hook_record(hook, changeset)
-
-                {:error, reason} ->
-                  Repo.rollback(reason)
-              end
-
-            {:error, reason} ->
-              Repo.rollback(reason)
-          end
-        else
-          update_hook_record(hook, changeset)
-        end
+      with :ok <- validate_changeset(changeset),
+           :ok <- validate_updated_hook_target(hook, changeset) do
+        update_hook_record(hook, changeset)
       else
-        Repo.rollback(changeset)
+        {:error, reason} -> Repo.rollback(reason)
+        {:invalid, changeset} -> Repo.rollback(changeset)
       end
     end)
+  end
+
+  defp validate_updated_hook_target(hook, changeset) do
+    target_type = Ecto.Changeset.get_field(changeset, :target_type)
+    target_type_changed = Ecto.Changeset.changed?(changeset, :target_type)
+    target_path_changed = Ecto.Changeset.changed?(changeset, :target_path_id)
+
+    # Re-validate only if target changed and type is mount_point
+    if (target_type_changed or target_path_changed) and target_type == "mount_point" do
+      target_path_id = Ecto.Changeset.get_field(changeset, :target_path_id)
+
+      with :ok <- validate_mount_point_target(target_path_id) do
+        check_circular_dependency(hook.path_id, target_path_id)
+      end
+    else
+      :ok
+    end
   end
 
   defp update_hook_record(hook, changeset) do
@@ -351,37 +341,49 @@ defmodule Plugboard.Hooks do
 
   defp do_reorder_hooks(path_id, hook_orders) do
     Repo.transaction(fn ->
-      # Verify all hooks belong to this path
       hook_ids = Enum.map(hook_orders, & &1.id)
 
-      hooks =
-        Hook
-        |> where([h], h.id in ^hook_ids and h.path_id == ^path_id and is_nil(h.deleted_at))
-        |> Repo.all()
+      case fetch_hooks_for_reorder(path_id, hook_ids) do
+        {:ok, hooks} ->
+          updated_hooks = update_hook_orders(hooks, hook_orders)
+          emit_reorder_telemetry(path_id, updated_hooks)
+          updated_hooks
 
-      if length(hooks) != length(hook_ids) do
-        Repo.rollback("Some hooks not found or do not belong to this path")
-      else
-        # Update each hook's execution_order
-        updated_hooks =
-          Enum.map(hook_orders, fn %{id: hook_id, execution_order: new_order} ->
-            hook = Enum.find(hooks, &(&1.id == hook_id))
-
-            case Repo.update(Ecto.Changeset.change(hook, execution_order: new_order)) do
-              {:ok, updated} -> updated
-              {:error, changeset} -> Repo.rollback(changeset)
-            end
-          end)
-
-        # Emit telemetry
-        :telemetry.execute(
-          [:plugboard, :hook, :reordered],
-          %{count: length(updated_hooks)},
-          %{path_id: path_id}
-        )
-
-        updated_hooks
+        {:error, reason} ->
+          Repo.rollback(reason)
       end
     end)
+  end
+
+  defp fetch_hooks_for_reorder(path_id, hook_ids) do
+    hooks =
+      Hook
+      |> where([h], h.id in ^hook_ids and h.path_id == ^path_id and is_nil(h.deleted_at))
+      |> Repo.all()
+
+    if length(hooks) == length(hook_ids) do
+      {:ok, hooks}
+    else
+      {:error, "Some hooks not found or do not belong to this path"}
+    end
+  end
+
+  defp update_hook_orders(hooks, hook_orders) do
+    Enum.map(hook_orders, fn %{id: hook_id, execution_order: new_order} ->
+      hook = Enum.find(hooks, &(&1.id == hook_id))
+
+      case Repo.update(Ecto.Changeset.change(hook, execution_order: new_order)) do
+        {:ok, updated} -> updated
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  defp emit_reorder_telemetry(path_id, updated_hooks) do
+    :telemetry.execute(
+      [:plugboard, :hook, :reordered],
+      %{count: length(updated_hooks)},
+      %{path_id: path_id}
+    )
   end
 end

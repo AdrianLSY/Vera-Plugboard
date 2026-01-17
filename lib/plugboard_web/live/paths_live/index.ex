@@ -197,32 +197,8 @@ defmodule PlugboardWeb.PathsLive.Index do
     user = socket.assigns.current_scope.user
     parent_id = params["parent"]
 
-    # Determine current parent and load paths
-    {current_parent, paths} =
-      if parent_id do
-        case Paths.get_path(parent_id) do
-          nil ->
-            {nil, Paths.list_paths_by_parent(user.id, nil)}
-
-          parent ->
-            # Verify user has access to this path via user_paths
-            user_path = Paths.get_user_path(user.id, parent.id)
-
-            if user_path do
-              {parent, Paths.list_paths_by_parent(user.id, parent.id)}
-            else
-              {nil, Paths.list_paths_by_parent(user.id, nil)}
-            end
-        end
-      else
-        {nil, Paths.list_paths_by_parent(user.id, nil)}
-      end
-
-    # Build breadcrumbs if we have a current parent (uses efficient CTE query)
-    breadcrumbs =
-      if current_parent, do: Paths.get_path_with_ancestors(current_parent.id), else: []
-
-    # Initialize form
+    {current_parent, paths} = resolve_parent_and_paths(user.id, parent_id)
+    breadcrumbs = build_breadcrumbs(current_parent)
     form = to_form(%{"path" => ""}, as: "path")
 
     {:ok,
@@ -239,6 +215,27 @@ defmodule PlugboardWeb.PathsLive.Index do
      )
      |> stream(:paths, paths)}
   end
+
+  defp resolve_parent_and_paths(user_id, nil) do
+    {nil, Paths.list_paths_by_parent(user_id, nil)}
+  end
+
+  defp resolve_parent_and_paths(user_id, parent_id) do
+    case Paths.get_path(parent_id) do
+      nil ->
+        {nil, Paths.list_paths_by_parent(user_id, nil)}
+
+      parent ->
+        if Paths.get_user_path(user_id, parent.id) do
+          {parent, Paths.list_paths_by_parent(user_id, parent.id)}
+        else
+          {nil, Paths.list_paths_by_parent(user_id, nil)}
+        end
+    end
+  end
+
+  defp build_breadcrumbs(nil), do: []
+  defp build_breadcrumbs(parent), do: Paths.get_path_with_ancestors(parent.id)
 
   @impl true
   def handle_event("create_path", %{"path" => %{"path" => path_name}}, socket) do
@@ -278,10 +275,9 @@ defmodule PlugboardWeb.PathsLive.Index do
               String.replace(acc, "%{#{key}}", to_string(value))
             end)
           end)
-          |> Enum.map(fn {_field, errors} ->
+          |> Enum.map_join("; ", fn {_field, errors} ->
             Enum.join(errors, ", ")
           end)
-          |> Enum.join("; ")
 
         {:noreply,
          socket
@@ -299,48 +295,7 @@ defmodule PlugboardWeb.PathsLive.Index do
         {:noreply, put_flash(socket, :error, "Path not found")}
 
       path ->
-        # Check if path can be marked as mount (no children)
-        can_mount? = Paths.can_mark_as_mount?(path)
-
-        cond do
-          # Trying to mount but path has children
-          !path.mount_point && !can_mount? ->
-            {:noreply,
-             put_flash(
-               socket,
-               :error,
-               "Cannot mark as mount point: path has children. Mount points must be terminal."
-             )}
-
-          # Toggle mount_point
-          true ->
-            case Paths.update_path(user.id, path, %{mount_point: !path.mount_point}) do
-              {:ok, _updated_path} ->
-                # Reload paths for current context
-                parent_id =
-                  if socket.assigns.current_parent,
-                    do: socket.assigns.current_parent.id,
-                    else: nil
-
-                paths = Paths.list_paths_by_parent(user.id, parent_id)
-
-                {:noreply,
-                 socket
-                 |> assign(paths_empty?: paths == [])
-                 |> stream(:paths, paths, reset: true)
-                 |> put_flash(
-                   :info,
-                   if(path.mount_point, do: "Unmounted path.", else: "Mounted path.")
-                 )}
-
-              {:error, :unauthorized} ->
-                {:noreply,
-                 put_flash(socket, :error, "You don't have permission to modify this path")}
-
-              {:error, _changeset} ->
-                {:noreply, put_flash(socket, :error, "Failed to update path")}
-            end
-        end
+        do_toggle_mount(socket, user, path)
     end
   end
 
@@ -446,6 +401,46 @@ defmodule PlugboardWeb.PathsLive.Index do
       {:noreply,
        put_flash(socket, :error, "Confirmation does not match. Please enter the exact full path.")}
     end
+  end
+
+  defp do_toggle_mount(socket, user, path) do
+    can_mount? = Paths.can_mark_as_mount?(path)
+
+    # Trying to mount but path has children
+    if !path.mount_point && !can_mount? do
+      {:noreply,
+       put_flash(
+         socket,
+         :error,
+         "Cannot mark as mount point: path has children. Mount points must be terminal."
+       )}
+    else
+      perform_mount_toggle(socket, user, path)
+    end
+  end
+
+  defp perform_mount_toggle(socket, user, path) do
+    case Paths.update_path(user.id, path, %{mount_point: !path.mount_point}) do
+      {:ok, _updated_path} ->
+        {:noreply, refresh_paths_after_mount(socket, user, path)}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "You don't have permission to modify this path")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to update path")}
+    end
+  end
+
+  defp refresh_paths_after_mount(socket, user, path) do
+    parent_id = if socket.assigns.current_parent, do: socket.assigns.current_parent.id, else: nil
+    paths = Paths.list_paths_by_parent(user.id, parent_id)
+    message = if path.mount_point, do: "Unmounted path.", else: "Mounted path."
+
+    socket
+    |> assign(paths_empty?: paths == [])
+    |> stream(:paths, paths, reset: true)
+    |> put_flash(:info, message)
   end
 
   defp handle_path_click(path) do

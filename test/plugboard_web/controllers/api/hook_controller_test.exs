@@ -3,8 +3,8 @@ defmodule PlugboardWeb.Api.HookControllerTest do
 
   import Plugboard.AccountsFixtures
 
-  alias Plugboard.Paths
   alias Plugboard.Hooks
+  alias Plugboard.Paths
 
   setup %{conn: conn} do
     user = user_fixture()

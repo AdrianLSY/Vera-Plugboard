@@ -75,6 +75,8 @@ defmodule PlugboardWeb.HTTPError do
   import Plug.Conn
   require Logger
 
+  alias Plug.Conn.Status
+
   # Type definitions
   @type status :: integer() | atom()
   @type error_opts :: [
@@ -248,7 +250,7 @@ defmodule PlugboardWeb.HTTPError do
   defp normalize_status(status) when is_integer(status), do: status
 
   defp normalize_status(status) when is_atom(status) do
-    Plug.Conn.Status.code(status)
+    Status.code(status)
   end
 
   defp default_reason(400), do: "Bad Request"
@@ -390,9 +392,7 @@ defmodule PlugboardWeb.HTTPError do
 
   defp render_details(details) when is_map(details) do
     formatted_details =
-      details
-      |> Enum.map(fn {key, value} -> "#{key}: #{inspect(value)}" end)
-      |> Enum.join("\n")
+      Enum.map_join(details, "\n", fn {key, value} -> "#{key}: #{inspect(value)}" end)
 
     """
     <div class="details">

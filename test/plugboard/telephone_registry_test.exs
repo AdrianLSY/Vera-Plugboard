@@ -1,8 +1,8 @@
 defmodule Plugboard.TelephoneRegistryTest do
   use ExUnit.Case, async: false
 
-  alias Plugboard.TelephoneRegistry
   alias Plugboard.DistributedRegistry
+  alias Plugboard.TelephoneRegistry
 
   # async: false because we're testing a shared registry
 
@@ -315,7 +315,7 @@ defmodule Plugboard.TelephoneRegistryTest do
 
       assert is_list(members)
       # Should have at least one member (current node)
-      assert length(members) >= 1
+      assert members != []
 
       # Each member should be a tuple {module, node}
       for member <- members do

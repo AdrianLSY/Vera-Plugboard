@@ -3,8 +3,8 @@ defmodule PlugboardWeb.Api.DomainAffinityControllerTest do
 
   import Plugboard.AccountsFixtures
 
-  alias Plugboard.Paths
   alias Plugboard.DomainAffinities
+  alias Plugboard.Paths
 
   describe "POST /api/paths/:path_id/domain-affinities" do
     setup %{conn: conn} do

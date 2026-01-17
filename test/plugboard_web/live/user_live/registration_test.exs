@@ -1,8 +1,14 @@
 defmodule PlugboardWeb.UserLive.RegistrationTest do
-  use PlugboardWeb.ConnCase, async: true
+  use PlugboardWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
   import Plugboard.AccountsFixtures
+
+  setup do
+    # Clear rate limit counters to avoid cross-test rate limiting
+    :ets.delete_all_objects(:plugboard_rate_limit_counters)
+    :ok
+  end
 
   describe "Registration page" do
     test "renders registration page", %{conn: conn} do

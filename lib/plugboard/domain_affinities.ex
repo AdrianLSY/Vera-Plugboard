@@ -10,9 +10,10 @@ defmodule Plugboard.DomainAffinities do
   """
 
   import Ecto.Query
-  alias Plugboard.Repo
-  alias Plugboard.Paths
+
   alias Plugboard.DomainAffinities.DomainAffinity
+  alias Plugboard.Paths
+  alias Plugboard.Repo
 
   @doc """
   Lists all active domain affinities.

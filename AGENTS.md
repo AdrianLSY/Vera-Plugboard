@@ -18,6 +18,49 @@ This is a web application written using the Phoenix web framework.
 - All required environment variables must be documented in `.env` and `README.md`
 - Optional environment variables (like `DNS_CLUSTER_QUERY`) should be clearly marked as optional in documentation
 
+### Rate limiting
+
+Plugboard implements ETS-based rate limiting to protect against abuse:
+
+- **Auth endpoints:** 5 requests/minute per IP (login, registration)
+- **API endpoints:** 100 requests/minute per API key or IP (token management, service accounts, hooks)
+- **Proxy endpoints:** 10,000 requests/minute per IP (all /call/* and domain routes)
+
+**Implementation:**
+
+- **Core Module:** `Plugboard.RateLimiter` (GenServer with ETS storage) - `lib/plugboard/rate_limiter.ex`
+- **Plug Module:** `PlugboardWeb.Plugs.RateLimiter` - `lib/plugboard_web/plugs/rate_limiter.ex`
+- Applied via router pipelines: `:rate_limit_auth`, `:rate_limit_api`, and directly in `:proxy`/`:domain_proxy` pipelines
+
+**Router integration:**
+
+```elixir
+# Auth endpoints (IP-based)
+pipeline :rate_limit_auth do
+  plug PlugboardWeb.Plugs.RateLimiter, bucket: :auth, by: :ip
+end
+
+# API endpoints (API key with IP fallback)
+pipeline :rate_limit_api do
+  plug PlugboardWeb.Plugs.RateLimiter, bucket: :api, by: :api_key
+end
+
+# Proxy endpoints (IP-based, added directly to pipelines)
+plug PlugboardWeb.Plugs.RateLimiter, bucket: :proxy, by: :ip
+```
+
+**Configuration via environment variables:**
+
+- `RATE_LIMIT_AUTH_LIMIT` / `RATE_LIMIT_AUTH_WINDOW_MS` - Auth bucket (default: 5 req/60s)
+- `RATE_LIMIT_API_LIMIT` / `RATE_LIMIT_API_WINDOW_MS` - API bucket (default: 100 req/60s)
+- `RATE_LIMIT_PROXY_LIMIT` / `RATE_LIMIT_PROXY_WINDOW_MS` - Proxy bucket (default: 10000 req/60s)
+
+**Testing considerations:**
+
+- Use `async: false` for tests (ETS table is shared)
+- Clean up ETS table in setup: `:ets.delete_all_objects(:plugboard_rate_limit_counters)`
+- Test files: `test/plugboard/rate_limiter_test.exs`, `test/plugboard_web/plugs/rate_limiter_test.exs`, `test/plugboard_web/rate_limiting_integration_test.exs`
+
 ### Phoenix v1.8 guidelines
 
 - **Always** begin your LiveView templates with `<Layouts.app flash={@flash} ...>` which wraps all inner content

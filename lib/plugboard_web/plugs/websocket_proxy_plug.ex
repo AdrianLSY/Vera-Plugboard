@@ -134,14 +134,12 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
   end
 
   defp match_route(conn) do
-    cond do
-      # Path-based routing: /call/*
-      String.starts_with?(conn.request_path, "/call/") ->
-        match_by_path(conn)
-
+    # Path-based routing: /call/*
+    if String.starts_with?(conn.request_path, "/call/") do
+      match_by_path(conn)
+    else
       # Domain-based routing
-      true ->
-        match_by_domain(conn)
+      match_by_domain(conn)
     end
   end
 

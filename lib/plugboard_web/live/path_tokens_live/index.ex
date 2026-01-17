@@ -1162,10 +1162,9 @@ defmodule PlugboardWeb.PathTokensLive.Index do
           {:error, changeset} ->
             errors =
               Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
-              |> Enum.map(fn {field, messages} ->
+              |> Enum.map_join("; ", fn {field, messages} ->
                 "#{field}: #{Enum.join(messages, ", ")}"
               end)
-              |> Enum.join("; ")
 
             {:noreply, put_flash(socket, :error, "Failed to create domain affinity: #{errors}")}
         end
@@ -1235,10 +1234,9 @@ defmodule PlugboardWeb.PathTokensLive.Index do
         {:error, changeset} ->
           errors =
             Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
-            |> Enum.map(fn {field, messages} ->
+            |> Enum.map_join("; ", fn {field, messages} ->
               "#{field}: #{Enum.join(messages, ", ")}"
             end)
-            |> Enum.join("; ")
 
           {:noreply, put_flash(socket, :error, "Failed to create hook: #{errors}")}
       end

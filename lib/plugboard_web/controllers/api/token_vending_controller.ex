@@ -51,71 +51,17 @@ defmodule PlugboardWeb.Api.TokenVendingController do
 
   defp generate_with_api_key(conn, api_key, params) do
     path_id = Map.get(params, "path_id")
-    description = Map.get(params, "description")
-    instance_id = Map.get(params, "instance_id")
 
-    # Validate API key and get service account
     case ServiceAccounts.validate_and_mark_used(api_key) do
       {:ok, %{service_account: sa, path: path, user_id: user_id}} ->
-        # Verify the requested path_id matches the service account's path
-        if path_id && path_id != path.id do
-          conn
-          |> put_status(:forbidden)
-          |> json(%{
-            error: "Service account does not have access to this path",
-            allowed_path_id: path.id,
-            requested_path_id: path_id
-          })
-        else
-          # Generate name and description
-          {token_name, token_description} =
-            case {description, instance_id} do
-              {nil, nil} ->
-                {"Auto-generated for #{sa.name}", nil}
+        case verify_path_access(path_id, path) do
+          :ok ->
+            do_generate_token(conn, sa, path, user_id, params)
 
-              {desc, nil} ->
-                {desc, nil}
-
-              {nil, inst_id} ->
-                {"#{sa.name} - #{inst_id}", nil}
-
-              {desc, inst_id} ->
-                {"#{inst_id}", desc}
-            end
-
-          # Get user record for token generation
-          user = Plugboard.Accounts.get_user!(user_id)
-
-          # Generate token
-          case TelephoneTokens.generate_token(path, user, token_name, token_description) do
-            {:ok, jwt, token} ->
-              expiry_seconds =
-                Application.get_env(:plugboard, :telephone)[:token_expiry] || 3600
-
-              Logger.info(
-                "Token vended for service account #{sa.name} (#{sa.id}), path #{path.full_path}"
-              )
-
-              conn
-              |> put_status(:created)
-              |> json(%{
-                token: jwt,
-                token_id: token.id,
-                path: path.full_path,
-                expires_at: token.expires_at,
-                expires_in: expiry_seconds
-              })
-
-            {:error, reason} when is_binary(reason) ->
-              conn
-              |> put_status(:unprocessable_entity)
-              |> json(%{error: reason})
-
-            {:error, changeset} ->
-              conn
-              |> put_status(:unprocessable_entity)
-              |> json(%{error: "Failed to generate token", details: changeset})
-          end
+          {:error, :forbidden, details} ->
+            conn
+            |> put_status(:forbidden)
+            |> json(details)
         end
 
       {:error, reason} ->
@@ -125,6 +71,62 @@ defmodule PlugboardWeb.Api.TokenVendingController do
         |> put_status(:unauthorized)
         |> json(%{error: "Invalid or revoked service account API key"})
     end
+  end
+
+  defp verify_path_access(nil, _path), do: :ok
+  defp verify_path_access(path_id, path) when path_id == path.id, do: :ok
+
+  defp verify_path_access(path_id, path) do
+    {:error, :forbidden,
+     %{
+       error: "Service account does not have access to this path",
+       allowed_path_id: path.id,
+       requested_path_id: path_id
+     }}
+  end
+
+  defp do_generate_token(conn, sa, path, user_id, params) do
+    description = Map.get(params, "description")
+    instance_id = Map.get(params, "instance_id")
+    {token_name, token_description} = build_token_metadata(sa, description, instance_id)
+
+    user = Plugboard.Accounts.get_user!(user_id)
+
+    case TelephoneTokens.generate_token(path, user, token_name, token_description) do
+      {:ok, jwt, token} ->
+        send_token_response(conn, jwt, token, path, sa)
+
+      {:error, reason} when is_binary(reason) ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: reason})
+
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Failed to generate token", details: changeset})
+    end
+  end
+
+  defp build_token_metadata(sa, nil, nil), do: {"Auto-generated for #{sa.name}", nil}
+  defp build_token_metadata(_sa, desc, nil), do: {desc, nil}
+  defp build_token_metadata(sa, nil, inst_id), do: {"#{sa.name} - #{inst_id}", nil}
+  defp build_token_metadata(_sa, desc, inst_id), do: {"#{inst_id}", desc}
+
+  defp send_token_response(conn, jwt, token, path, sa) do
+    expiry_seconds = Application.get_env(:plugboard, :telephone)[:token_expiry] || 3600
+
+    Logger.info("Token vended for service account #{sa.name} (#{sa.id}), path #{path.full_path}")
+
+    conn
+    |> put_status(:created)
+    |> json(%{
+      token: jwt,
+      token_id: token.id,
+      path: path.full_path,
+      expires_at: token.expires_at,
+      expires_in: expiry_seconds
+    })
   end
 
   # Private functions

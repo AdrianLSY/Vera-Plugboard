@@ -130,6 +130,12 @@ Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneC
 | `SESSION_ENCRYPTION_SALT` | Salt for session cookie encryption | - |
 | `DATABASE_SSL` | Enable SSL for database connections | `true` (prod) |
 | `FORCE_SSL` | Force HTTPS redirect | `true` (prod) |
+| `RATE_LIMIT_AUTH_LIMIT` | Auth requests per window | `5` |
+| `RATE_LIMIT_AUTH_WINDOW_MS` | Auth window duration (ms) | `60000` (1 min) |
+| `RATE_LIMIT_API_LIMIT` | API requests per window | `100` |
+| `RATE_LIMIT_API_WINDOW_MS` | API window duration (ms) | `60000` (1 min) |
+| `RATE_LIMIT_PROXY_LIMIT` | Proxy requests per window | `10000` |
+| `RATE_LIMIT_PROXY_WINDOW_MS` | Proxy window duration (ms) | `60000` (1 min) |
 
 ## LiveView Patterns
 

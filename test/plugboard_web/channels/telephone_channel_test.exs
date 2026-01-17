@@ -3,10 +3,11 @@ defmodule PlugboardWeb.TelephoneChannelTest do
 
   import Plugboard.AccountsFixtures
   import ExUnit.CaptureLog
-  alias PlugboardWeb.TelephoneSocket
+
   alias Plugboard.Paths
-  alias Plugboard.TelephoneTokens
   alias Plugboard.TelephoneRegistry
+  alias Plugboard.TelephoneTokens
+  alias PlugboardWeb.TelephoneSocket
 
   # async: false because we're testing a registry and channel state
 

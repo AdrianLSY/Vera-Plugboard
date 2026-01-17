@@ -1,8 +1,8 @@
 defmodule PlugboardWeb.Api.ServiceAccountControllerTest do
   use PlugboardWeb.ConnCase
 
-  alias Plugboard.ServiceAccounts
   alias Plugboard.Paths
+  alias Plugboard.ServiceAccounts
 
   setup %{conn: conn} do
     user = Plugboard.AccountsFixtures.user_fixture()

@@ -3,8 +3,8 @@ defmodule Plugboard.HookStoreTest do
 
   import Plugboard.AccountsFixtures
 
-  alias Plugboard.HookStore
   alias Plugboard.Hooks
+  alias Plugboard.HookStore
   alias Plugboard.Paths
 
   setup do

@@ -663,6 +663,87 @@ docker run --rm -it \
 | `SESSION_ENCRYPTION_SALT`                      | Salt for session cookie encryption    | Random string                         | ❌       |
 | `DATABASE_SSL`                                 | Enable SSL for database connections   | `true` (prod)                         | ❌       |
 | `FORCE_SSL`                                    | Force HTTPS redirect                  | `true` (prod)                         | ❌       |
+| `RATE_LIMIT_AUTH_LIMIT`                        | Auth requests per window              | `5`                                   | ❌       |
+| `RATE_LIMIT_AUTH_WINDOW_MS`                    | Auth window duration (ms)             | `60000` (1 min)                       | ❌       |
+| `RATE_LIMIT_API_LIMIT`                         | API requests per window               | `100`                                 | ❌       |
+| `RATE_LIMIT_API_WINDOW_MS`                     | API window duration (ms)              | `60000` (1 min)                       | ❌       |
+| `RATE_LIMIT_PROXY_LIMIT`                       | Proxy requests per window             | `10000`                               | ❌       |
+| `RATE_LIMIT_PROXY_WINDOW_MS`                   | Proxy window duration (ms)            | `60000` (1 min)                       | ❌       |
+
+---
+
+## Rate Limiting
+
+Plugboard includes built-in rate limiting to protect against abuse and ensure system stability.
+
+### Rate Limit Tiers
+
+| Endpoint Type | Default Limit | Window | Key Strategy |
+|---------------|---------------|--------|--------------|
+| Authentication | 5 requests | 1 minute | IP address |
+| API Endpoints | 100 requests | 1 minute | API key (fallback: IP) |
+| Proxy Requests | 10,000 requests | 1 minute | IP address |
+
+### Protected Endpoints
+
+**Authentication (IP-based):**
+- `POST /users/log-in` - Login submissions
+- `GET /users/register` - Registration page
+- `GET /users/log-in` - Login page
+
+**API (API key or IP):**
+- All `/api/paths/:path_id/tokens` routes
+- All `/api/paths/:path_id/service-accounts` routes
+- All `/api/paths/:path_id/domain-affinities` routes
+- All `/api/paths/:path_id/hooks` routes
+- `POST /api/token-vending/generate` - Service account API
+
+**Proxy (IP-based):**
+- All `/call/*path` proxy routes
+- All domain affinity proxy routes
+
+### Rate Limit Headers
+
+All responses include standard rate limit headers:
+
+```http
+X-RateLimit-Limit: 100          # Maximum requests allowed
+X-RateLimit-Remaining: 75       # Requests remaining in window
+X-RateLimit-Reset: 1705339200   # Unix timestamp when limit resets
+```
+
+### Rate Limit Exceeded Response
+
+When rate limited, clients receive a `429 Too Many Requests` response:
+
+```http
+HTTP/1.1 429 Too Many Requests
+X-RateLimit-Limit: 5
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1705339260
+Retry-After: 60
+
+{
+  "error": "Too many requests",
+  "retry_after": 60
+}
+```
+
+### Production Tuning
+
+**Conservative limits (high security):**
+```bash
+RATE_LIMIT_AUTH_LIMIT=3
+RATE_LIMIT_API_LIMIT=50
+RATE_LIMIT_PROXY_LIMIT=5000
+```
+
+**Generous limits (high traffic):**
+```bash
+RATE_LIMIT_AUTH_LIMIT=10
+RATE_LIMIT_API_LIMIT=200
+RATE_LIMIT_PROXY_LIMIT=20000
+```
 
 ---
 

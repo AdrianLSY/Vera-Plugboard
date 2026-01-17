@@ -1,5 +1,5 @@
 defmodule PlugboardWeb.UserLive.ConfirmationTest do
-  use PlugboardWeb.ConnCase, async: true
+  use PlugboardWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
   import Plugboard.AccountsFixtures
@@ -7,6 +7,8 @@ defmodule PlugboardWeb.UserLive.ConfirmationTest do
   alias Plugboard.Accounts
 
   setup do
+    # Clear rate limit counters to avoid cross-test rate limiting
+    :ets.delete_all_objects(:plugboard_rate_limit_counters)
     %{unconfirmed_user: unconfirmed_user_fixture(), confirmed_user: user_fixture()}
   end
 

@@ -3,8 +3,8 @@ defmodule Plugboard.Hooks.ExecutorTest do
 
   import Plugboard.AccountsFixtures
 
+  alias Plugboard.{Hooks, HookStore, MountStore, Paths}
   alias Plugboard.Hooks.Executor
-  alias Plugboard.{Paths, Hooks, HookStore, MountStore}
 
   describe "execute_hooks/2 with no hooks" do
     setup do

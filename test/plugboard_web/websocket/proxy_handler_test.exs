@@ -1,8 +1,8 @@
 defmodule PlugboardWeb.WebSocket.ProxyHandlerTest do
   use ExUnit.Case, async: false
 
-  alias PlugboardWeb.WebSocket.ProxyHandler
   alias Plugboard.WebSocketProxyRegistry
+  alias PlugboardWeb.WebSocket.ProxyHandler
 
   # Clean up registry between tests
   setup do
