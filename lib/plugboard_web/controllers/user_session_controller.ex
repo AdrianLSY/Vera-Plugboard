@@ -5,7 +5,7 @@ defmodule PlugboardWeb.UserSessionController do
   alias PlugboardWeb.UserAuth
 
   def create(conn, %{"_action" => "confirmed"} = params) do
-    create(conn, params, "Welcome aboard! Your account is all set.")
+    create(conn, params, "Welcome! Your account is all set.")
   end
 
   def create(conn, params) do

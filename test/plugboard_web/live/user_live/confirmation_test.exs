@@ -48,7 +48,7 @@ defmodule PlugboardWeb.UserLive.ConfirmationTest do
       conn = follow_trigger_action(form, conn)
 
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~
-               "Welcome aboard! Your account is all set."
+               "Welcome! Your account is all set."
 
       assert Accounts.get_user!(user.id).confirmed_at
       # we are logged in now
