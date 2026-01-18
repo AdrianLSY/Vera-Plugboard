@@ -101,7 +101,7 @@ docker run -d \
   -e POSTGRES_USER=plugboard \
   -e POSTGRES_PASSWORD=plugboard \
   -e POSTGRES_DB=plugboard \
-  -p 6432:5432 \
+  -p 5432:5432 \
   postgres:14
 
 # Start Plugboard
