@@ -493,6 +493,7 @@ Each proxied request receives a unique correlation ID, allowing multiple concurr
 | `mount_point` | Boolean | Whether this path accepts telephone connections |
 | `request_timeout_ms` | Integer | Max time to wait for telephone response (default: 60000) |
 | `connect_timeout_ms` | Integer | Max time to wait for telephone connection (default: 5000) |
+| `check_timeout_ms` | Integer | WebSocket check timeout override (NULL uses global default) |
 | `inserted_at` | Timestamp | Creation time |
 | `updated_at` | Timestamp | Last modification |
 | `deleted_at` | Timestamp | Soft delete timestamp |

@@ -306,13 +306,25 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
     }
 
     # Get WebSocket options from config
-    # NEW: Use backend's protocol, not client's requested list
-    ws_opts = build_websocket_options_with_protocol(backend_info.protocol)
+    ws_opts = build_websocket_options()
 
     # Upgrade to WebSocket
+    # Note: We must set the Sec-WebSocket-Protocol header manually because
+    # WebSockAdapter doesn't support the subprotocols option.
     conn
+    |> put_websocket_protocol_header(backend_info.protocol)
     |> WebSockAdapter.upgrade(ProxyHandler, handler_state, ws_opts)
     |> halt()
+  end
+
+  # Set the Sec-WebSocket-Protocol response header if backend selected a protocol.
+  # This is required because WebSockAdapter doesn't support the subprotocols option -
+  # we must set the header manually for transparent protocol negotiation.
+  defp put_websocket_protocol_header(conn, nil), do: conn
+  defp put_websocket_protocol_header(conn, ""), do: conn
+
+  defp put_websocket_protocol_header(conn, protocol) when is_binary(protocol) do
+    put_resp_header(conn, "sec-websocket-protocol", protocol)
   end
 
   defp extract_websocket_headers(conn) do
@@ -335,60 +347,16 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
     |> Map.new()
   end
 
-  defp build_websocket_options(subprotocols) do
-    config = Application.get_env(:plugboard, :websocket_proxy) || []
-
-    opts = [
-      timeout: config[:idle_timeout_ms] || 300_000,
-      max_frame_size: config[:max_frame_size] || 1_048_576,
-      compress: true
-    ]
-
-    # Add subprotocols if client requested any
-    case subprotocols do
-      [protocols] when is_binary(protocols) ->
-        # Parse comma-separated list of protocols
-        protocol_list =
-          protocols
-          |> String.split(",")
-          |> Enum.map(&String.trim/1)
-
-        Keyword.put(opts, :subprotocols, protocol_list)
-
-      _ ->
-        opts
-    end
-  end
-
-  # Build WebSocket options with specific protocol from backend
-  # This ensures transparent protocol negotiation - backend's choice is used
-  defp build_websocket_options_with_protocol(nil) do
-    # Backend didn't select a protocol
+  # Build WebSocket connection options.
+  # Note: Subprotocols are NOT handled here - WebSockAdapter ignores that option.
+  # Protocol negotiation is handled via put_websocket_protocol_header/2 instead.
+  defp build_websocket_options do
     config = Application.get_env(:plugboard, :websocket_proxy) || []
 
     [
       timeout: config[:idle_timeout_ms] || 300_000,
       max_frame_size: config[:max_frame_size] || 1_048_576,
-      compress: true
+      compress: config[:compress] != false
     ]
-  end
-
-  defp build_websocket_options_with_protocol(protocol)
-       when is_binary(protocol) and protocol != "" do
-    # Backend selected a protocol - use it for transparent proxying!
-    config = Application.get_env(:plugboard, :websocket_proxy) || []
-
-    [
-      timeout: config[:idle_timeout_ms] || 300_000,
-      max_frame_size: config[:max_frame_size] || 1_048_576,
-      compress: true,
-      # Use backend's selected protocol
-      subprotocols: [protocol]
-    ]
-  end
-
-  defp build_websocket_options_with_protocol("") do
-    # Empty string means no protocol
-    build_websocket_options_with_protocol(nil)
   end
 end

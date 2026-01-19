@@ -201,6 +201,13 @@ config :plugboard, Plugboard.MountStore,
   reconcile_interval:
     (System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") || "300000") |> String.to_integer()
 
+# HookStore configuration
+# HOOK_STORE_RECONCILE_INTERVAL: How often to reconcile hooks with DB (ms)
+# Default: 300000 (5 minutes)
+config :plugboard, Plugboard.HookStore,
+  reconcile_interval:
+    (System.get_env("HOOK_STORE_RECONCILE_INTERVAL") || "300000") |> String.to_integer()
+
 # Telephone token configuration
 # TELEPHONE_TOKEN_EXPIRY: Token validity duration (seconds). Default: 3600 (1 hour)
 # TELEPHONE_TOKEN_REFRESH_INTERVAL: How often clients should refresh (seconds). Default: 1800 (30 min)

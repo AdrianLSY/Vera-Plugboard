@@ -81,8 +81,6 @@ Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneC
 ```
 Client WS → WebSocketProxyPlug → ETS lookup → Horde registry → ProxyHandler ↔ TelephoneChannel ↔ Telephone → Backend WS
 ```
-Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneChannel → Telephone sidecar → Backend
-```
 
 ## Configuration
 
@@ -161,6 +159,7 @@ Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneC
 - `mount_point` (boolean) - Whether this path accepts telephone connections
 - `request_timeout_ms` (integer) - Max time to wait for telephone response (default: 60000)
 - `connect_timeout_ms` (integer) - Max time to wait for telephone connection (default: 5000)
+- `check_timeout_ms` (integer) - WebSocket check timeout override (NULL uses global default)
 - `deleted_at` (timestamp) - Soft delete support
 
 ## Clustering

@@ -24,6 +24,7 @@ defmodule Plugboard.Paths.Path do
 
     field :request_timeout_ms, :integer, default: 60_000
     field :connect_timeout_ms, :integer, default: 5000
+    field :check_timeout_ms, :integer
 
     belongs_to :parent, __MODULE__
 
@@ -55,10 +56,11 @@ defmodule Plugboard.Paths.Path do
   """
   def update_changeset(path, attrs) do
     path
-    |> cast(attrs, [:path, :mount_point, :request_timeout_ms, :connect_timeout_ms])
+    |> cast(attrs, [:path, :mount_point, :request_timeout_ms, :connect_timeout_ms, :check_timeout_ms])
     |> validate_path_segment()
     |> validate_number(:request_timeout_ms, greater_than: 0, less_than_or_equal_to: 300_000)
     |> validate_number(:connect_timeout_ms, greater_than: 0, less_than_or_equal_to: 60_000)
+    |> validate_number(:check_timeout_ms, greater_than: 0, less_than_or_equal_to: 60_000)
   end
 
   @doc """
