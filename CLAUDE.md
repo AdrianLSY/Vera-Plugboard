@@ -79,8 +79,20 @@ Client HTTP → ProxyController → ETS lookup → Horde registry → TelephoneC
 
 **WebSocket Connections:**
 ```
-Client WS → WebSocketProxyPlug → ETS lookup → Horde registry → ProxyHandler ↔ TelephoneChannel ↔ Telephone → Backend WS
+Client WS Upgrade Request
+       ↓
+WebSocketProxyPlug → ETS lookup → Horde registry
+       ↓
+[ws_check pre-flight] → TelephoneChannel → Telephone → Backend (verify support)
+       ↓
+← ws_check_result (supported, protocol) ←
+       ↓
+← 101 Switching Protocols + Sec-WebSocket-Protocol ←
+       ↓
+ProxyHandler ↔ TelephoneChannel ↔ Telephone ↔ Backend WS (bidirectional frames)
 ```
+
+**Note:** `Sec-WebSocket-Protocol` must be set manually via `put_resp_header/3` before upgrade - `WebSockAdapter` ignores the `subprotocols` option.
 
 ## Configuration
 

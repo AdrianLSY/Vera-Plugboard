@@ -246,6 +246,10 @@ Hook returns 403 (not in allowed_status_codes [200, 201, 202, 204])
 
 Plugboard supports transparent WebSocket proxying, allowing clients to establish WebSocket connections that are forwarded through Telephone sidecars to backend services.
 
+The proxy uses a **two-phase connection process**:
+1. **Pre-flight check (`ws_check`)** - Verifies backend WebSocket support and captures the negotiated subprotocol
+2. **Connection (`ws_connect`)** - Establishes the actual bidirectional WebSocket tunnel
+
 ```
 ┌──────────────┐
 │    Client    │
@@ -262,18 +266,33 @@ Plugboard supports transparent WebSocket proxying, allowing clients to establish
 │     → Finds: api.example.com → /call/api            │
 │  3. TelephoneRegistry.get_telephone(path_id)        │
 │     → Gets available telephone                      │
-│  4. WebSockAdapter.upgrade() → ProxyHandler         │
-│  5. ProxyHandler sends ws_connect to Telephone      │
+│  4. Send ws_check to verify backend support         │
+│     → Includes path, headers, subprotocols          │
+│  5. Receive ws_check_result                         │
+│     → supported: true/false                         │
+│     → protocol: negotiated subprotocol              │
+│  6. WebSockAdapter.upgrade() → ProxyHandler         │
+│     → Manually set Sec-WebSocket-Protocol header    │
+│  7. ProxyHandler sends ws_connect to Telephone      │
 └────────────┬────────────────────────────────────────┘
              │ Phoenix Channel (existing connection)
              ▼
 ┌─────────────────────────────────────────────────────┐
 │           Telephone Sidecar                         │
 │                                                     │
+│  ws_check handler:                                  │
+│  1. Receives ws_check event                         │
+│  2. Opens test WebSocket to backend                 │
+│     → Filters hop-by-hop headers                    │
+│     → Negotiates subprotocol                        │
+│  3. Captures negotiated protocol, closes connection │
+│  4. Sends ws_check_result back to Plugboard         │
+│                                                     │
+│  ws_connect handler:                                │
 │  1. Receives ws_connect event                       │
 │  2. Opens WebSocket to backend                      │
 │     → wss://localhost:3000/websocket                │
-│     → Negotiates subprotocol (graphql-ws)           │
+│     → Uses previously negotiated subprotocol        │
 │  3. Sends ws_connected back to Plugboard            │
 │  4. Bidirectional frame forwarding:                 │
 │     Client ←→ Plugboard ←→ Telephone ←→ Backend     │
@@ -287,12 +306,21 @@ Plugboard supports transparent WebSocket proxying, allowing clients to establish
 └─────────────────────────────────────────────────────┘
 ```
 
+**Why Pre-flight Check?**
+- Ensures backend supports WebSocket before upgrading the client connection
+- Captures the exact subprotocol negotiated by the backend
+- Allows Plugboard to return proper `Sec-WebSocket-Protocol` header in 101 response
+- Prevents client from receiving a successful upgrade to a non-functional connection
+
 **WebSocket Proxy Features:**
-- Transparent subprotocol negotiation (graphql-ws, wamp, etc.)
+- Transparent subprotocol negotiation (graphql-ws, actioncable-v1-json, wamp, etc.)
 - Binary and text frame support
 - Works with path-based (`/call/api/ws`) and domain-based routing
 - Same authentication/authorization as HTTP proxy
 - Automatic cleanup on client/backend disconnect
+
+**Implementation Note:**
+`WebSockAdapter.upgrade/3` ignores the `subprotocols` option. The `Sec-WebSocket-Protocol` response header must be set manually using `put_resp_header/3` before calling upgrade.
 
 ---
 
