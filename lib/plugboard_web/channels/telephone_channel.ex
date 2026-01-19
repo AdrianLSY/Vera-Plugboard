@@ -51,11 +51,12 @@ defmodule PlugboardWeb.TelephoneChannel do
       # Check at half the timeout interval for better detection
       heartbeat_check_interval = div(heartbeat_timeout_ms, 2)
 
-      # Initialize waiting callers map, WebSocket connections map, and heartbeat tracking
+      # Initialize waiting callers map, WebSocket connections map, pending checks, and heartbeat tracking
       socket =
         socket
         |> assign(:waiting_callers, %{})
         |> assign(:ws_connections, %{})
+        |> assign(:pending_ws_checks, %{})
         |> assign(:last_heartbeat, System.monotonic_time(:millisecond))
         |> assign(:heartbeat_check_interval, heartbeat_check_interval)
 
@@ -137,8 +138,95 @@ defmodule PlugboardWeb.TelephoneChannel do
   end
 
   # =============================================================================
+  # WebSocket Check (synchronous backend verification)
+  # =============================================================================
+
+  @doc """
+  Handle synchronous WebSocket support check.
+
+  This is called via GenServer.call from the WebSocketProxyPlug before upgrading
+  the browser connection. It checks if the backend supports WebSocket and returns
+  the selected protocol for transparent proxying.
+  """
+  @impl true
+  def handle_call({:check_ws_support, check_request}, from, socket) do
+    # Generate unique check ID
+    check_id = Ecto.UUID.generate()
+
+    Logger.debug("Received ws_check request #{check_id} for path #{check_request.path}")
+
+    # Store the caller to reply later (GenServer.reply will be called when result arrives)
+    pending_checks = Map.get(socket.assigns, :pending_ws_checks, %{})
+    socket = assign(socket, :pending_ws_checks, Map.put(pending_checks, check_id, from))
+
+    # Forward check request to Telephone sidecar
+    push(socket, "ws_check", %{
+      "check_id" => check_id,
+      "path" => check_request.path,
+      "query_string" => check_request.query_string,
+      "headers" => check_request.headers
+    })
+
+    :telemetry.execute(
+      [:plugboard, :telephone, :ws_check_sent],
+      %{count: 1},
+      %{path_id: socket.assigns.path_id, check_id: check_id}
+    )
+
+    # Don't reply yet - will reply when ws_check_result arrives
+    {:noreply, socket}
+  end
+
+  # =============================================================================
   # WebSocket Proxy Events (from Telephone sidecar)
   # =============================================================================
+
+  @doc """
+  Handle WebSocket check result from Telephone.
+
+  This is sent by Telephone after it attempts to connect to the backend WebSocket.
+  We use it to reply to the waiting GenServer.call in check_ws_support.
+  """
+  @impl true
+  def handle_in("ws_check_result", payload, socket) do
+    check_id = payload["check_id"]
+    supported = payload["supported"]
+    protocol = payload["protocol"]
+    reason = payload["reason"]
+
+    Logger.debug(
+      "Received ws_check_result #{check_id}: supported=#{supported}, protocol=#{inspect(protocol)}"
+    )
+
+    pending_checks = Map.get(socket.assigns, :pending_ws_checks, %{})
+
+    case Map.pop(pending_checks, check_id) do
+      {nil, _} ->
+        Logger.warning("Received ws_check_result for unknown check_id: #{check_id}")
+        {:noreply, socket}
+
+      {from, remaining_checks} ->
+        # Reply to the waiting GenServer.call
+        reply =
+          if supported do
+            {:ok, %{protocol: protocol}}
+          else
+            {:error, reason || "Backend doesn't support WebSocket"}
+          end
+
+        GenServer.reply(from, reply)
+
+        :telemetry.execute(
+          [:plugboard, :telephone, :ws_check_completed],
+          %{count: 1},
+          %{path_id: socket.assigns.path_id, check_id: check_id, supported: supported}
+        )
+
+        Logger.info("WebSocket check #{check_id} completed: #{inspect(reply)}")
+
+        {:noreply, assign(socket, :pending_ws_checks, remaining_checks)}
+    end
+  end
 
   @impl true
   def handle_in("ws_connected", %{"connection_id" => connection_id} = payload, socket) do

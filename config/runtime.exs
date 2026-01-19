@@ -220,11 +220,14 @@ config :plugboard,
 
 # WebSocket proxy configuration
 # WEBSOCKET_PROXY_ENABLED: Enable/disable WebSocket proxying. Default: true
+# WEBSOCKET_CHECK_TIMEOUT_MS: Timeout for backend WebSocket check (pre-connection). Default: 5000 (5 sec)
 # WEBSOCKET_CONNECT_TIMEOUT_MS: Timeout for backend WebSocket connection. Default: 5000 (5 sec)
 # WEBSOCKET_MAX_FRAME_SIZE: Maximum WebSocket frame size in bytes. Default: 1048576 (1MB)
 # WEBSOCKET_IDLE_TIMEOUT_MS: Idle timeout before closing connection. Default: 300000 (5 min)
 config :plugboard, :websocket_proxy,
   enabled: (System.get_env("WEBSOCKET_PROXY_ENABLED") || "true") == "true",
+  check_timeout_ms:
+    (System.get_env("WEBSOCKET_CHECK_TIMEOUT_MS") || "5000") |> String.to_integer(),
   connect_timeout_ms:
     (System.get_env("WEBSOCKET_CONNECT_TIMEOUT_MS") || "5000") |> String.to_integer(),
   max_frame_size:

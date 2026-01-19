@@ -53,9 +53,11 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
     connection_id = state.connection_id
     path_id = state.path_id
     telephone_pid = state.telephone_pid
+    backend_protocol = Map.get(state, :backend_protocol)
 
     Logger.info(
-      "WebSocket proxy handler started for connection #{connection_id}, path #{path_id}"
+      "WebSocket proxy handler started for connection #{connection_id}, path #{path_id}, " <>
+        "backend protocol: #{inspect(backend_protocol)}"
     )
 
     # Register this connection
@@ -78,16 +80,25 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
       %{connection_id: connection_id, path_id: path_id}
     )
 
-    # Start in "connecting" state - buffer frames until backend connects
-    {:ok,
-     %{
-       connection_id: connection_id,
-       path_id: path_id,
-       telephone_pid: telephone_pid,
-       connected: false,
-       buffer: [],
-       connect_timeout_ref: schedule_connect_timeout()
-     }}
+    # Build handler state
+    handler_state = %{
+      connection_id: connection_id,
+      path_id: path_id,
+      telephone_pid: telephone_pid,
+      connected: false,
+      buffer: [],
+      connect_timeout_ref: schedule_connect_timeout()
+    }
+
+    # Protocol was already negotiated and sent during HTTP upgrade in WebSocketProxyPlug
+    # Log for debugging but don't try to return it (WebSock doesn't support that format)
+    if backend_protocol && backend_protocol != "" do
+      Logger.debug("Using backend-selected protocol: #{backend_protocol}")
+    else
+      Logger.debug("No protocol selected by backend")
+    end
+
+    {:ok, handler_state}
   end
 
   @doc """

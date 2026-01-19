@@ -117,7 +117,44 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
     # minimize the window for the telephone to disconnect.
     case match_route(conn) do
       {:ok, path_id, forwarded_path, telephone_pid} ->
-        upgrade_to_websocket(conn, path_id, forwarded_path, telephone_pid)
+        # NEW: Check backend BEFORE upgrading browser connection
+        # This ensures transparency - backend's protocol selection is used
+        case check_backend_websocket_support(conn, telephone_pid, path_id, forwarded_path) do
+          {:ok, backend_info} ->
+            # Backend confirmed support, now upgrade with correct protocol
+            Logger.info(
+              "Backend WebSocket check succeeded for #{path_id}, protocol: #{inspect(backend_info.protocol)}"
+            )
+
+            upgrade_to_websocket(conn, path_id, forwarded_path, telephone_pid, backend_info)
+
+          {:error, :timeout} ->
+            Logger.error("Backend WebSocket check timeout for path #{path_id}")
+
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(504, Jason.encode!(%{error: "Backend check timeout"}))
+            |> halt()
+
+          {:error, reason} when is_binary(reason) ->
+            Logger.error("Backend doesn't support WebSocket: #{reason}")
+
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(
+              502,
+              Jason.encode!(%{error: "Backend WebSocket not supported", reason: reason})
+            )
+            |> halt()
+
+          {:error, reason} ->
+            Logger.error("Backend WebSocket check failed: #{inspect(reason)}")
+
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(502, Jason.encode!(%{error: "Backend check failed"}))
+            |> halt()
+        end
 
       {:error, :not_found} ->
         # No match - let the request continue to normal routing
@@ -140,6 +177,59 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
     else
       # Domain-based routing
       match_by_domain(conn)
+    end
+  end
+
+  # Check if backend supports WebSocket before upgrading browser connection.
+  # This ensures transparency - backend's protocol selection is used in browser upgrade.
+  defp check_backend_websocket_support(conn, telephone_pid, path_id, forwarded_path) do
+    # Extract headers to forward
+    headers = extract_websocket_headers(conn)
+
+    # Build check request
+    check_request = %{
+      path: forwarded_path,
+      query_string: conn.query_string,
+      headers: headers
+    }
+
+    Logger.debug("Checking backend WebSocket support for path #{path_id}: #{forwarded_path}")
+
+    # Get timeout from path config first, fall back to env default
+    timeout =
+      get_path_timeout(path_id) ||
+        Application.get_env(:plugboard, :websocket_proxy)[:check_timeout_ms] ||
+        5000
+
+    Logger.debug("Using WebSocket check timeout: #{timeout}ms")
+
+    # Make SYNCHRONOUS call to TelephoneChannel
+    try do
+      GenServer.call(telephone_pid, {:check_ws_support, check_request}, timeout)
+    catch
+      :exit, {:timeout, _} ->
+        Logger.error("Backend WebSocket check timeout for path #{path_id} after #{timeout}ms")
+        {:error, :timeout}
+
+      :exit, {:noproc, _} ->
+        Logger.error("Telephone process died during WebSocket check for path #{path_id}")
+        {:error, :telephone_died}
+
+      :exit, reason ->
+        Logger.error("Backend WebSocket check failed for path #{path_id}: #{inspect(reason)}")
+        {:error, {:telephone_error, reason}}
+    end
+  end
+
+  # Get per-path timeout override from database
+  defp get_path_timeout(path_id) do
+    case Plugboard.Repo.get(Plugboard.Paths.Path, path_id) do
+      %{check_timeout_ms: timeout} when is_integer(timeout) and timeout > 0 ->
+        Logger.debug("Using per-path timeout for #{path_id}: #{timeout}ms")
+        timeout
+
+      _ ->
+        nil
     end
   end
 
@@ -187,11 +277,15 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
   # where we'd need to look up the telephone again. While the telephone could
   # still disconnect between the match and upgrade, this minimizes the window.
   # The ProxyHandler will detect if the telephone is unavailable during init.
-  defp upgrade_to_websocket(conn, path_id, forwarded_path, telephone_pid) do
+  #
+  # The backend_info contains the protocol selected by the backend during the
+  # pre-check, ensuring transparent protocol negotiation.
+  defp upgrade_to_websocket(conn, path_id, forwarded_path, telephone_pid, backend_info) do
     connection_id = Ecto.UUID.generate()
 
     Logger.info(
-      "Upgrading WebSocket connection #{connection_id} for path #{path_id}, forwarding to #{forwarded_path}"
+      "Upgrading WebSocket connection #{connection_id} for path #{path_id}, " <>
+        "forwarding to #{forwarded_path}, backend protocol: #{inspect(backend_info.protocol)}"
     )
 
     # Extract headers to forward (including subprotocols)
@@ -206,11 +300,14 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
       forwarded_path: forwarded_path,
       query_string: conn.query_string,
       headers: headers,
-      subprotocols: subprotocols
+      subprotocols: subprotocols,
+      # NEW: Pass backend's chosen protocol
+      backend_protocol: backend_info.protocol
     }
 
     # Get WebSocket options from config
-    ws_opts = build_websocket_options(subprotocols)
+    # NEW: Use backend's protocol, not client's requested list
+    ws_opts = build_websocket_options_with_protocol(backend_info.protocol)
 
     # Upgrade to WebSocket
     conn
@@ -261,5 +358,37 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
       _ ->
         opts
     end
+  end
+
+  # Build WebSocket options with specific protocol from backend
+  # This ensures transparent protocol negotiation - backend's choice is used
+  defp build_websocket_options_with_protocol(nil) do
+    # Backend didn't select a protocol
+    config = Application.get_env(:plugboard, :websocket_proxy) || []
+
+    [
+      timeout: config[:idle_timeout_ms] || 300_000,
+      max_frame_size: config[:max_frame_size] || 1_048_576,
+      compress: true
+    ]
+  end
+
+  defp build_websocket_options_with_protocol(protocol)
+       when is_binary(protocol) and protocol != "" do
+    # Backend selected a protocol - use it for transparent proxying!
+    config = Application.get_env(:plugboard, :websocket_proxy) || []
+
+    [
+      timeout: config[:idle_timeout_ms] || 300_000,
+      max_frame_size: config[:max_frame_size] || 1_048_576,
+      compress: true,
+      # Use backend's selected protocol
+      subprotocols: [protocol]
+    ]
+  end
+
+  defp build_websocket_options_with_protocol("") do
+    # Empty string means no protocol
+    build_websocket_options_with_protocol(nil)
   end
 end
