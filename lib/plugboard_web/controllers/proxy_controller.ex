@@ -318,6 +318,14 @@ defmodule PlugboardWeb.ProxyController do
     # Generate unique request ID for correlation
     request_id = Ecto.UUID.generate()
 
+    # Preserve trailing slash from original request path
+    forwarded_path =
+      if String.ends_with?(conn.request_path, "/") and not String.ends_with?(forwarded_path, "/") do
+        forwarded_path <> "/"
+      else
+        forwarded_path
+      end
+
     # Build request payload for telephone with correlation ID
     request_payload = %{
       "request_id" => request_id,
