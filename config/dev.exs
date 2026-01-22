@@ -2,14 +2,14 @@ import Config
 
 # Configure your database
 config :plugboard, Plugboard.Repo,
-  username: System.get_env("POSTGRES_USER"),
-  password: System.get_env("POSTGRES_PASSWORD"),
-  hostname: System.get_env("POSTGRES_HOST"),
-  port: String.to_integer(System.get_env("POSTGRES_PORT")),
-  database: System.get_env("POSTGRES_DB"),
+  username: System.get_env("POSTGRES_USER", "postgres"),
+  password: System.get_env("POSTGRES_PASSWORD", "postgres"),
+  hostname: System.get_env("POSTGRES_HOST", "localhost"),
+  port: String.to_integer(System.get_env("POSTGRES_PORT", "5432")),
+  database: System.get_env("POSTGRES_DB", "plugboard_dev"),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
-  pool_size: String.to_integer(System.get_env("DB_POOL_SIZE")),
+  pool_size: String.to_integer(System.get_env("DB_POOL_SIZE", "10")),
   # Query and connection timeouts
   timeout: 15_000,
   connect_timeout: 5_000
@@ -23,11 +23,15 @@ config :plugboard, Plugboard.Repo,
 config :plugboard, PlugboardWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {0, 0, 0, 0}, port: String.to_integer(System.get_env("PHX_PORT"))],
+  http: [ip: {0, 0, 0, 0}, port: String.to_integer(System.get_env("PHX_PORT", "4000"))],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: System.get_env("SECRET_KEY_BASE"),
+  secret_key_base:
+    System.get_env(
+      "SECRET_KEY_BASE",
+      "dev_secret_key_base_at_least_64_bytes_long_for_development_only_not_production"
+    ),
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:plugboard, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:plugboard, ~w(--watch)]}

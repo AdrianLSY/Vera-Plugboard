@@ -1,0 +1,72 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [main, new-direction]
+  pull_request:
+    branches: [main, new-direction]
+
+env:
+  ELIXIR_VERSION: "1.19.1"
+  OTP_VERSION: "28.1.1"
+  MIX_ENV: test
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    env:
+      # Database configuration
+      POSTGRES_USER: plugboard
+      POSTGRES_PASSWORD: plugboard
+      POSTGRES_DB: plugboard
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: plugboard
+          POSTGRES_PASSWORD: plugboard
+          POSTGRES_DB: plugboard_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile dependencies
+        run: mix deps.compile
+
+      - name: Compile project
+        run: mix compile --warnings-as-errors
+
+      - name: Run tests
+        run: mix test

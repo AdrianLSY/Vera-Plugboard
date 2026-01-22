@@ -38,3 +38,5 @@ jobs:
             MOUNT_STORE_RECONCILE_INTERVAL=30000
             TELEPHONE_TOKEN_EXPIRY=3600
             TELEPHONE_TOKEN_REFRESH_INTERVAL=1800
+            SESSION_SIGNING_SALT=ci_test_signing_salt_not_for_production
+            SESSION_ENCRYPTION_SALT=ci_test_encryption_salt_not_for_prod
