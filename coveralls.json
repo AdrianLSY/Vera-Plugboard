@@ -1,0 +1,16 @@
+{
+  "skip_files": [
+    "test/support/async_helpers.ex",
+    "test/support/conn_case.ex",
+    "test/support/channel_case.ex",
+    "test/support/data_case.ex",
+    "test/support/fixtures/accounts_fixtures.ex",
+    "lib/plugboard.ex",
+    "lib/plugboard/release.ex",
+    "lib/plugboard/repo.ex",
+    "lib/plugboard/mailer.ex",
+    "lib/plugboard_web/endpoint.ex",
+    "lib/plugboard_web/gettext.ex",
+    "lib/plugboard_web/controllers/page_html.ex"
+  ]
+}

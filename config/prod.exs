@@ -8,13 +8,31 @@ import Config
 config :plugboard, PlugboardWeb.Endpoint, cache_static_manifest: "priv/static/cache_manifest.json"
 
 # Configures Swoosh API Client
-config :swoosh, api_client: Swoosh.ApiClient.Finch, finch_name: Plugboard.Finch
+config :swoosh, api_client: Swoosh.ApiClient.Req
 
 # Disable Swoosh Local Memory Storage
 config :swoosh, local: false
 
 # Do not print debug messages in production
 config :logger, level: :info
+
+# Initialize plugs at runtime for configuration via environment variables
+config :phoenix, :plug_init_mode, :runtime
+
+# Compile-time configuration from environment variables
+# Must be set during Docker build
+config :plugboard,
+       :max_request_body_length,
+       System.get_env("MAX_REQUEST_BODY_SIZE") |> String.to_integer()
+
+# Session configuration for compile-time (LiveView socket)
+# Must match the runtime config in config/runtime.exs
+# This ensures LiveView socket and Plug.Session use the same session options
+config :plugboard, :session,
+  signing_salt:
+    System.get_env("SESSION_SIGNING_SALT") ||
+      raise("SESSION_SIGNING_SALT must be set at compile time for production"),
+  encryption_salt: System.get_env("SESSION_ENCRYPTION_SALT")
 
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.

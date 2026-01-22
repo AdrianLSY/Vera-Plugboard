@@ -4,14 +4,55 @@
 # This configuration file is loaded before any dependency and
 # is restricted to this project.
 
+# Load environment variables from .env file
+if File.exists?(".env") do
+  ".env"
+  |> File.read!()
+  |> String.split("\n", trim: true)
+  |> Enum.reject(&String.starts_with?(&1, "#"))
+  |> Enum.each(fn line ->
+    case String.split(line, "=", parts: 2) do
+      [key, value] ->
+        key = String.trim(key)
+        value = String.trim(value)
+        System.put_env(key, value)
+
+      _ ->
+        :ok
+    end
+  end)
+end
+
 # General application configuration
 import Config
+
+config :plugboard, :scopes,
+  user: [
+    default: true,
+    module: Plugboard.Accounts.Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :binary_id,
+    schema_table: :users,
+    test_data_fixture: Plugboard.AccountsFixtures,
+    test_setup_helper: :register_and_log_in_user
+  ]
 
 config :plugboard,
   ecto_repos: [Plugboard.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Configure database timeouts for recursive operations
+config :plugboard, Plugboard.Repo,
+  timeout: 15_000,
+  pool_timeout: 5_000,
+  queue_target: 50,
+  queue_interval: 1_000
+
 # Configures the endpoint
+# Note: Signing salts should be overridden via environment variables in production
+# See config/runtime.exs for production configuration
 config :plugboard, PlugboardWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
@@ -20,7 +61,12 @@ config :plugboard, PlugboardWeb.Endpoint,
     layout: false
   ],
   pubsub_server: Plugboard.PubSub,
-  live_view: [signing_salt: System.get_env("PHX_SIGNING_SALT")]
+  live_view: [signing_salt: "CHANGE_ME_IN_PRODUCTION"]
+
+# Session configuration - these should be overridden in production
+config :plugboard, :session,
+  signing_salt: "CHANGE_ME_IN_PRODUCTION",
+  encryption_salt: nil
 
 # Configures the mailer
 #
@@ -33,28 +79,27 @@ config :plugboard, Plugboard.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,
-  version: "0.17.11",
+  version: "0.25.4",
   plugboard: [
     args:
-      ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
-    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
 # Configure tailwind (the version is required)
 config :tailwind,
-  version: "3.4.3",
+  version: "4.1.7",
   plugboard: [
     args: ~w(
-      --config=tailwind.config.js
-      --input=css/app.css
-      --output=../priv/static/assets/app.css
+      --input=assets/css/app.css
+      --output=priv/static/assets/css/app.css
     ),
-    cd: Path.expand("../assets", __DIR__)
+    cd: Path.expand("..", __DIR__)
   ]
 
 # Configures Elixir's Logger
-config :logger, :console,
+config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 

@@ -16,6 +16,13 @@ defmodule Plugboard.DataCase do
 
   use ExUnit.CaseTemplate
 
+  alias Ecto.Adapters.SQL.Sandbox
+  alias Plugboard.HookNotifier
+  alias Plugboard.HookStore
+  alias Plugboard.MountNotifier
+  alias Plugboard.MountStore
+  alias Plugboard.Repo
+
   using do
     quote do
       alias Plugboard.Repo
@@ -36,8 +43,30 @@ defmodule Plugboard.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Plugboard.Repo, shared: not tags[:async])
-    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    pid = Sandbox.start_owner!(Repo, shared: not tags[:async])
+
+    # Allow the MountStore GenServer to access the database
+    # This is needed because MountStore loads mounts from the DB
+    if Process.whereis(MountStore) do
+      Sandbox.allow(Repo, pid, MountStore)
+    end
+
+    # Allow the MountNotifier GenServer to access the database if it exists
+    if Process.whereis(MountNotifier) do
+      Sandbox.allow(Repo, pid, MountNotifier)
+    end
+
+    # Allow the HookStore GenServer to access the database
+    if Process.whereis(HookStore) do
+      Sandbox.allow(Repo, pid, HookStore)
+    end
+
+    # Allow the HookNotifier GenServer to access the database
+    if Process.whereis(HookNotifier) do
+      Sandbox.allow(Repo, pid, HookNotifier)
+    end
+
+    on_exit(fn -> Sandbox.stop_owner(pid) end)
   end
 
   @doc """

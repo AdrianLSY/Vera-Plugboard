@@ -1,0 +1,81 @@
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================
+
+   Reusable utility classes for colors, backgrounds, and common patterns.
+   These utilities expose the color tokens defined in colours.css.
+   ============================================================================ */
+
+/* Background utility classes */
+.ui-background {
+    background-color: var(--ui-background);
+}
+
+.ui-foreground {
+    background-color: var(--ui-foreground);
+}
+
+.ui-highlight {
+    background-color: var(--ui-highlight);
+}
+
+.ui-success {
+    background-color: var(--ui-success);
+}
+
+.ui-warning {
+    background-color: var(--ui-warning);
+}
+
+.ui-error {
+    background-color: var(--ui-error);
+}
+
+.ui-info {
+    background-color: var(--ui-info);
+}
+
+.ui-inverted-background {
+    background-color: var(--ui-inverted-background);
+}
+
+.ui-inverted-foreground {
+    background-color: var(--ui-inverted-foreground);
+}
+
+/* Text color utility classes */
+.ui-text-primary {
+    color: var(--ui-text-primary);
+}
+
+.ui-text-secondary {
+    color: var(--ui-text-secondary);
+}
+
+.ui-text-tertiary {
+    color: var(--ui-text-tertiary);
+}
+
+.ui-text-success {
+    color: var(--ui-success);
+}
+
+.ui-text-info {
+    color: var(--ui-info);
+}
+
+.ui-text-warning {
+    color: var(--ui-warning);
+}
+
+.ui-text-error {
+    color: var(--ui-error);
+}
+
+.ui-inverted-text-primary {
+    color: var(--ui-inverted-text-primary);
+}
+
+.ui-inverted-text-secondary {
+    color: var(--ui-inverted-text-secondary);
+}

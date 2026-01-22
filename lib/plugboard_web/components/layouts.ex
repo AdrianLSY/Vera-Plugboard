@@ -1,14 +1,187 @@
 defmodule PlugboardWeb.Layouts do
   @moduledoc """
-  This module holds different layouts used by your application.
-
-  See the `layouts` directory for all templates available.
-  The "root" layout is a skeleton rendered as part of the
-  application router. The "app" layout is set as the default
-  layout on both `use PlugboardWeb, :controller` and
-  `use PlugboardWeb, :live_view`.
+  This module holds layouts and related functionality
+  used by your application.
   """
   use PlugboardWeb, :html
 
+  # Embed all files in layouts/* within this module.
+  # The default root.html.heex file contains the HTML
+  # skeleton of your application, namely HTML headers
+  # and other static content.
   embed_templates "layouts/*"
+
+  @doc """
+  Renders your app layout.
+
+  This function is typically invoked from every template,
+  and it often contains your application menu, sidebar,
+  or similar.
+
+  ## Examples
+
+      <Layouts.app flash={@flash}>
+        <h1>Content</h1>
+      </Layouts.app>
+
+  """
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+
+  attr :current_scope, :map,
+    default: nil,
+    doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
+
+  slot :inner_block, required: true
+
+  def app(assigns) do
+    ~H"""
+    <.flash_group flash={@flash} />
+    <div class="flex">
+      <.sidebar class="justify-between">
+        <div class="flex flex-col items-center space-y-3 w-full">
+          <.icon_button
+            href={~p"/"}
+            icon="hero-home"
+            tooltip="Home"
+          />
+          <%= if @current_scope do %>
+            <.icon_button
+              href={~p"/paths"}
+              icon="hero-folder"
+              tooltip="Paths"
+            />
+            <.icon_button
+              href={~p"/users/settings"}
+              icon="hero-cog-6-tooth"
+              tooltip="Settings"
+            />
+            <.icon_button
+              href={~p"/users/log-out"}
+              icon="hero-arrow-right-on-rectangle"
+              tooltip="Log out"
+              method="delete"
+            />
+          <% else %>
+            <.icon_button
+              href={~p"/users/log-in"}
+              icon="hero-arrow-right-end-on-rectangle"
+              tooltip="Log in"
+            />
+            <.icon_button
+              href={~p"/users/register"}
+              icon="hero-user-plus"
+              tooltip="Register"
+            />
+          <% end %>
+        </div>
+        <div class="flex flex-col items-center w-full">
+          <.tooltip text="Toggle theme" position="right">
+            <button
+              type="button"
+              class="interactive-button-base icon-button"
+              onclick="
+                const current = document.documentElement.getAttribute('data-theme');
+                const newTheme = current === 'dark' ? 'light' : 'dark';
+                localStorage.setItem('phx:theme', newTheme);
+                document.documentElement.setAttribute('data-theme', newTheme);
+              "
+            >
+              <.icon
+                name="hero-sun"
+                class="icon-button-icon [[data-theme=dark]_&]:hidden"
+              />
+              <.icon
+                name="hero-moon"
+                class="icon-button-icon [[data-theme=light]_&]:hidden"
+              />
+            </button>
+          </.tooltip>
+        </div>
+      </.sidebar>
+      <main class="flex-1 p-5">
+        {render_slot(@inner_block)}
+      </main>
+    </div>
+    """
+  end
+
+  @doc """
+  Shows the flash group with standard titles and content.
+
+  ## Examples
+
+      <.flash_group flash={@flash} />
+  """
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :id, :string, default: "flash-group", doc: "the optional id of flash container"
+
+  def flash_group(assigns) do
+    ~H"""
+    <div id={@id} aria-live="polite">
+      <.flash kind={:info} flash={@flash} />
+      <.flash kind={:error} flash={@flash} />
+
+      <.flash
+        id="client-error"
+        kind={:error}
+        title={gettext("We can't find the internet")}
+        phx-disconnected={show(".phx-client-error #client-error") |> JS.remove_attribute("hidden")}
+        phx-connected={hide("#client-error") |> JS.set_attribute({"hidden", ""})}
+        hidden
+      >
+        {gettext("Attempting to reconnect")}
+        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
+      </.flash>
+
+      <.flash
+        id="server-error"
+        kind={:error}
+        title={gettext("Something went wrong!")}
+        phx-disconnected={show(".phx-server-error #server-error") |> JS.remove_attribute("hidden")}
+        phx-connected={hide("#server-error") |> JS.set_attribute({"hidden", ""})}
+        hidden
+      >
+        {gettext("Attempting to reconnect")}
+        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
+      </.flash>
+    </div>
+    """
+  end
+
+  @doc """
+  Provides dark vs light theme toggle based on themes defined in app.css.
+
+  See <head> in root.html.heex which applies the theme before page load.
+  """
+  def theme_toggle(assigns) do
+    ~H"""
+    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
+      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
+
+      <button
+        class="flex p-2 cursor-pointer w-1/3"
+        phx-click={JS.dispatch("phx:set-theme")}
+        data-phx-theme="system"
+      >
+        <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
+      </button>
+
+      <button
+        class="flex p-2 cursor-pointer w-1/3"
+        phx-click={JS.dispatch("phx:set-theme")}
+        data-phx-theme="light"
+      >
+        <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
+      </button>
+
+      <button
+        class="flex p-2 cursor-pointer w-1/3"
+        phx-click={JS.dispatch("phx:set-theme")}
+        data-phx-theme="dark"
+      >
+        <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
+      </button>
+    </div>
+    """
+  end
 end

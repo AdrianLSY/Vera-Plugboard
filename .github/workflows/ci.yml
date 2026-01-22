@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main, new-direction]
+  pull_request:
+    branches: [main, new-direction]
+  workflow_dispatch:
+
+env:
+  ELIXIR_VERSION: "1.19.1"
+  OTP_VERSION: "28.1.1"
+
+jobs:
+  docker:
+    name: Build Docker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: plugboard:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            ELIXIR_VERSION=${{ env.ELIXIR_VERSION }}
+            OTP_VERSION=${{ env.OTP_VERSION }}
+            MAX_REQUEST_BODY_SIZE=10485760
+            MOUNT_STORE_RECONCILE_INTERVAL=30000
+            TELEPHONE_TOKEN_EXPIRY=3600
+            TELEPHONE_TOKEN_REFRESH_INTERVAL=1800

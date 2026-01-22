@@ -25,7 +25,7 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 plugboard-*.tar
 
-# Ignore assets that are produced by build tools.
+# Ignore assets that are produced by build toosqlitels.
 /priv/static/assets/
 
 # Ignore digested assets cache.
@@ -35,8 +35,11 @@ plugboard-*.tar
 npm-debug.log
 /assets/node_modules/
 
-# Ignore environment variables
-.env*
+# Ignore env files (but not .env.example)
+.env
+.env.local
+.env.*.local
+.envrc
 
-# Ignore  postgres data
-/volumes/postgres/data
+# Ignore .elixir_ls
+.elixir_ls

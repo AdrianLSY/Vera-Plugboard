@@ -1,0 +1,88 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [main, new-direction]
+  pull_request:
+    branches: [main, new-direction]
+  workflow_dispatch:
+
+env:
+  ELIXIR_VERSION: "1.19.1"
+  OTP_VERSION: "28.1.1"
+  MIX_ENV: test
+  # Database configuration
+  POSTGRES_USER: plugboard
+  POSTGRES_PASSWORD: plugboard
+  POSTGRES_DB: plugboard
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: 5432
+  DB_POOL_SIZE: 10
+  DB_QUERY_TIMEOUT: 15000
+  DB_CONNECT_TIMEOUT: 5000
+  ECTO_IPV6: false
+  # Testing
+  MIX_TEST_PARTITION: ""
+  # Application settings
+  MAX_REQUEST_BODY_SIZE: 10485760
+  MOUNT_STORE_RECONCILE_INTERVAL: 30000
+  # Telephone token configuration
+  TELEPHONE_TOKEN_EXPIRY: 3600
+  TELEPHONE_TOKEN_REFRESH_INTERVAL: 1800
+
+jobs:
+  coverage:
+    name: Generate Coverage Report
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: plugboard
+          POSTGRES_PASSWORD: plugboard
+          POSTGRES_DB: plugboard_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile dependencies
+        run: mix deps.compile
+
+      - name: Run tests and generate coverage report
+        run: mix coveralls.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./cover/excoveralls.json
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          verbose: true

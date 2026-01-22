@@ -1,63 +1,50 @@
 # Find eligible builder and runner images on Docker Hub. We use Ubuntu/Debian
 # instead of Alpine to avoid DNS resolution issues in production.
 #
-# https://hub.docker.com/r/hexpm/elixir/tags?page=1&name=ubuntu
-# https://hub.docker.com/_/ubuntu?tab=tags
+# https://hub.docker.com/r/hexpm/elixir/tags?name=ubuntu
+# https://hub.docker.com/_/ubuntu/tags
 #
 # This file is based on these images:
 #
 #   - https://hub.docker.com/r/hexpm/elixir/tags - for the build image
-#   - https://hub.docker.com/_/debian?tab=tags&page=1&name=bullseye-20250407-slim - for the release image
+#   - https://hub.docker.com/_/debian/tags?name=bookworm-20251020-slim - for the release image
 #   - https://pkgs.org/ - resource for finding needed packages
-#   - Ex: hexpm/elixir:1.18.3-erlang-27.3.3-debian-bullseye-20250407-slim
+#   - Ex: docker.io/hexpm/elixir:1.19.1-erlang-28.1.1-debian-bookworm-20251020-slim
 #
-ARG ELIXIR_VERSION=1.18.3
-ARG OTP_VERSION=27.3.3
-ARG DEBIAN_VERSION=bullseye-20250407-slim
+ARG ELIXIR_VERSION=1.19.1
+ARG OTP_VERSION=28.1.1
+ARG DEBIAN_VERSION=bookworm-20251020-slim
 
-ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
-ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
+ARG BUILDER_IMAGE="docker.io/hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
+ARG RUNNER_IMAGE="docker.io/debian:${DEBIAN_VERSION}"
 
-FROM ${BUILDER_IMAGE} as builder
-
-# build-time environment variables
-ARG SECRET_KEY_BASE
-ARG PHX_SIGNING_SALT
-ARG PHX_ENCRYPTION_SALT
-ARG PHX_GENSTAGE_ENTITY_MAX_AGE
-ARG PHX_GENSTAGE_CLEANUP_INTERVAL
-ARG PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS
-ARG PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS
-ARG PHX_RESET_PASSWORD_VALIDITY_IN_DAYS
-ARG PHX_CONFIRM_VALIDITY_IN_DAYS
-ARG PHX_CHANGE_EMAIL_VALIDITY_IN_DAYS
-ARG PHX_SESSION_VALIDITY_IN_DAYS
-
-ENV SECRET_KEY_BASE=$SECRET_KEY_BASE
-ENV PHX_SIGNING_SALT=$PHX_SIGNING_SALT
-ENV PHX_ENCRYPTION_SALT=$PHX_ENCRYPTION_SALT
-ENV PHX_GENSTAGE_ENTITY_MAX_AGE=$PHX_GENSTAGE_ENTITY_MAX_AGE
-ENV PHX_GENSTAGE_CLEANUP_INTERVAL=$PHX_GENSTAGE_CLEANUP_INTERVAL
-ENV PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS=$PHX_ACCOUNT_TOKEN_VALIDITY_IN_DAYS
-ENV PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS=$PHX_SERVICE_TOKEN_VALIDITY_IN_DAYS
-ENV PHX_RESET_PASSWORD_VALIDITY_IN_DAYS=$PHX_RESET_PASSWORD_VALIDITY_IN_DAYS
-ENV PHX_CONFIRM_VALIDITY_IN_DAYS=$PHX_CONFIRM_VALIDITY_IN_DAYS
-ENV PHX_CHANGE_EMAIL_VALIDITY_IN_DAYS=$PHX_CHANGE_EMAIL_VALIDITY_IN_DAYS
-ENV PHX_SESSION_VALIDITY_IN_DAYS=$PHX_SESSION_VALIDITY_IN_DAYS
+FROM ${BUILDER_IMAGE} AS builder
 
 # install build dependencies
-RUN apt-get update -y && apt-get install -y build-essential git \
-    && apt-get clean && rm -f /var/lib/apt/lists/*_*
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential git \
+    && rm -rf /var/lib/apt/lists/*
 
 # prepare build dir
 WORKDIR /app
 
 # install hex + rebar
-RUN mix local.hex --force && \
-    mix local.rebar --force
+RUN mix local.hex --force \
+    && mix local.rebar --force
 
 # set build ENV
 ENV MIX_ENV="prod"
+
+# Build-time environment variables for compile-time configuration
+ARG MAX_REQUEST_BODY_SIZE=10485760
+ARG MOUNT_STORE_RECONCILE_INTERVAL=30000
+ARG TELEPHONE_TOKEN_EXPIRY=3600
+ARG TELEPHONE_TOKEN_REFRESH_INTERVAL=1800
+
+ENV MAX_REQUEST_BODY_SIZE=${MAX_REQUEST_BODY_SIZE}
+ENV MOUNT_STORE_RECONCILE_INTERVAL=${MOUNT_STORE_RECONCILE_INTERVAL}
+ENV TELEPHONE_TOKEN_EXPIRY=${TELEPHONE_TOKEN_EXPIRY}
+ENV TELEPHONE_TOKEN_REFRESH_INTERVAL=${TELEPHONE_TOKEN_REFRESH_INTERVAL}
 
 # install mix dependencies
 COPY mix.exs mix.lock ./
@@ -70,17 +57,19 @@ RUN mkdir config
 COPY config/config.exs config/${MIX_ENV}.exs config/
 RUN mix deps.compile
 
+RUN mix assets.setup
+
 COPY priv priv
 
 COPY lib lib
+
+# Compile the release
+RUN mix compile
 
 COPY assets assets
 
 # compile assets
 RUN mix assets.deploy
-
-# Compile the release
-RUN mix compile
 
 # Changes to config/runtime.exs don't require recompiling the code
 COPY config/runtime.exs config/
@@ -90,18 +79,19 @@ RUN mix release
 
 # start a new build stage so that the final image will only contain
 # the compiled release and other runtime necessities
-FROM ${RUNNER_IMAGE}
+FROM ${RUNNER_IMAGE} AS final
 
-RUN apt-get update -y && \
-  apt-get install -y libstdc++6 openssl libncurses5 locales ca-certificates \
-  && apt-get clean && rm -f /var/lib/apt/lists/*_*
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libstdc++6 openssl libncurses5 locales ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the locale
-RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen
 
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 
 WORKDIR "/app"
 RUN chown nobody /app
@@ -112,16 +102,11 @@ ENV MIX_ENV="prod"
 # Only copy the final release from the build stage
 COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/plugboard ./
 
+USER nobody
+
 # If using an environment that doesn't automatically reap zombie processes, it is
 # advised to add an init process such as tini via `apt-get install`
 # above and adding an entrypoint. See https://github.com/krallin/tini for details
 # ENTRYPOINT ["/tini", "--"]
 
-# Copy entrypoint script
-COPY entrypoint.sh ./
-RUN chmod +x entrypoint.sh
-
-USER nobody
-
-# Run the release
-CMD ["./entrypoint.sh"]
+CMD ["/app/bin/server"]
