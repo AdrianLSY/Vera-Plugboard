@@ -138,46 +138,6 @@ defmodule PlugboardWeb.TelephoneChannel do
   end
 
   # =============================================================================
-  # WebSocket Check (synchronous backend verification)
-  # =============================================================================
-
-  @doc """
-  Handle synchronous WebSocket support check.
-
-  This is called via GenServer.call from the WebSocketProxyPlug before upgrading
-  the browser connection. It checks if the backend supports WebSocket and returns
-  the selected protocol for transparent proxying.
-  """
-  @impl true
-  def handle_call({:check_ws_support, check_request}, from, socket) do
-    # Generate unique check ID
-    check_id = Ecto.UUID.generate()
-
-    Logger.debug("Received ws_check request #{check_id} for path #{check_request.path}")
-
-    # Store the caller to reply later (GenServer.reply will be called when result arrives)
-    pending_checks = Map.get(socket.assigns, :pending_ws_checks, %{})
-    socket = assign(socket, :pending_ws_checks, Map.put(pending_checks, check_id, from))
-
-    # Forward check request to Telephone sidecar
-    push(socket, "ws_check", %{
-      "check_id" => check_id,
-      "path" => check_request.path,
-      "query_string" => check_request.query_string,
-      "headers" => check_request.headers
-    })
-
-    :telemetry.execute(
-      [:plugboard, :telephone, :ws_check_sent],
-      %{count: 1},
-      %{path_id: socket.assigns.path_id, check_id: check_id}
-    )
-
-    # Don't reply yet - will reply when ws_check_result arrives
-    {:noreply, socket}
-  end
-
-  # =============================================================================
   # WebSocket Proxy Events (from Telephone sidecar)
   # =============================================================================
 
@@ -315,6 +275,46 @@ defmodule PlugboardWeb.TelephoneChannel do
         updated_connections = Map.delete(ws_connections, connection_id)
         {:noreply, assign(socket, :ws_connections, updated_connections)}
     end
+  end
+
+  # =============================================================================
+  # WebSocket Check (synchronous backend verification)
+  # =============================================================================
+
+  @doc """
+  Handle synchronous WebSocket support check.
+
+  This is called via GenServer.call from the WebSocketProxyPlug before upgrading
+  the browser connection. It checks if the backend supports WebSocket and returns
+  the selected protocol for transparent proxying.
+  """
+  @impl true
+  def handle_call({:check_ws_support, check_request}, from, socket) do
+    # Generate unique check ID
+    check_id = Ecto.UUID.generate()
+
+    Logger.debug("Received ws_check request #{check_id} for path #{check_request.path}")
+
+    # Store the caller to reply later (GenServer.reply will be called when result arrives)
+    pending_checks = Map.get(socket.assigns, :pending_ws_checks, %{})
+    socket = assign(socket, :pending_ws_checks, Map.put(pending_checks, check_id, from))
+
+    # Forward check request to Telephone sidecar
+    push(socket, "ws_check", %{
+      "check_id" => check_id,
+      "path" => check_request.path,
+      "query_string" => check_request.query_string,
+      "headers" => check_request.headers
+    })
+
+    :telemetry.execute(
+      [:plugboard, :telephone, :ws_check_sent],
+      %{count: 1},
+      %{path_id: socket.assigns.path_id, check_id: check_id}
+    )
+
+    # Don't reply yet - will reply when ws_check_result arrives
+    {:noreply, socket}
   end
 
   # =============================================================================
