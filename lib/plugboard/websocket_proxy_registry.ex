@@ -26,7 +26,6 @@ defmodule Plugboard.WebSocketProxyRegistry do
   """
 
   use GenServer
-  require Logger
 
   @table :plugboard_websocket_proxy_connections
   @path_index_table :plugboard_websocket_proxy_path_index
@@ -180,7 +179,6 @@ defmodule Plugboard.WebSocketProxyRegistry do
 
     :ets.new(@path_index_table, [:named_table, :protected, :bag, read_concurrency: true])
 
-    Logger.info("WebSocketProxyRegistry started")
     {:ok, %{}}
   end
 
@@ -225,10 +223,6 @@ defmodule Plugboard.WebSocketProxyRegistry do
 
       ids ->
         Enum.each(ids, fn connection_id ->
-          Logger.debug(
-            "WebSocket handler #{inspect(pid)} died, cleaning up connection #{connection_id}"
-          )
-
           do_unregister(connection_id)
         end)
     end

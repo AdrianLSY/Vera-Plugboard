@@ -45,8 +45,43 @@ config :phoenix, :plug_init_mode, :runtime
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
 
-# Note: MountStore, telephone, and max_request_body_length configuration
-# is now consolidated in config/runtime.exs for all environments
+# =============================================================================
+# Application configuration for tests
+# These values are explicit to ensure deterministic test behavior
+# (runtime.exs skips these configs in test environment)
+# =============================================================================
+
+# MountStore configuration
+config :plugboard, Plugboard.MountStore, reconcile_interval: 300_000
+
+# HookStore configuration
+config :plugboard, Plugboard.HookStore, reconcile_interval: 300_000
+
+# Telephone token configuration
+config :plugboard, :telephone,
+  token_expiry: 3600,
+  token_refresh_interval: 1800,
+  heartbeat_timeout_ms: 60_000
+
+# Request body size limit (10MB)
+config :plugboard, :max_request_body_length, 10_485_760
+
+# WebSocket proxy configuration
+config :plugboard, :websocket_proxy,
+  enabled: true,
+  check_timeout_ms: 5_000,
+  connect_timeout_ms: 5_000,
+  max_frame_size: 1_048_576,
+  idle_timeout_ms: 300_000
+
+# Rate limiting configuration
+config :plugboard, Plugboard.RateLimiter,
+  auth_limit: 5,
+  auth_window_ms: 60_000,
+  api_limit: 100,
+  api_window_ms: 60_000,
+  proxy_limit: 10_000,
+  proxy_window_ms: 60_000
 
 # Test session salts - DO NOT use these in production
 config :plugboard, :session,

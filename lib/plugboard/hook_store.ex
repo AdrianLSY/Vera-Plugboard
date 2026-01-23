@@ -19,7 +19,6 @@ defmodule Plugboard.HookStore do
   """
 
   use GenServer
-  require Logger
 
   import Ecto.Query
 
@@ -104,8 +103,6 @@ defmodule Plugboard.HookStore do
       read_concurrency: true
     ])
 
-    Logger.info("HookStore: ETS table created")
-
     # Use handle_continue to defer database loading
     # This prevents blocking the supervisor during startup
     {:ok, %{}, {:continue, :load_initial_data}}
@@ -136,36 +133,26 @@ defmodule Plugboard.HookStore do
       if Enum.empty?(hooks) do
         # No hooks for this path - remove from ETS
         :ets.delete(@table_name, path_id)
-        Logger.debug("HookStore: Removed hooks for path #{path_id} (none active)")
       else
         # Update ETS with new hooks
         :ets.insert(@table_name, {path_id, hooks})
-        Logger.debug("HookStore: Refreshed #{length(hooks)} hooks for path #{path_id}")
       end
     rescue
-      e in Postgrex.Error ->
-        Logger.error(
-          "HookStore: Database error refreshing hooks for path #{path_id}: #{inspect(e.postgres)}"
-        )
-
+      _e in Postgrex.Error ->
         :telemetry.execute(
           [:plugboard, :hook_store, :error],
           %{count: 1},
           %{operation: :refresh_hooks, error: :database_error}
         )
 
-      e in DBConnection.ConnectionError ->
-        Logger.error("HookStore: Database connection lost during refresh: #{inspect(e)}")
-
+      _e in DBConnection.ConnectionError ->
         :telemetry.execute(
           [:plugboard, :hook_store, :error],
           %{count: 1},
           %{operation: :refresh_hooks, error: :connection_error}
         )
 
-      e ->
-        Logger.error("HookStore: Unexpected error refreshing hooks: #{inspect(e)}")
-
+      _e ->
         :telemetry.execute(
           [:plugboard, :hook_store, :error],
           %{count: 1},
@@ -184,7 +171,6 @@ defmodule Plugboard.HookStore do
 
   @impl true
   def handle_info(:reconcile, state) do
-    Logger.debug("HookStore: Running periodic reconciliation")
     {_count, _duration} = load_hooks_from_db(:periodic)
     schedule_reconciliation()
     {:noreply, state}
@@ -231,10 +217,6 @@ defmodule Plugboard.HookStore do
       duration = System.monotonic_time() - start_time
       duration_ms = System.convert_time_unit(duration, :native, :millisecond)
 
-      Logger.info(
-        "HookStore: Loaded #{total_hooks} hooks for #{path_count} paths from database in #{duration_ms}ms"
-      )
-
       # Emit telemetry
       :telemetry.execute(
         [:plugboard, :hook_store, :reload],
@@ -251,9 +233,7 @@ defmodule Plugboard.HookStore do
 
       {total_hooks, duration_ms}
     rescue
-      e in Postgrex.Error ->
-        Logger.error("HookStore: Database error during reload: #{inspect(e.postgres)}")
-
+      _e in Postgrex.Error ->
         :telemetry.execute(
           [:plugboard, :hook_store, :error],
           %{count: 1},
@@ -264,9 +244,7 @@ defmodule Plugboard.HookStore do
         current_size = :ets.info(@table_name, :size)
         {current_size, 0}
 
-      e in DBConnection.ConnectionError ->
-        Logger.error("HookStore: Database connection lost during reload: #{inspect(e)}")
-
+      _e in DBConnection.ConnectionError ->
         :telemetry.execute(
           [:plugboard, :hook_store, :error],
           %{count: 1},
@@ -277,9 +255,7 @@ defmodule Plugboard.HookStore do
         current_size = :ets.info(@table_name, :size)
         {current_size, 0}
 
-      e ->
-        Logger.error("HookStore: Unexpected error during reload: #{inspect(e)}")
-
+      _e ->
         :telemetry.execute(
           [:plugboard, :hook_store, :error],
           %{count: 1},

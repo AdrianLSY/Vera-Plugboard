@@ -45,8 +45,6 @@ defmodule Plugboard.TelephoneRegistry do
 
   alias Plugboard.DistributedRegistry
 
-  require Logger
-
   # Type definitions
   @type path_id :: String.t()
 
@@ -60,7 +58,6 @@ defmodule Plugboard.TelephoneRegistry do
   def start_link(_opts) do
     # No-op: DistributedRegistry is started separately
     # Return :ignore to tell supervisor this child doesn't need to be started
-    Logger.info("TelephoneRegistry: Using DistributedRegistry for cluster-wide operation")
     :ignore
   end
 

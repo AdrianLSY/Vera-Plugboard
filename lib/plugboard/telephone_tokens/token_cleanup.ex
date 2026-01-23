@@ -7,7 +7,6 @@ defmodule Plugboard.TelephoneTokens.TokenCleanup do
   """
 
   use GenServer
-  require Logger
 
   alias Plugboard.TelephoneTokens
 
@@ -36,8 +35,6 @@ defmodule Plugboard.TelephoneTokens.TokenCleanup do
     # Schedule first cleanup
     schedule_cleanup()
 
-    Logger.info("TokenCleanup started, will run every #{@cleanup_interval / 1000 / 60} minutes")
-
     {:ok, %{}}
   end
 
@@ -45,17 +42,10 @@ defmodule Plugboard.TelephoneTokens.TokenCleanup do
   def handle_info(:cleanup, state) do
     # Run cleanup with error handling to prevent GenServer crashes
     case TelephoneTokens.delete_expired_tokens() do
-      {:ok, count} when count > 0 ->
-        Logger.info("TokenCleanup: Removed #{count} expired tokens")
-
       {:ok, _count} ->
-        # No expired tokens found
         :ok
 
       {:error, reason} ->
-        # Log error but don't crash - will retry on next interval
-        Logger.error("TokenCleanup: Failed to delete expired tokens: #{inspect(reason)}")
-
         :telemetry.execute(
           [:plugboard, :token_cleanup, :error],
           %{count: 1},

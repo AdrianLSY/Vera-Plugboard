@@ -7,7 +7,6 @@ defmodule PlugboardWeb.Api.DomainAffinityController do
   """
 
   use PlugboardWeb, :controller
-  require Logger
 
   alias Plugboard.DomainAffinities
   alias Plugboard.Paths

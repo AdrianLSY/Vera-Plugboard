@@ -2,7 +2,6 @@ defmodule PlugboardWeb.TelephoneChannelTest do
   use PlugboardWeb.ChannelCase, async: false
 
   import Plugboard.AccountsFixtures
-  import ExUnit.CaptureLog
 
   alias Plugboard.Paths
   alias Plugboard.TelephoneRegistry
@@ -56,10 +55,8 @@ defmodule PlugboardWeb.TelephoneChannelTest do
     test "rejects join with mismatched path_id", %{socket: socket} do
       wrong_path_id = Ecto.UUID.generate()
 
-      assert capture_log(fn ->
-               assert {:error, %{reason: "path_id_mismatch"}} =
-                        join(socket, "telephone:#{wrong_path_id}")
-             end) =~ "Path ID mismatch"
+      assert {:error, %{reason: "path_id_mismatch"}} =
+               join(socket, "telephone:#{wrong_path_id}")
     end
 
     test "multiple telephones can join same path", %{user: user, path: path} do
@@ -150,16 +147,10 @@ defmodule PlugboardWeb.TelephoneChannelTest do
       # Revoke the token
       {:ok, _revoked} = TelephoneTokens.revoke_token(user.id, token.id)
 
-      # Capture expected error log
-      log =
-        capture_log(fn ->
-          ref = push(socket, "refresh_token", %{})
+      ref = push(socket, "refresh_token", %{})
 
-          # Should receive error reply for refresh failure
-          assert_reply ref, :error, %{reason: _reason}
-        end)
-
-      assert log =~ "Token refresh failed"
+      # Should receive error reply for refresh failure
+      assert_reply ref, :error, %{reason: _reason}
     end
   end
 

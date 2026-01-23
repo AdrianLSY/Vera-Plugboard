@@ -389,16 +389,8 @@ defmodule Plugboard.Paths do
 
         {:ok, uuid_binary} = Ecto.UUID.dump(path.id)
 
-        # Execute with explicit timeout and log cascade operations
-        result = Repo.query!(query, [uuid_binary, deleted_at], timeout: 30_000)
-
-        if result.num_rows > 0 do
-          require Logger
-
-          Logger.info(
-            "Cascade soft-deleted #{result.num_rows} descendant paths for path #{path.id}"
-          )
-        end
+        # Execute with explicit timeout
+        _result = Repo.query!(query, [uuid_binary, deleted_at], timeout: 30_000)
 
         # Then soft-delete the path itself
         case path

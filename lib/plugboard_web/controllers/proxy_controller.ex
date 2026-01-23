@@ -97,7 +97,6 @@ defmodule PlugboardWeb.ProxyController do
   """
 
   use PlugboardWeb, :controller
-  require Logger
 
   alias Plugboard.Hooks.Executor, as: HooksExecutor
   alias Plugboard.Paths
@@ -117,19 +116,11 @@ defmodule PlugboardWeb.ProxyController do
     # Extract the full path from params - Phoenix captures it as a list
     request_path = build_request_path(params)
 
-    Logger.debug("ProxyController: Handling request for path: #{request_path}")
-
     case Plugboard.MountStore.match(request_path) do
-      {:ok, {mount_path, forwarded_path, mount_id}} ->
-        Logger.info(
-          "ProxyController: Matched mount #{mount_path} (#{mount_id}), forwarding: #{forwarded_path}"
-        )
-
+      {:ok, {_mount_path, forwarded_path, mount_id}} ->
         proxy_to_telephone(conn, mount_id, forwarded_path)
 
       {:error, :not_found} ->
-        Logger.debug("ProxyController: No mount found for path: #{request_path}")
-
         HTTPError.send_error(conn, 404,
           reason: "No mount point found for path",
           details: %{path: request_path},
@@ -169,19 +160,11 @@ defmodule PlugboardWeb.ProxyController do
       domain = conn.host
       request_path = conn.request_path
 
-      Logger.debug("ProxyController: Handling domain-based request for #{domain}#{request_path}")
-
       case Plugboard.MountStore.match_by_domain(domain) do
-        {:ok, {path_id, full_path}} ->
-          Logger.info(
-            "ProxyController: Domain #{domain} matched to mount #{full_path} (#{path_id}), forwarding: #{request_path}"
-          )
-
+        {:ok, {path_id, _full_path}} ->
           proxy_to_telephone(conn, path_id, request_path)
 
         {:error, :not_found} ->
-          Logger.debug("ProxyController: No domain affinity found for: #{domain}")
-
           HTTPError.send_error(conn, 404,
             reason: "No backend configured for domain",
             details: %{domain: domain},
@@ -197,8 +180,6 @@ defmodule PlugboardWeb.ProxyController do
     # Get the path to retrieve timeout configuration
     case Paths.get_path(path_id) do
       nil ->
-        Logger.error("Path #{path_id} not found in database")
-
         HTTPError.send_error(conn, 500,
           reason: "Path configuration not found",
           details: %{path_id: path_id}
@@ -216,8 +197,6 @@ defmodule PlugboardWeb.ProxyController do
                 forward_request_to_telephone(modified_conn, telephone_pid, path, forwarded_path)
 
               {:error, :no_telephone} ->
-                Logger.warning("No telephone available for path #{path.full_path}")
-
                 HTTPError.send_error(conn, 503,
                   reason: "No telephone available for this path",
                   details: %{path: path.full_path},
@@ -230,8 +209,6 @@ defmodule PlugboardWeb.ProxyController do
             send_hook_error_response(conn, hook, response)
 
           {:error, :timeout, hook, _response} ->
-            Logger.warning("Hook #{hook.name} timeout for path #{path.full_path}")
-
             HTTPError.send_error(conn, 504,
               reason: "Hook timeout",
               details: %{
@@ -243,8 +220,6 @@ defmodule PlugboardWeb.ProxyController do
             )
 
           {:error, :unavailable, hook, _response} ->
-            Logger.error("Hook #{hook.name} unavailable for path #{path.full_path}")
-
             HTTPError.send_error(conn, 503,
               reason: "Hook unavailable",
               details: %{
@@ -267,11 +242,7 @@ defmodule PlugboardWeb.ProxyController do
 
   defp validate_timeout(timeout, _path) when timeout > 0 and timeout <= 300_000, do: timeout
 
-  defp validate_timeout(timeout, path) do
-    Logger.warning(
-      "Invalid timeout #{timeout}ms for path #{path.full_path}, using default 60000ms"
-    )
-
+  defp validate_timeout(_timeout, _path) do
     60_000
   end
 
@@ -281,8 +252,6 @@ defmodule PlugboardWeb.ProxyController do
         {:ok, body, conn}
 
       {:more, _partial, conn} ->
-        Logger.warning("Request body too large for path #{path.full_path}")
-
         :telemetry.execute(
           [:plugboard, :proxy, :body_too_large],
           %{count: 1},
@@ -297,8 +266,6 @@ defmodule PlugboardWeb.ProxyController do
          )}
 
       {:error, reason} ->
-        Logger.warning("Failed to read request body for #{path.full_path}: #{inspect(reason)}")
-
         :telemetry.execute(
           [:plugboard, :proxy, :body_read_error],
           %{count: 1},
@@ -339,11 +306,6 @@ defmodule PlugboardWeb.ProxyController do
     # Record start time for telemetry
     start_time = System.monotonic_time()
 
-    # Log request initiation
-    Logger.debug(
-      "Proxying #{conn.method} #{forwarded_path} to telephone for path #{path.full_path} (timeout: #{timeout}ms)"
-    )
-
     # Send request to telephone and wait for response with correlation ID
     task =
       Task.async(fn ->
@@ -366,12 +328,8 @@ defmodule PlugboardWeb.ProxyController do
           }
         )
 
-        # Warn if request took more than 80% of timeout
+        # Emit telemetry if request took more than 80% of timeout
         if duration_ms > timeout * 0.8 do
-          Logger.warning(
-            "Slow telephone response: #{duration_ms}ms (#{Float.round(duration_ms / timeout * 100, 1)}% of timeout) for #{conn.method} #{forwarded_path}"
-          )
-
           :telemetry.execute(
             [:plugboard, :telephone, :slow_response],
             %{duration: duration, timeout: timeout},
@@ -383,8 +341,6 @@ defmodule PlugboardWeb.ProxyController do
         send_telephone_response(conn, response)
 
       {:error, :timeout} ->
-        Logger.warning("Telephone timeout for path #{path.full_path}")
-
         :telemetry.execute(
           [:plugboard, :telephone, :proxy_timeout],
           %{count: 1},
@@ -402,8 +358,6 @@ defmodule PlugboardWeb.ProxyController do
         )
 
       {:error, :telephone_unavailable} ->
-        Logger.error("Telephone unavailable for path #{path.full_path}")
-
         :telemetry.execute(
           [:plugboard, :telephone, :unavailable],
           %{count: 1},
@@ -420,8 +374,6 @@ defmodule PlugboardWeb.ProxyController do
         )
 
       {:error, :telephone_disconnected} ->
-        Logger.error("Telephone disconnected during request for path #{path.full_path}")
-
         :telemetry.execute(
           [:plugboard, :telephone, :disconnected],
           %{count: 1},
@@ -438,8 +390,6 @@ defmodule PlugboardWeb.ProxyController do
         )
 
       {:error, reason} ->
-        Logger.error("Telephone error for path #{path.full_path}: #{inspect(reason)}")
-
         :telemetry.execute(
           [:plugboard, :telephone, :error],
           %{count: 1},
@@ -482,7 +432,6 @@ defmodule PlugboardWeb.ProxyController do
       end
     else
       # Process died between lookup and send
-      Logger.warning("Telephone process #{inspect(telephone_pid)} is not alive")
       {:error, :telephone_unavailable}
     end
   end
@@ -523,8 +472,6 @@ defmodule PlugboardWeb.ProxyController do
             {:cont, {:ok, new_conn}}
 
           {:error, reason} ->
-            Logger.error("Error sending chunk: #{inspect(reason)}")
-
             :telemetry.execute(
               [:plugboard, :telephone, :chunk_error],
               %{count: 1},
@@ -539,10 +486,8 @@ defmodule PlugboardWeb.ProxyController do
       {:ok, conn} ->
         conn
 
-      {:error, reason, conn} ->
+      {:error, _reason, conn} ->
         # Partial response already sent, can't change status
-        # Log the error for monitoring
-        Logger.error("Failed to send complete chunked response: #{inspect(reason)}")
         conn
     end
   end
@@ -567,9 +512,7 @@ defmodule PlugboardWeb.ProxyController do
     "/"
   end
 
-  defp send_hook_error_response(conn, hook, %{status: status, body: body}) do
-    Logger.info("Request rejected by hook #{hook.name} with status #{status}")
-
+  defp send_hook_error_response(conn, _hook, %{status: status, body: body}) do
     conn
     |> put_status(status)
     |> put_resp_content_type("application/json")

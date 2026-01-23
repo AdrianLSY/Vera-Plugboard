@@ -7,7 +7,6 @@ defmodule PlugboardWeb.Api.TokenVendingController do
   """
 
   use PlugboardWeb, :controller
-  require Logger
 
   alias Plugboard.ServiceAccounts
   alias Plugboard.TelephoneTokens
@@ -64,9 +63,7 @@ defmodule PlugboardWeb.Api.TokenVendingController do
             |> json(details)
         end
 
-      {:error, reason} ->
-        Logger.warning("Token vending failed: #{inspect(reason)}")
-
+      {:error, _reason} ->
         conn
         |> put_status(:unauthorized)
         |> json(%{error: "Invalid or revoked service account API key"})
@@ -113,10 +110,8 @@ defmodule PlugboardWeb.Api.TokenVendingController do
   defp build_token_metadata(sa, nil, inst_id), do: {"#{sa.name} - #{inst_id}", nil}
   defp build_token_metadata(_sa, desc, inst_id), do: {"#{inst_id}", desc}
 
-  defp send_token_response(conn, jwt, token, path, sa) do
+  defp send_token_response(conn, jwt, token, path, _sa) do
     expiry_seconds = Application.get_env(:plugboard, :telephone)[:token_expiry] || 3600
-
-    Logger.info("Token vended for service account #{sa.name} (#{sa.id}), path #{path.full_path}")
 
     conn
     |> put_status(:created)

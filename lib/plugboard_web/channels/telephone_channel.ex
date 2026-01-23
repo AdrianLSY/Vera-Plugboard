@@ -27,8 +27,6 @@ defmodule PlugboardWeb.TelephoneChannel do
 
   use PlugboardWeb, :channel
 
-  require Logger
-
   alias Plugboard.TelephoneRegistry
   alias Plugboard.TelephoneTokens
 
@@ -70,10 +68,6 @@ defmodule PlugboardWeb.TelephoneChannel do
         %{path_id: path_id, path: socket.assigns.path.full_path}
       )
 
-      Logger.info(
-        "Telephone joined channel for path #{socket.assigns.path.full_path} (#{path_id})"
-      )
-
       # Send acknowledgment with path info
       {:ok,
        %{
@@ -82,7 +76,6 @@ defmodule PlugboardWeb.TelephoneChannel do
          expires_in: expiry_seconds
        }, socket}
     else
-      Logger.error("Path ID mismatch: socket=#{socket.assigns.path_id}, channel=#{path_id}")
       {:error, %{reason: "path_id_mismatch"}}
     end
   end
@@ -107,12 +100,9 @@ defmodule PlugboardWeb.TelephoneChannel do
   def handle_in("refresh_token", _payload, socket) do
     case TelephoneTokens.refresh_token(socket.assigns.token_id) do
       {:ok, new_jwt, expires_in} ->
-        Logger.debug("Token refreshed for path #{socket.assigns.path.full_path}")
-
         {:reply, {:ok, %{token: new_jwt, expires_in: expires_in}}, socket}
 
       {:error, reason} ->
-        Logger.error("Token refresh failed: #{inspect(reason)}")
         {:reply, {:error, %{reason: inspect(reason)}}, socket}
     end
   end
@@ -123,17 +113,12 @@ defmodule PlugboardWeb.TelephoneChannel do
     # Extract request_id and send response to the correct waiting caller
     send(self(), {:send_proxy_response, request_id, payload})
 
-    Logger.debug(
-      "Received proxy_res for request #{request_id} on path #{socket.assigns.path.full_path}"
-    )
-
     {:noreply, socket}
   end
 
   @impl true
-  def handle_in("proxy_res", payload, socket) do
+  def handle_in("proxy_res", _payload, socket) do
     # Handle legacy proxy_res without request_id (should not happen in Phase 3+)
-    Logger.warning("Received proxy_res without request_id, ignoring: #{inspect(payload)}")
     {:noreply, socket}
   end
 
@@ -154,15 +139,10 @@ defmodule PlugboardWeb.TelephoneChannel do
     protocol = payload["protocol"]
     reason = payload["reason"]
 
-    Logger.debug(
-      "Received ws_check_result #{check_id}: supported=#{supported}, protocol=#{inspect(protocol)}"
-    )
-
     pending_checks = Map.get(socket.assigns, :pending_ws_checks, %{})
 
     case Map.pop(pending_checks, check_id) do
       {nil, _} ->
-        Logger.warning("Received ws_check_result for unknown check_id: #{check_id}")
         {:noreply, socket}
 
       {from, remaining_checks} ->
@@ -182,8 +162,6 @@ defmodule PlugboardWeb.TelephoneChannel do
           %{path_id: socket.assigns.path_id, check_id: check_id, supported: supported}
         )
 
-        Logger.info("WebSocket check #{check_id} completed: #{inspect(reply)}")
-
         {:noreply, assign(socket, :pending_ws_checks, remaining_checks)}
     end
   end
@@ -195,16 +173,10 @@ defmodule PlugboardWeb.TelephoneChannel do
 
     case Map.get(ws_connections, connection_id) do
       nil ->
-        Logger.warning("Received ws_connected for unknown connection: #{connection_id}")
         {:noreply, socket}
 
       handler_pid ->
         send(handler_pid, {:ws_connected, connection_id, payload})
-
-        Logger.debug(
-          "WebSocket backend connected for #{connection_id} on path #{socket.assigns.path.full_path}"
-        )
-
         {:noreply, socket}
     end
   end
@@ -220,7 +192,6 @@ defmodule PlugboardWeb.TelephoneChannel do
 
     case Map.get(ws_connections, connection_id) do
       nil ->
-        Logger.warning("Received ws_frame for unknown connection: #{connection_id}")
         {:noreply, socket}
 
       handler_pid ->
@@ -240,13 +211,10 @@ defmodule PlugboardWeb.TelephoneChannel do
 
     case Map.get(ws_connections, connection_id) do
       nil ->
-        Logger.debug("Received ws_closed for already closed connection: #{connection_id}")
         {:noreply, socket}
 
       handler_pid ->
         send(handler_pid, {:ws_closed, connection_id, code, reason})
-
-        Logger.info("WebSocket backend closed for #{connection_id}: #{code} - #{reason}")
 
         # Remove from connections map
         updated_connections = Map.delete(ws_connections, connection_id)
@@ -261,15 +229,10 @@ defmodule PlugboardWeb.TelephoneChannel do
 
     case Map.get(ws_connections, connection_id) do
       nil ->
-        Logger.warning("Received ws_error for unknown connection: #{connection_id}")
         {:noreply, socket}
 
       handler_pid ->
         send(handler_pid, {:ws_error, connection_id, reason})
-
-        Logger.error(
-          "WebSocket backend error for #{connection_id} on path #{socket.assigns.path.full_path}: #{reason}"
-        )
 
         # Remove from connections map
         updated_connections = Map.delete(ws_connections, connection_id)
@@ -292,8 +255,6 @@ defmodule PlugboardWeb.TelephoneChannel do
   def handle_call({:check_ws_support, check_request}, from, socket) do
     # Generate unique check ID
     check_id = Ecto.UUID.generate()
-
-    Logger.debug("Received ws_check request #{check_id} for path #{check_request.path}")
 
     # Store the caller to reply later (GenServer.reply will be called when result arrives)
     pending_checks = Map.get(socket.assigns, :pending_ws_checks, %{})
@@ -330,10 +291,6 @@ defmodule PlugboardWeb.TelephoneChannel do
     waiting_callers = Map.get(socket.assigns, :waiting_callers, %{})
     socket = assign(socket, :waiting_callers, Map.put(waiting_callers, request_id, from_pid))
 
-    Logger.debug(
-      "Stored waiting caller for request #{request_id}, total waiting: #{map_size(waiting_callers) + 1}"
-    )
-
     {:noreply, socket}
   end
 
@@ -344,7 +301,6 @@ defmodule PlugboardWeb.TelephoneChannel do
 
     case Map.get(waiting_callers, request_id) do
       nil ->
-        Logger.warning("Received proxy response for unknown request_id: #{request_id}")
         {:noreply, socket}
 
       caller_pid ->
@@ -364,10 +320,6 @@ defmodule PlugboardWeb.TelephoneChannel do
     timeout_ms = Application.get_env(:plugboard, :telephone)[:heartbeat_timeout_ms] || 60_000
 
     if now - last_heartbeat > timeout_ms do
-      Logger.warning(
-        "Telephone heartbeat timeout for path #{socket.assigns.path.full_path}, disconnecting"
-      )
-
       {:stop, :heartbeat_timeout, socket}
     else
       # Schedule next check at the stored interval (half of timeout)
@@ -384,10 +336,6 @@ defmodule PlugboardWeb.TelephoneChannel do
   @impl true
   def handle_info({:ws_connect, handler_pid, connection_id, params}, socket) do
     # Client wants to establish WebSocket to backend
-    Logger.info(
-      "WebSocket connect request #{connection_id} for path #{params.path} on #{socket.assigns.path.full_path}"
-    )
-
     # Store the handler PID
     ws_connections = Map.get(socket.assigns, :ws_connections, %{})
     socket = assign(socket, :ws_connections, Map.put(ws_connections, connection_id, handler_pid))
@@ -438,8 +386,6 @@ defmodule PlugboardWeb.TelephoneChannel do
       "reason" => reason
     })
 
-    Logger.info("WebSocket close sent for #{connection_id}: #{code} - #{reason}")
-
     # Remove from connections map
     updated_connections = Map.delete(ws_connections, connection_id)
     {:noreply, assign(socket, :ws_connections, updated_connections)}
@@ -455,8 +401,6 @@ defmodule PlugboardWeb.TelephoneChannel do
         {:noreply, socket}
 
       connection_id ->
-        Logger.debug("WebSocket handler for #{connection_id} died, cleaning up")
-
         # Notify telephone to close backend connection
         push(socket, "ws_close", %{
           "connection_id" => connection_id,
@@ -478,10 +422,6 @@ defmodule PlugboardWeb.TelephoneChannel do
     waiting_callers = Map.get(socket.assigns, :waiting_callers, %{})
 
     if map_size(waiting_callers) > 0 do
-      Logger.warning(
-        "Telephone disconnected with #{map_size(waiting_callers)} pending requests for path #{socket.assigns.path.full_path}"
-      )
-
       # Notify each waiting caller with disconnect error
       Enum.each(waiting_callers, fn {request_id, caller_pid} ->
         send(caller_pid, {:proxy_error, request_id, :telephone_disconnected})
@@ -492,10 +432,6 @@ defmodule PlugboardWeb.TelephoneChannel do
     ws_connections = Map.get(socket.assigns, :ws_connections, %{})
 
     if map_size(ws_connections) > 0 do
-      Logger.warning(
-        "Telephone disconnected with #{map_size(ws_connections)} active WebSocket connections for path #{socket.assigns.path.full_path}"
-      )
-
       # Notify each WebSocket handler
       Enum.each(ws_connections, fn {connection_id, handler_pid} ->
         send(handler_pid, {:telephone_disconnected, connection_id})
@@ -511,10 +447,6 @@ defmodule PlugboardWeb.TelephoneChannel do
         ws_connections: map_size(ws_connections)
       },
       %{path_id: socket.assigns.path_id, path: socket.assigns.path.full_path, reason: reason}
-    )
-
-    Logger.info(
-      "Telephone disconnected from path #{socket.assigns.path.full_path}, reason: #{inspect(reason)}"
     )
 
     :ok

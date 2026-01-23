@@ -7,7 +7,6 @@ defmodule PlugboardWeb.Api.TelephoneTokenController do
   """
 
   use PlugboardWeb, :controller
-  require Logger
 
   alias Plugboard.Paths
   alias Plugboard.TelephoneTokens
@@ -97,8 +96,6 @@ defmodule PlugboardWeb.Api.TelephoneTokenController do
       _token ->
         case TelephoneTokens.revoke_token(user.id, token_id) do
           {:ok, _revoked_token} ->
-            Logger.info("Token #{token_id} revoked by user #{user.id}")
-
             conn
             |> put_status(:ok)
             |> json(%{message: "Token revoked successfully"})
@@ -121,8 +118,6 @@ defmodule PlugboardWeb.Api.TelephoneTokenController do
   defp create_token_for_path(conn, path, user, name, description) do
     case TelephoneTokens.generate_token(path, user, name, description) do
       {:ok, jwt, token} ->
-        Logger.info("Token created for path #{path.full_path} by user #{user.id}")
-
         conn
         |> put_status(:created)
         |> json(%{

@@ -22,8 +22,6 @@ defmodule Plugboard.Hooks.Executor do
   `:allow_localhost_hooks` config option.
   """
 
-  require Logger
-
   alias Plugboard.Hooks.Hook
   alias Plugboard.HookStore
   alias Plugboard.MountStore
@@ -125,10 +123,6 @@ defmodule Plugboard.Hooks.Executor do
           # Merge hook response into accumulated body (root level merge)
           merged_body = Map.merge(body, hook_response_body)
 
-          Logger.debug(
-            "Hook #{hook.name} (#{hook.id}) succeeded, merged #{map_size(hook_response_body)} keys"
-          )
-
           {:cont, {:ok, merged_body}}
 
         {:error, reason, response} ->
@@ -156,7 +150,6 @@ defmodule Plugboard.Hooks.Executor do
     # Get target path details
     case Paths.get_path(hook.target_path_id) do
       nil ->
-        Logger.error("Hook #{hook.name}: target path #{hook.target_path_id} not found")
         {:error, :unavailable}
 
       target_path ->
@@ -176,15 +169,10 @@ defmodule Plugboard.Hooks.Executor do
                 )
 
               {:error, :no_telephone} ->
-                Logger.warning(
-                  "Hook #{hook.name}: no telephone available for mount #{target_path.full_path}"
-                )
-
                 {:error, :unavailable}
             end
 
           {:error, :not_found} ->
-            Logger.error("Hook #{hook.name}: mount point #{target_path.full_path} not found")
             {:error, :unavailable}
         end
     end
@@ -197,8 +185,6 @@ defmodule Plugboard.Hooks.Executor do
         do_execute_http_hook(conn, hook, body)
 
       {:error, :ssrf_blocked} ->
-        Logger.warning("Hook #{hook.name}: SSRF protection blocked request to #{hook.target_url}")
-
         :telemetry.execute(
           [:plugboard, :hook, :ssrf_blocked],
           %{count: 1},
@@ -308,16 +294,13 @@ defmodule Plugboard.Hooks.Executor do
           {:ok, parsed_body}
 
         {:ok, _non_map} ->
-          Logger.warning("Hook #{hook.name} returned non-object JSON, ignoring")
           {:ok, %{}}
 
         {:error, _} ->
-          Logger.warning("Hook #{hook.name} returned invalid JSON, ignoring")
           {:ok, %{}}
       end
     else
       # Hook rejected - return error with hook's response
-      Logger.info("Hook #{hook.name} rejected request with status #{status}")
       {:error, :rejected, %{status: status, body: response_body}}
     end
   end
@@ -331,7 +314,6 @@ defmodule Plugboard.Hooks.Executor do
       %{hook_id: hook.id, hook_name: hook.name}
     )
 
-    Logger.warning("Hook #{hook.name} timed out after #{hook.timeout_ms}ms")
     {:error, :timeout, nil}
   end
 
@@ -342,7 +324,6 @@ defmodule Plugboard.Hooks.Executor do
       %{hook_id: hook.id, hook_name: hook.name}
     )
 
-    Logger.warning("Hook #{hook.name} unavailable")
     {:error, :unavailable, nil}
   end
 

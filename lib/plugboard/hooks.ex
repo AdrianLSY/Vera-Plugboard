@@ -10,7 +10,6 @@ defmodule Plugboard.Hooks do
   """
 
   import Ecto.Query
-  require Logger
 
   alias Plugboard.Hooks.Hook
   alias Plugboard.Paths

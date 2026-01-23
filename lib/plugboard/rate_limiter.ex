@@ -37,7 +37,6 @@ defmodule Plugboard.RateLimiter do
   """
 
   use GenServer
-  require Logger
 
   @table :plugboard_rate_limit_counters
 
@@ -139,8 +138,6 @@ defmodule Plugboard.RateLimiter do
       write_concurrency: true,
       read_concurrency: true
     ])
-
-    Logger.info("RateLimiter started")
 
     # Schedule periodic cleanup of expired entries
     schedule_cleanup()

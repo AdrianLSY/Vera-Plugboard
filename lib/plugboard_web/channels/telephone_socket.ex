@@ -8,8 +8,6 @@ defmodule PlugboardWeb.TelephoneSocket do
 
   use Phoenix.Socket
 
-  require Logger
-
   alias Plugboard.TelephoneTokens
 
   ## Channels
@@ -27,18 +25,14 @@ defmodule PlugboardWeb.TelephoneSocket do
           |> assign(:path, path)
           |> assign(:user_id, user_id)
 
-        Logger.info("Telephone authenticated for path #{path.full_path}")
-
         {:ok, socket}
 
-      {:error, reason} ->
-        Logger.warning("Telephone authentication failed: #{inspect(reason)}")
+      {:error, _reason} ->
         :error
     end
   end
 
   def connect(_params, _socket, _connect_info) do
-    Logger.warning("Telephone connection attempt missing token")
     :error
   end
 

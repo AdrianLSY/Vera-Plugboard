@@ -231,19 +231,21 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
       refute conn.halted
     end
 
-    test "attempts upgrade when telephone is available", %{
+    test "attempts upgrade when telephone is available and backend supports WebSocket", %{
       conn: conn,
       path: path,
       ws_headers: headers
     } do
-      # Spawn a mock telephone that registers itself
-      telephone_pid = spawn_mock_telephone(path.id)
+      # Spawn a mock telephone that registers itself and handles the check_ws_support call
+      telephone_pid = spawn_mock_telephone_with_ws_support(path.id)
 
       # Give registry time to propagate
       Process.sleep(50)
 
-      # The plug will try to upgrade - it will raise an error in test context
-      # because we don't have a real WebSocket handshake. This is expected.
+      # The plug will:
+      # 1. Check backend WebSocket support (our mock returns success)
+      # 2. Try to upgrade - it will raise an error in test context
+      #    because we don't have a real WebSocket handshake
       # The important thing is that it reaches the upgrade point (not 503).
       assert_raise WebSockAdapter.UpgradeError, fn ->
         conn
@@ -252,6 +254,34 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
         |> put_ws_headers(headers)
         |> WebSocketProxyPlug.call([])
       end
+
+      # Clean up
+      Process.exit(telephone_pid, :kill)
+    end
+
+    test "returns 504 when backend check times out", %{
+      conn: conn,
+      path: path,
+      ws_headers: headers
+    } do
+      # Spawn a mock telephone that doesn't respond to check_ws_support
+      telephone_pid = spawn_mock_telephone(path.id)
+
+      # Give registry time to propagate
+      Process.sleep(50)
+
+      # The plug will try to check backend support but timeout
+      conn =
+        conn
+        |> Map.put(:host, "localhost")
+        |> Map.put(:request_path, "/call/ws-test-api/websocket")
+        |> put_ws_headers(headers)
+        |> WebSocketProxyPlug.call([])
+
+      # Should return 504 because backend check timed out
+      assert conn.halted
+      assert conn.status == 504
+      assert conn.resp_body =~ "Backend check timeout"
 
       # Clean up
       Process.exit(telephone_pid, :kill)
@@ -408,7 +438,7 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
       # Notify the test that we're registered
       send(test_pid, {:telephone_registered, self()})
 
-      # Wait for messages until killed
+      # Wait for messages until killed (but don't respond to GenServer calls)
       receive do
         :stop -> :ok
       after
@@ -421,6 +451,46 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlugTest do
       {:telephone_registered, pid} -> pid
     after
       1000 -> raise "Telephone registration timeout"
+    end
+  end
+
+  defp spawn_mock_telephone_with_ws_support(path_id) do
+    test_pid = self()
+
+    pid =
+      spawn(fn ->
+        # Register with the telephone registry
+        :ok = TelephoneRegistry.register(path_id, self())
+
+        # Notify the test that we're registered
+        send(test_pid, {:telephone_registered, self()})
+
+        # Handle GenServer calls for check_ws_support
+        mock_telephone_loop()
+      end)
+
+    # Wait for registration confirmation
+    receive do
+      {:telephone_registered, ^pid} -> pid
+    after
+      1000 -> raise "Telephone registration timeout"
+    end
+  end
+
+  defp mock_telephone_loop do
+    receive do
+      {:"$gen_call", from, {:check_ws_support, _request}} ->
+        # Respond with success - backend supports WebSocket
+        GenServer.reply(from, {:ok, %{protocol: nil}})
+        mock_telephone_loop()
+
+      :stop ->
+        :ok
+
+      _other ->
+        mock_telephone_loop()
+    after
+      30_000 -> :ok
     end
   end
 end

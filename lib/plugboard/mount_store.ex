@@ -24,7 +24,6 @@ defmodule Plugboard.MountStore do
   """
 
   use GenServer
-  require Logger
 
   import Ecto.Query
 
@@ -305,8 +304,6 @@ defmodule Plugboard.MountStore do
       read_concurrency: true
     ])
 
-    Logger.info("MountStore: ETS tables created")
-
     # Use handle_continue to defer database loading
     # This prevents blocking the supervisor during startup
     {:ok, %{}, {:continue, :load_initial_data}}
@@ -336,37 +333,27 @@ defmodule Plugboard.MountStore do
            ) do
         {id, updated_at} ->
           :ets.insert(@table_name, {full_path, {id, updated_at}})
-          Logger.debug("MountStore: Refreshed mount #{full_path}")
 
         nil ->
           # Mount doesn't exist or is no longer a mount point - remove it
           :ets.delete(@table_name, full_path)
-          Logger.debug("MountStore: Removed mount #{full_path}")
       end
     rescue
-      e in Postgrex.Error ->
-        Logger.error(
-          "MountStore: Database error refreshing mount #{full_path}: #{inspect(e.postgres)}"
-        )
-
+      _e in Postgrex.Error ->
         :telemetry.execute(
           [:plugboard, :mount_store, :error],
           %{count: 1},
           %{operation: :refresh_mount, error: :database_error}
         )
 
-      e in DBConnection.ConnectionError ->
-        Logger.error("MountStore: Database connection lost during refresh: #{inspect(e)}")
-
+      _e in DBConnection.ConnectionError ->
         :telemetry.execute(
           [:plugboard, :mount_store, :error],
           %{count: 1},
           %{operation: :refresh_mount, error: :connection_error}
         )
 
-      e ->
-        Logger.error("MountStore: Unexpected error refreshing mount #{full_path}: #{inspect(e)}")
-
+      _e ->
         :telemetry.execute(
           [:plugboard, :mount_store, :error],
           %{count: 1},
@@ -380,21 +367,18 @@ defmodule Plugboard.MountStore do
   @impl true
   def handle_cast({:remove_mount, full_path}, state) do
     :ets.delete(@table_name, full_path)
-    Logger.debug("MountStore: Removed mount #{full_path}")
     {:noreply, state}
   end
 
   @impl true
   def handle_cast({:refresh_domain_affinity, domain, path_id, full_path}, state) do
     :ets.insert(@domain_table, {domain, {path_id, full_path}})
-    Logger.debug("MountStore: Refreshed domain affinity #{domain} → #{full_path}")
     {:noreply, state}
   end
 
   @impl true
   def handle_cast({:remove_domain_affinity, domain}, state) do
     :ets.delete(@domain_table, domain)
-    Logger.debug("MountStore: Removed domain affinity #{domain}")
     {:noreply, state}
   end
 
@@ -407,7 +391,6 @@ defmodule Plugboard.MountStore do
 
   @impl true
   def handle_info(:reconcile, state) do
-    Logger.debug("MountStore: Running periodic reconciliation")
     {_count, _duration} = load_mounts_from_db(:periodic)
     {_domain_count, _domain_duration} = load_domain_affinities_from_db(:periodic)
     schedule_reconciliation()
@@ -450,8 +433,6 @@ defmodule Plugboard.MountStore do
       duration = System.monotonic_time() - start_time
       duration_ms = System.convert_time_unit(duration, :native, :millisecond)
 
-      Logger.info("MountStore: Loaded #{count} mounts from database in #{duration_ms}ms")
-
       # Emit telemetry
       :telemetry.execute(
         [:plugboard, :mount_store, :reload],
@@ -468,9 +449,7 @@ defmodule Plugboard.MountStore do
 
       {count, duration_ms}
     rescue
-      e in Postgrex.Error ->
-        Logger.error("MountStore: Database error during reload: #{inspect(e.postgres)}")
-
+      _e in Postgrex.Error ->
         :telemetry.execute(
           [:plugboard, :mount_store, :error],
           %{count: 1},
@@ -481,9 +460,7 @@ defmodule Plugboard.MountStore do
         current_size = :ets.info(@table_name, :size)
         {current_size, 0}
 
-      e in DBConnection.ConnectionError ->
-        Logger.error("MountStore: Database connection lost during reload: #{inspect(e)}")
-
+      _e in DBConnection.ConnectionError ->
         :telemetry.execute(
           [:plugboard, :mount_store, :error],
           %{count: 1},
@@ -494,9 +471,7 @@ defmodule Plugboard.MountStore do
         current_size = :ets.info(@table_name, :size)
         {current_size, 0}
 
-      e ->
-        Logger.error("MountStore: Unexpected error during reload: #{inspect(e)}")
-
+      _e ->
         :telemetry.execute(
           [:plugboard, :mount_store, :error],
           %{count: 1},
@@ -564,10 +539,6 @@ defmodule Plugboard.MountStore do
       duration = System.monotonic_time() - start_time
       duration_ms = System.convert_time_unit(duration, :native, :millisecond)
 
-      Logger.info(
-        "MountStore: Loaded #{count} domain affinities from database in #{duration_ms}ms"
-      )
-
       # Emit telemetry
       :telemetry.execute(
         [:plugboard, :mount_store, :domain_affinity_reload],
@@ -577,11 +548,7 @@ defmodule Plugboard.MountStore do
 
       {count, duration_ms}
     rescue
-      e in Postgrex.Error ->
-        Logger.error(
-          "MountStore: Database error loading domain affinities: #{inspect(e.postgres)}"
-        )
-
+      _e in Postgrex.Error ->
         :telemetry.execute(
           [:plugboard, :mount_store, :error],
           %{count: 1},
@@ -591,11 +558,7 @@ defmodule Plugboard.MountStore do
         current_size = :ets.info(@domain_table, :size)
         {current_size, 0}
 
-      e in DBConnection.ConnectionError ->
-        Logger.error(
-          "MountStore: Database connection lost loading domain affinities: #{inspect(e)}"
-        )
-
+      _e in DBConnection.ConnectionError ->
         :telemetry.execute(
           [:plugboard, :mount_store, :error],
           %{count: 1},
@@ -605,9 +568,7 @@ defmodule Plugboard.MountStore do
         current_size = :ets.info(@domain_table, :size)
         {current_size, 0}
 
-      e ->
-        Logger.error("MountStore: Unexpected error loading domain affinities: #{inspect(e)}")
-
+      _e ->
         :telemetry.execute(
           [:plugboard, :mount_store, :error],
           %{count: 1},

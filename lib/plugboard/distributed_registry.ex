@@ -27,8 +27,6 @@ defmodule Plugboard.DistributedRegistry do
 
   use Horde.Registry
 
-  require Logger
-
   # ETS table for round-robin counters
   @counter_table :plugboard_telephone_rr_counters
 
@@ -111,8 +109,6 @@ defmodule Plugboard.DistributedRegistry do
         # Not registered, proceed with registration
         case Horde.Registry.register(__MODULE__, unique_key, value) do
           {:ok, _horde_pid} ->
-            Logger.debug("Registered telephone #{inspect(calling_pid)} for path #{path_id}")
-
             :telemetry.execute(
               [:plugboard, :distributed_registry, :registered],
               %{count: 1},
@@ -123,17 +119,9 @@ defmodule Plugboard.DistributedRegistry do
 
           {:error, {:already_registered, _existing_pid}} ->
             # Race condition - another process registered between lookup and register
-            Logger.debug(
-              "Telephone #{inspect(calling_pid)} already registered for path #{path_id} (race)"
-            )
-
             {:ok, calling_pid}
 
           {:error, reason} = error ->
-            Logger.error(
-              "Failed to register telephone #{inspect(calling_pid)} for path #{path_id}: #{inspect(reason)}"
-            )
-
             :telemetry.execute(
               [:plugboard, :distributed_registry, :register_failed],
               %{count: 1},
@@ -145,7 +133,6 @@ defmodule Plugboard.DistributedRegistry do
 
       [{_existing_pid, _existing_value}] ->
         # Already registered
-        Logger.debug("Telephone #{inspect(calling_pid)} already registered for path #{path_id}")
         {:ok, calling_pid}
     end
   end
@@ -170,8 +157,6 @@ defmodule Plugboard.DistributedRegistry do
 
     case Horde.Registry.unregister(__MODULE__, unique_key) do
       :ok ->
-        Logger.debug("Unregistered telephone #{inspect(calling_pid)} from path #{path_id}")
-
         :telemetry.execute(
           [:plugboard, :distributed_registry, :unregistered],
           %{count: 1},
@@ -181,10 +166,6 @@ defmodule Plugboard.DistributedRegistry do
         :ok
 
       error ->
-        Logger.warning(
-          "Failed to unregister telephone #{inspect(calling_pid)} from path #{path_id}: #{inspect(error)}"
-        )
-
         error
     end
   end

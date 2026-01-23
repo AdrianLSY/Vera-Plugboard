@@ -113,20 +113,22 @@ defmodule Plugboard.ClusterConnectorTest do
     end
   end
 
-  describe "cluster state logging" do
-    test "emits cluster size telemetry" do
+  describe "cluster state" do
+    test "nodeup emits node_joined telemetry with cluster size" do
       ref =
         :telemetry_test.attach_event_handlers(self(), [
-          [:plugboard, :cluster, :size]
+          [:plugboard, :cluster, :node_joined]
         ])
 
       pid = Process.whereis(ClusterConnector)
 
-      # Trigger a nodeup which calls log_cluster_state internally
+      # Trigger a nodeup
       send(pid, {:nodeup, :"size_test_node@127.0.0.1", []})
 
-      # Verify cluster size telemetry was emitted
-      assert_receive {[:plugboard, :cluster, :size], ^ref, %{nodes: _}, %{this_node: _}}, 1000
+      # Verify node_joined telemetry includes cluster_size
+      assert_receive {[:plugboard, :cluster, :node_joined], ^ref, %{count: 1},
+                      %{node: :"size_test_node@127.0.0.1", cluster_size: _}},
+                     1000
 
       :telemetry.detach(ref)
     end

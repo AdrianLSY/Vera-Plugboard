@@ -7,7 +7,6 @@ defmodule PlugboardWeb.Api.HookController do
   """
 
   use PlugboardWeb, :controller
-  require Logger
 
   alias Plugboard.Hooks
   alias Plugboard.Paths
@@ -26,7 +25,7 @@ defmodule PlugboardWeb.Api.HookController do
         |> put_status(:not_found)
         |> json(%{error: "Path not found"})
 
-      path ->
+      _path ->
         # Build attrs from params
         attrs = %{
           path_id: path_id,
@@ -44,8 +43,6 @@ defmodule PlugboardWeb.Api.HookController do
 
         case Hooks.create_hook(user.id, attrs) do
           {:ok, hook} ->
-            Logger.info("Hook created for path #{path.full_path} by user #{user.id}")
-
             conn
             |> put_status(:created)
             |> json(%{
@@ -179,8 +176,6 @@ defmodule PlugboardWeb.Api.HookController do
 
         case Hooks.update_hook(user.id, hook, attrs) do
           {:ok, updated_hook} ->
-            Logger.info("Hook #{hook_id} updated by user #{user.id}")
-
             json(conn, %{
               id: updated_hook.id,
               name: updated_hook.name,
@@ -227,8 +222,6 @@ defmodule PlugboardWeb.Api.HookController do
       hook ->
         case Hooks.delete_hook(user.id, hook) do
           {:ok, _deleted_hook} ->
-            Logger.info("Hook #{hook_id} deleted by user #{user.id}")
-
             conn
             |> put_status(:ok)
             |> json(%{message: "Hook deleted successfully"})
@@ -271,8 +264,6 @@ defmodule PlugboardWeb.Api.HookController do
 
     case Hooks.reorder_hooks(user.id, path_id, hook_orders_attrs) do
       {:ok, updated_hooks} ->
-        Logger.info("Hooks reordered for path #{path_id} by user #{user.id}")
-
         hooks_data =
           Enum.map(updated_hooks, fn hook ->
             %{

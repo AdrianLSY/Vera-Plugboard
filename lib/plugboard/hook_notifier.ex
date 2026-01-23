@@ -14,7 +14,6 @@ defmodule Plugboard.HookNotifier do
   """
 
   use GenServer
-  require Logger
 
   @channel "plugboard_hooks"
   @max_backoff 30_000
@@ -35,8 +34,7 @@ defmodule Plugboard.HookNotifier do
       {:ok, state} ->
         {:ok, state}
 
-      {:error, reason} ->
-        Logger.error("HookNotifier: Initial connection failed: #{inspect(reason)}, will retry")
+      {:error, _reason} ->
         # Schedule reconnect
         Process.send_after(self(), :reconnect, @initial_backoff)
         {:ok, %{pid: nil, ref: nil, reconnect_attempts: 0}}
@@ -49,20 +47,17 @@ defmodule Plugboard.HookNotifier do
       {:ok, %{"action" => action, "path_id" => path_id}} ->
         handle_hook_notification(action, path_id)
 
-      {:error, error} ->
-        Logger.error("HookNotifier: Failed to decode notification: #{inspect(error)}")
+      {:error, _error} ->
+        :ok
     end
 
     {:noreply, state}
   end
 
   @impl true
-  def handle_info({:DOWN, _ref, :process, pid, reason}, %{pid: pid} = state) do
-    Logger.error("HookNotifier: PostgreSQL connection died: #{inspect(reason)}")
-
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{pid: pid} = state) do
     # Calculate exponential backoff
     backoff = calculate_backoff(state.reconnect_attempts)
-    Logger.info("HookNotifier: Will retry connection in #{backoff}ms")
 
     Process.send_after(self(), :reconnect, backoff)
 
@@ -73,15 +68,11 @@ defmodule Plugboard.HookNotifier do
   def handle_info(:reconnect, state) do
     case connect() do
       {:ok, new_state} ->
-        Logger.info("HookNotifier: Successfully reconnected to PostgreSQL")
         {:noreply, %{new_state | reconnect_attempts: 0}}
 
-      {:error, reason} ->
-        Logger.error("HookNotifier: Reconnection failed: #{inspect(reason)}")
-
+      {:error, _reason} ->
         # Try again with backoff
         backoff = calculate_backoff(state.reconnect_attempts)
-        Logger.info("HookNotifier: Will retry connection in #{backoff}ms")
 
         Process.send_after(self(), :reconnect, backoff)
 
@@ -90,8 +81,7 @@ defmodule Plugboard.HookNotifier do
   end
 
   @impl true
-  def handle_info(msg, state) do
-    Logger.debug("HookNotifier: Received unexpected message: #{inspect(msg)}")
+  def handle_info(_msg, state) do
     {:noreply, state}
   end
 
@@ -119,21 +109,17 @@ defmodule Plugboard.HookNotifier do
         # Listen to the channel
         case Postgrex.Notifications.listen(pid, @channel) do
           {:ok, listen_ref} ->
-            Logger.info("HookNotifier: Listening on PostgreSQL channel '#{@channel}'")
             {:ok, %{pid: pid, ref: listen_ref, reconnect_attempts: 0}}
 
           {:error, reason} ->
-            Logger.error("HookNotifier: Failed to listen on channel: #{inspect(reason)}")
             {:error, reason}
         end
 
       {:error, reason} ->
-        Logger.error("HookNotifier: Failed to connect to PostgreSQL: #{inspect(reason)}")
         {:error, reason}
     end
   rescue
     e ->
-      Logger.error("HookNotifier: Exception during connection: #{inspect(e)}")
       {:error, e}
   end
 
@@ -144,16 +130,14 @@ defmodule Plugboard.HookNotifier do
   end
 
   defp handle_hook_notification("hook_updated", path_id) do
-    Logger.debug("HookNotifier: Received hook_updated for path #{path_id}")
     Plugboard.HookStore.refresh_hooks(path_id)
   end
 
   defp handle_hook_notification("hook_deleted", path_id) do
-    Logger.debug("HookNotifier: Received hook_deleted for path #{path_id}")
     Plugboard.HookStore.refresh_hooks(path_id)
   end
 
-  defp handle_hook_notification(action, path_id) do
-    Logger.warning("HookNotifier: Received unknown action '#{action}' for path #{path_id}")
+  defp handle_hook_notification(_action, _path_id) do
+    :ok
   end
 end

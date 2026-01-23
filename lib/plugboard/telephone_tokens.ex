@@ -14,8 +14,6 @@ defmodule Plugboard.TelephoneTokens do
   alias Plugboard.Repo
   alias Plugboard.TelephoneTokens.TelephoneToken
 
-  require Logger
-
   @doc """
   Generates a new JWT token for a telephone to connect to a specific path.
 
@@ -324,15 +322,12 @@ defmodule Plugboard.TelephoneTokens do
       %{}
     )
 
-    Logger.info("Deleted #{count} expired telephone tokens")
     {:ok, count}
   rescue
     e in Ecto.QueryError ->
-      Logger.error("Failed to delete expired tokens: #{inspect(e)}")
       {:error, e}
 
     e in DBConnection.ConnectionError ->
-      Logger.error("Database connection error during token cleanup: #{inspect(e)}")
       {:error, e}
   end
 
@@ -444,8 +439,7 @@ defmodule Plugboard.TelephoneTokens do
 
     {:ok, token}
   rescue
-    e ->
-      Logger.error("Failed to generate JWT: #{inspect(e)}")
+    _e ->
       {:error, :jwt_generation_failed}
   end
 
@@ -460,8 +454,7 @@ defmodule Plugboard.TelephoneTokens do
       {:ok, claims} ->
         {:ok, claims}
 
-      {:error, reason} ->
-        Logger.debug("JWT verification failed: #{inspect(reason)}")
+      {:error, _reason} ->
         {:error, :invalid_token}
     end
   end

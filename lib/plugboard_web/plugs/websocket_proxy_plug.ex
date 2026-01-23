@@ -46,7 +46,6 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
   @behaviour Plug
 
   import Plug.Conn
-  require Logger
 
   alias Plugboard.MountStore
   alias Plugboard.TelephoneRegistry
@@ -122,23 +121,15 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
         case check_backend_websocket_support(conn, telephone_pid, path_id, forwarded_path) do
           {:ok, backend_info} ->
             # Backend confirmed support, now upgrade with correct protocol
-            Logger.info(
-              "Backend WebSocket check succeeded for #{path_id}, protocol: #{inspect(backend_info.protocol)}"
-            )
-
             upgrade_to_websocket(conn, path_id, forwarded_path, telephone_pid, backend_info)
 
           {:error, :timeout} ->
-            Logger.error("Backend WebSocket check timeout for path #{path_id}")
-
             conn
             |> put_resp_content_type("application/json")
             |> send_resp(504, Jason.encode!(%{error: "Backend check timeout"}))
             |> halt()
 
           {:error, reason} when is_binary(reason) ->
-            Logger.error("Backend doesn't support WebSocket: #{reason}")
-
             conn
             |> put_resp_content_type("application/json")
             |> send_resp(
@@ -147,9 +138,7 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
             )
             |> halt()
 
-          {:error, reason} ->
-            Logger.error("Backend WebSocket check failed: #{inspect(reason)}")
-
+          {:error, _reason} ->
             conn
             |> put_resp_content_type("application/json")
             |> send_resp(502, Jason.encode!(%{error: "Backend check failed"}))
@@ -193,30 +182,23 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
       headers: headers
     }
 
-    Logger.debug("Checking backend WebSocket support for path #{path_id}: #{forwarded_path}")
-
     # Get timeout from path config first, fall back to env default
     timeout =
       get_path_timeout(path_id) ||
         Application.get_env(:plugboard, :websocket_proxy)[:check_timeout_ms] ||
         5000
 
-    Logger.debug("Using WebSocket check timeout: #{timeout}ms")
-
     # Make SYNCHRONOUS call to TelephoneChannel
     try do
       GenServer.call(telephone_pid, {:check_ws_support, check_request}, timeout)
     catch
       :exit, {:timeout, _} ->
-        Logger.error("Backend WebSocket check timeout for path #{path_id} after #{timeout}ms")
         {:error, :timeout}
 
       :exit, {:noproc, _} ->
-        Logger.error("Telephone process died during WebSocket check for path #{path_id}")
         {:error, :telephone_died}
 
       :exit, reason ->
-        Logger.error("Backend WebSocket check failed for path #{path_id}: #{inspect(reason)}")
         {:error, {:telephone_error, reason}}
     end
   end
@@ -225,7 +207,6 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
   defp get_path_timeout(path_id) do
     case Plugboard.Repo.get(Plugboard.Paths.Path, path_id) do
       %{check_timeout_ms: timeout} when is_integer(timeout) and timeout > 0 ->
-        Logger.debug("Using per-path timeout for #{path_id}: #{timeout}ms")
         timeout
 
       _ ->
@@ -282,11 +263,6 @@ defmodule PlugboardWeb.Plugs.WebSocketProxyPlug do
   # pre-check, ensuring transparent protocol negotiation.
   defp upgrade_to_websocket(conn, path_id, forwarded_path, telephone_pid, backend_info) do
     connection_id = Ecto.UUID.generate()
-
-    Logger.info(
-      "Upgrading WebSocket connection #{connection_id} for path #{path_id}, " <>
-        "forwarding to #{forwarded_path}, backend protocol: #{inspect(backend_info.protocol)}"
-    )
 
     # Extract headers to forward (including subprotocols)
     headers = extract_websocket_headers(conn)

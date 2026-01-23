@@ -7,7 +7,6 @@ defmodule PlugboardWeb.Api.ServiceAccountController do
   """
 
   use PlugboardWeb, :controller
-  require Logger
 
   alias Plugboard.Paths
   alias Plugboard.ServiceAccounts
@@ -30,8 +29,6 @@ defmodule PlugboardWeb.Api.ServiceAccountController do
     else
       case ServiceAccounts.generate_service_account(user, path_id, name, description) do
         {:ok, api_key, service_account} ->
-          Logger.info("Service account #{name} created for path #{path_id} by user #{user.id}")
-
           conn
           |> put_status(:created)
           |> json(%{
@@ -131,8 +128,6 @@ defmodule PlugboardWeb.Api.ServiceAccountController do
       _service_account ->
         case ServiceAccounts.revoke_service_account(user.id, service_account_id) do
           {:ok, _revoked_sa} ->
-            Logger.info("Service account #{service_account_id} revoked by user #{user.id}")
-
             conn
             |> put_status(:ok)
             |> json(%{message: "Service account revoked successfully"})

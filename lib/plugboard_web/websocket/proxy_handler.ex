@@ -27,7 +27,6 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
   """
 
   @behaviour WebSock
-  require Logger
 
   alias Plugboard.WebSocketProxyRegistry
 
@@ -53,12 +52,8 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
     connection_id = state.connection_id
     path_id = state.path_id
     telephone_pid = state.telephone_pid
-    backend_protocol = Map.get(state, :backend_protocol)
-
-    Logger.info(
-      "WebSocket proxy handler started for connection #{connection_id}, path #{path_id}, " <>
-        "backend protocol: #{inspect(backend_protocol)}"
-    )
+    # backend_protocol is passed through state but used by the plug for header setting
+    _backend_protocol = Map.get(state, :backend_protocol)
 
     # Register this connection
     :ok = WebSocketProxyRegistry.register(connection_id, self(), path_id, telephone_pid)
@@ -90,14 +85,6 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
       connect_timeout_ref: schedule_connect_timeout()
     }
 
-    # Protocol was already negotiated and sent during HTTP upgrade in WebSocketProxyPlug
-    # Log for debugging but don't try to return it (WebSock doesn't support that format)
-    if backend_protocol && backend_protocol != "" do
-      Logger.debug("Using backend-selected protocol: #{backend_protocol}")
-    else
-      Logger.debug("No protocol selected by backend")
-    end
-
     {:ok, handler_state}
   end
 
@@ -126,10 +113,6 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
 
     cond do
       new_buffer_count > @max_buffer_frames ->
-        Logger.warning(
-          "WebSocket buffer frame limit exceeded for #{state.connection_id} (#{new_buffer_count} frames)"
-        )
-
         :telemetry.execute(
           [:plugboard, :websocket_proxy, :buffer_overflow],
           %{count: 1},
@@ -139,10 +122,6 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
         {:stop, :normal, {1009, "Buffer overflow: too many frames"}, state}
 
       new_buffer_bytes > @max_buffer_bytes ->
-        Logger.warning(
-          "WebSocket buffer size limit exceeded for #{state.connection_id} (#{new_buffer_bytes} bytes)"
-        )
-
         :telemetry.execute(
           [:plugboard, :websocket_proxy, :buffer_overflow],
           %{count: 1},
@@ -152,7 +131,6 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
         {:stop, :normal, {1009, "Buffer overflow: message too large"}, state}
 
       true ->
-        Logger.debug("Buffering frame for connection #{state.connection_id} (not yet connected)")
         {:ok, %{state | buffer: state.buffer ++ [{opcode, data}]}}
     end
   end
@@ -164,11 +142,9 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
 
   # Backend WebSocket connected successfully
   def handle_info(
-        {:ws_connected, connection_id, response},
+        {:ws_connected, connection_id, _response},
         %{connection_id: connection_id} = state
       ) do
-    Logger.info("Backend WebSocket connected for #{connection_id}")
-
     # Cancel connect timeout
     if state.connect_timeout_ref, do: Process.cancel_timer(state.connect_timeout_ref)
 
@@ -185,12 +161,6 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
       forward_frame_to_telephone(state, opcode, data)
     end)
 
-    # If response contains subprotocol info, we can't change it now (already upgraded)
-    # Just log it for debugging
-    if protocol = response["protocol"] do
-      Logger.debug("Backend selected subprotocol: #{protocol}")
-    end
-
     {:ok, %{state | buffer: []}}
   end
 
@@ -199,8 +169,6 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
         {:ws_frame, connection_id, opcode, data},
         %{connection_id: connection_id} = state
       ) do
-    Logger.debug("Received frame from backend for #{connection_id}, opcode: #{opcode}")
-
     :telemetry.execute(
       [:plugboard, :websocket_proxy, :frame_from_backend],
       %{bytes: byte_size(data)},
@@ -217,8 +185,6 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
         {:ws_closed, connection_id, code, reason},
         %{connection_id: connection_id} = state
       ) do
-    Logger.info("Backend WebSocket closed for #{connection_id}: #{code} - #{reason}")
-
     :telemetry.execute(
       [:plugboard, :websocket_proxy, :backend_closed],
       %{count: 1},
@@ -231,8 +197,6 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
 
   # Error connecting to backend
   def handle_info({:ws_error, connection_id, reason}, %{connection_id: connection_id} = state) do
-    Logger.error("Backend WebSocket error for #{connection_id}: #{reason}")
-
     :telemetry.execute(
       [:plugboard, :websocket_proxy, :backend_error],
       %{count: 1},
@@ -248,8 +212,6 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
         {:telephone_disconnected, connection_id},
         %{connection_id: connection_id} = state
       ) do
-    Logger.warning("Telephone disconnected for WebSocket #{connection_id}")
-
     :telemetry.execute(
       [:plugboard, :websocket_proxy, :telephone_disconnected],
       %{count: 1},
@@ -262,8 +224,6 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
 
   # Connect timeout
   def handle_info(:connect_timeout, state) do
-    Logger.warning("Backend WebSocket connect timeout for #{state.connection_id}")
-
     :telemetry.execute(
       [:plugboard, :websocket_proxy, :connect_timeout],
       %{count: 1},
@@ -277,8 +237,7 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
   end
 
   # Ignore unknown messages
-  def handle_info(msg, state) do
-    Logger.debug("WebSocket proxy handler received unknown message: #{inspect(msg)}")
+  def handle_info(_msg, state) do
     {:ok, state}
   end
 
@@ -286,11 +245,7 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
   Called when the WebSocket connection is terminated.
   """
   @impl WebSock
-  def terminate(reason, state) do
-    Logger.info(
-      "WebSocket proxy handler terminating for #{state.connection_id}: #{inspect(reason)}"
-    )
-
+  def terminate(_reason, state) do
     # Unregister from registry
     WebSocketProxyRegistry.unregister(state.connection_id)
 
@@ -302,7 +257,7 @@ defmodule PlugboardWeb.WebSocket.ProxyHandler do
     :telemetry.execute(
       [:plugboard, :websocket_proxy, :disconnect],
       %{count: 1},
-      %{connection_id: state.connection_id, path_id: state.path_id, reason: inspect(reason)}
+      %{connection_id: state.connection_id, path_id: state.path_id}
     )
 
     :ok

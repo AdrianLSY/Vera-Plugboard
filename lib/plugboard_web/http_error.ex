@@ -73,7 +73,6 @@ defmodule PlugboardWeb.HTTPError do
   """
 
   import Plug.Conn
-  require Logger
 
   alias Plug.Conn.Status
 
@@ -137,11 +136,7 @@ defmodule PlugboardWeb.HTTPError do
     status_code = normalize_status(status)
     reason = Keyword.get(opts, :reason, default_reason(status_code))
     details = Keyword.get(opts, :details, %{})
-    should_log = Keyword.get(opts, :log, true)
-
-    if should_log do
-      log_error(status_code, reason, details)
-    end
+    _should_log = Keyword.get(opts, :log, true)
 
     # Check if we have an image for this status code
     image_path = image_path_for_status(status_code)
@@ -193,11 +188,6 @@ defmodule PlugboardWeb.HTTPError do
     status_code = normalize_status(status)
     reason = Keyword.get(opts, :reason, default_reason(status_code))
     details = Keyword.get(opts, :details, %{})
-    should_log = Keyword.get(opts, :log, true)
-
-    if should_log do
-      log_error(status_code, reason, details)
-    end
 
     error_body =
       %{
@@ -404,17 +394,6 @@ defmodule PlugboardWeb.HTTPError do
 
   defp maybe_add_details(error_body, details) when map_size(details) == 0, do: error_body
   defp maybe_add_details(error_body, details), do: Map.put(error_body, :details, details)
-
-  defp log_error(status_code, reason, details) do
-    level = if status_code >= 500, do: :error, else: :warning
-
-    Logger.log(level, """
-    HTTP Error Response:
-      Status: #{status_code}
-      Reason: #{reason}
-      Details: #{inspect(details)}
-    """)
-  end
 
   # Simple HTML escaping for text content
   defp html_escape_text(text) do

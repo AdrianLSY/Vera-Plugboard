@@ -541,7 +541,7 @@ defmodule Plugboard.PathsTest do
       assert is_nil(Paths.get_path(child.id))
     end
 
-    test "cascade soft-deletes logs descendant count", %{user: user} do
+    test "cascade soft-deletes all descendants", %{user: user} do
       {:ok, parent} =
         Paths.create_path(%{
           path: "parent",
@@ -555,34 +555,28 @@ defmodule Plugboard.PathsTest do
           user_id: user.id
         })
 
-      {:ok, _child2} =
+      {:ok, child2} =
         Paths.create_path(%{
           path: "child2",
           parent_id: parent.id,
           user_id: user.id
         })
 
-      {:ok, _grandchild} =
+      {:ok, grandchild} =
         Paths.create_path(%{
           path: "grandchild",
           parent_id: child1.id,
           user_id: user.id
         })
 
-      # Capture logs - temporarily set log level to info
-      import ExUnit.CaptureLog
-      old_level = Logger.level()
-      Logger.configure(level: :info)
+      # Delete parent - should cascade to all descendants
+      {:ok, _deleted} = Paths.delete_path(user.id, parent)
 
-      log =
-        capture_log(fn ->
-          {:ok, _deleted} = Paths.delete_path(user.id, parent)
-        end)
-
-      Logger.configure(level: old_level)
-
-      # Should log cascade operation
-      assert log =~ "Cascade soft-deleted 3 descendant paths"
+      # Verify all descendants are soft-deleted
+      assert is_nil(Paths.get_path(parent.id))
+      assert is_nil(Paths.get_path(child1.id))
+      assert is_nil(Paths.get_path(child2.id))
+      assert is_nil(Paths.get_path(grandchild.id))
     end
   end
 

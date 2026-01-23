@@ -13,8 +13,6 @@ defmodule Plugboard.ServiceAccounts do
   alias Plugboard.Repo
   alias Plugboard.ServiceAccounts.ServiceAccount
 
-  require Logger
-
   @doc """
   Generates a new service account with API key.
 

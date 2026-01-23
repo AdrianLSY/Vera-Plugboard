@@ -16,7 +16,6 @@ defmodule Plugboard.MountNotifier do
   """
 
   use GenServer
-  require Logger
 
   @mount_channel "plugboard_mounts"
   @domain_channel "plugboard_domain_affinities"
@@ -38,8 +37,7 @@ defmodule Plugboard.MountNotifier do
       {:ok, state} ->
         {:ok, state}
 
-      {:error, reason} ->
-        Logger.error("MountNotifier: Initial connection failed: #{inspect(reason)}, will retry")
+      {:error, _reason} ->
         # Schedule reconnect
         Process.send_after(self(), :reconnect, @initial_backoff)
         {:ok, %{pid: nil, ref: nil, reconnect_attempts: 0}}
@@ -52,8 +50,8 @@ defmodule Plugboard.MountNotifier do
       {:ok, %{"action" => action, "full_path" => full_path}} ->
         handle_mount_notification(action, full_path)
 
-      {:error, error} ->
-        Logger.error("MountNotifier: Failed to decode mount notification: #{inspect(error)}")
+      {:error, _error} ->
+        :ok
     end
 
     {:noreply, state}
@@ -65,22 +63,17 @@ defmodule Plugboard.MountNotifier do
       {:ok, data} ->
         handle_domain_affinity_notification(data)
 
-      {:error, error} ->
-        Logger.error(
-          "MountNotifier: Failed to decode domain affinity notification: #{inspect(error)}"
-        )
+      {:error, _error} ->
+        :ok
     end
 
     {:noreply, state}
   end
 
   @impl true
-  def handle_info({:DOWN, _ref, :process, pid, reason}, %{pid: pid} = state) do
-    Logger.error("MountNotifier: PostgreSQL connection died: #{inspect(reason)}")
-
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{pid: pid} = state) do
     # Calculate exponential backoff
     backoff = calculate_backoff(state.reconnect_attempts)
-    Logger.info("MountNotifier: Will retry connection in #{backoff}ms")
 
     Process.send_after(self(), :reconnect, backoff)
 
@@ -91,15 +84,11 @@ defmodule Plugboard.MountNotifier do
   def handle_info(:reconnect, state) do
     case connect() do
       {:ok, new_state} ->
-        Logger.info("MountNotifier: Successfully reconnected to PostgreSQL")
         {:noreply, %{new_state | reconnect_attempts: 0}}
 
-      {:error, reason} ->
-        Logger.error("MountNotifier: Reconnection failed: #{inspect(reason)}")
-
+      {:error, _reason} ->
         # Try again with backoff
         backoff = calculate_backoff(state.reconnect_attempts)
-        Logger.info("MountNotifier: Will retry connection in #{backoff}ms")
 
         Process.send_after(self(), :reconnect, backoff)
 
@@ -108,8 +97,7 @@ defmodule Plugboard.MountNotifier do
   end
 
   @impl true
-  def handle_info(msg, state) do
-    Logger.debug("MountNotifier: Received unexpected message: #{inspect(msg)}")
+  def handle_info(_msg, state) do
     {:noreply, state}
   end
 
@@ -137,24 +125,17 @@ defmodule Plugboard.MountNotifier do
         # Listen to both channels
         with {:ok, mount_ref} <- Postgrex.Notifications.listen(pid, @mount_channel),
              {:ok, domain_ref} <- Postgrex.Notifications.listen(pid, @domain_channel) do
-          Logger.info(
-            "MountNotifier: Listening on PostgreSQL channels '#{@mount_channel}' and '#{@domain_channel}'"
-          )
-
           {:ok, %{pid: pid, mount_ref: mount_ref, domain_ref: domain_ref, reconnect_attempts: 0}}
         else
           {:error, reason} ->
-            Logger.error("MountNotifier: Failed to listen on channel: #{inspect(reason)}")
             {:error, reason}
         end
 
       {:error, reason} ->
-        Logger.error("MountNotifier: Failed to connect to PostgreSQL: #{inspect(reason)}")
         {:error, reason}
     end
   rescue
     e ->
-      Logger.error("MountNotifier: Exception during connection: #{inspect(e)}")
       {:error, e}
   end
 
@@ -165,17 +146,15 @@ defmodule Plugboard.MountNotifier do
   end
 
   defp handle_mount_notification("mount_added", full_path) do
-    Logger.debug("MountNotifier: Received mount_added for #{full_path}")
     Plugboard.MountStore.refresh_mount(full_path)
   end
 
   defp handle_mount_notification("mount_removed", full_path) do
-    Logger.debug("MountNotifier: Received mount_removed for #{full_path}")
     Plugboard.MountStore.remove_mount(full_path)
   end
 
-  defp handle_mount_notification(action, full_path) do
-    Logger.warning("MountNotifier: Received unknown action '#{action}' for #{full_path}")
+  defp handle_mount_notification(_action, _full_path) do
+    :ok
   end
 
   defp handle_domain_affinity_notification(%{
@@ -184,7 +163,6 @@ defmodule Plugboard.MountNotifier do
          "path_id" => path_id,
          "full_path" => full_path
        }) do
-    Logger.debug("MountNotifier: Received domain_affinity_added for #{domain} → #{full_path}")
     Plugboard.MountStore.refresh_domain_affinity(domain, path_id, full_path)
   end
 
@@ -192,13 +170,10 @@ defmodule Plugboard.MountNotifier do
          "action" => "domain_affinity_removed",
          "domain" => domain
        }) do
-    Logger.debug("MountNotifier: Received domain_affinity_removed for #{domain}")
     Plugboard.MountStore.remove_domain_affinity(domain)
   end
 
-  defp handle_domain_affinity_notification(data) do
-    Logger.warning(
-      "MountNotifier: Received unknown domain affinity notification: #{inspect(data)}"
-    )
+  defp handle_domain_affinity_notification(_data) do
+    :ok
   end
 end

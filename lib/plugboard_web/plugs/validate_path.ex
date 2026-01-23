@@ -12,7 +12,6 @@ defmodule PlugboardWeb.Plugs.ValidatePath do
   """
 
   import Plug.Conn
-  require Logger
 
   alias PlugboardWeb.HTTPError
 
@@ -27,8 +26,6 @@ defmodule PlugboardWeb.Plugs.ValidatePath do
         conn
 
       {:error, reason} ->
-        Logger.warning("ValidatePath: Rejected request - #{reason}")
-
         conn
         |> HTTPError.send_error(400,
           reason: "Invalid path",

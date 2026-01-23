@@ -190,70 +190,72 @@ if config_env() == :prod do
 end
 
 # =============================================================================
-# Configuration for ALL environments (dev, test, prod)
-# These settings use environment variables with sensible defaults
+# Configuration for dev and prod environments
+# Test environment uses explicit values from config/test.exs for determinism
 # =============================================================================
+if config_env() != :test do
+  # MountStore configuration
+  # MOUNT_STORE_RECONCILE_INTERVAL: How often to reconcile mount points with DB (ms)
+  # Default: 300000 (5 minutes)
+  config :plugboard, Plugboard.MountStore,
+    reconcile_interval:
+      (System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") || "300000") |> String.to_integer()
 
-# MountStore configuration
-# MOUNT_STORE_RECONCILE_INTERVAL: How often to reconcile mount points with DB (ms)
-# Default: 300000 (5 minutes)
-config :plugboard, Plugboard.MountStore,
-  reconcile_interval:
-    (System.get_env("MOUNT_STORE_RECONCILE_INTERVAL") || "300000") |> String.to_integer()
+  # HookStore configuration
+  # HOOK_STORE_RECONCILE_INTERVAL: How often to reconcile hooks with DB (ms)
+  # Default: 300000 (5 minutes)
+  config :plugboard, Plugboard.HookStore,
+    reconcile_interval:
+      (System.get_env("HOOK_STORE_RECONCILE_INTERVAL") || "300000") |> String.to_integer()
 
-# HookStore configuration
-# HOOK_STORE_RECONCILE_INTERVAL: How often to reconcile hooks with DB (ms)
-# Default: 300000 (5 minutes)
-config :plugboard, Plugboard.HookStore,
-  reconcile_interval:
-    (System.get_env("HOOK_STORE_RECONCILE_INTERVAL") || "300000") |> String.to_integer()
+  # Telephone token configuration
+  # TELEPHONE_TOKEN_EXPIRY: Token validity duration (seconds). Default: 3600 (1 hour)
+  # TELEPHONE_TOKEN_REFRESH_INTERVAL: How often clients should refresh (seconds). Default: 1800 (30 min)
+  # TELEPHONE_HEARTBEAT_TIMEOUT_MS: Heartbeat timeout before disconnect (ms). Default: 60000 (60 sec)
+  config :plugboard, :telephone,
+    token_expiry: (System.get_env("TELEPHONE_TOKEN_EXPIRY") || "3600") |> String.to_integer(),
+    token_refresh_interval:
+      (System.get_env("TELEPHONE_TOKEN_REFRESH_INTERVAL") || "1800") |> String.to_integer(),
+    heartbeat_timeout_ms:
+      (System.get_env("TELEPHONE_HEARTBEAT_TIMEOUT_MS") || "60000") |> String.to_integer()
 
-# Telephone token configuration
-# TELEPHONE_TOKEN_EXPIRY: Token validity duration (seconds). Default: 3600 (1 hour)
-# TELEPHONE_TOKEN_REFRESH_INTERVAL: How often clients should refresh (seconds). Default: 1800 (30 min)
-# TELEPHONE_HEARTBEAT_TIMEOUT_MS: Heartbeat timeout before disconnect (ms). Default: 60000 (60 sec)
-config :plugboard, :telephone,
-  token_expiry: (System.get_env("TELEPHONE_TOKEN_EXPIRY") || "3600") |> String.to_integer(),
-  token_refresh_interval:
-    (System.get_env("TELEPHONE_TOKEN_REFRESH_INTERVAL") || "1800") |> String.to_integer(),
-  heartbeat_timeout_ms:
-    (System.get_env("TELEPHONE_HEARTBEAT_TIMEOUT_MS") || "60000") |> String.to_integer()
+  # Request body size limit (in bytes)
+  # MAX_REQUEST_BODY_SIZE: Maximum request body size. Default: 10485760 (10MB)
+  config :plugboard,
+         :max_request_body_length,
+         (System.get_env("MAX_REQUEST_BODY_SIZE") || "10485760") |> String.to_integer()
 
-# Request body size limit (in bytes)
-# MAX_REQUEST_BODY_SIZE: Maximum request body size. Default: 10485760 (10MB)
-config :plugboard,
-       :max_request_body_length,
-       (System.get_env("MAX_REQUEST_BODY_SIZE") || "10485760") |> String.to_integer()
+  # WebSocket proxy configuration
+  # WEBSOCKET_PROXY_ENABLED: Enable/disable WebSocket proxying. Default: true
+  # WEBSOCKET_CHECK_TIMEOUT_MS: Timeout for backend WebSocket check (pre-connection). Default: 5000 (5 sec)
+  # WEBSOCKET_CONNECT_TIMEOUT_MS: Timeout for backend WebSocket connection. Default: 5000 (5 sec)
+  # WEBSOCKET_MAX_FRAME_SIZE: Maximum WebSocket frame size in bytes. Default: 1048576 (1MB)
+  # WEBSOCKET_IDLE_TIMEOUT_MS: Idle timeout before closing connection. Default: 300000 (5 min)
+  config :plugboard, :websocket_proxy,
+    enabled: (System.get_env("WEBSOCKET_PROXY_ENABLED") || "true") == "true",
+    check_timeout_ms:
+      (System.get_env("WEBSOCKET_CHECK_TIMEOUT_MS") || "5000") |> String.to_integer(),
+    connect_timeout_ms:
+      (System.get_env("WEBSOCKET_CONNECT_TIMEOUT_MS") || "5000") |> String.to_integer(),
+    max_frame_size:
+      (System.get_env("WEBSOCKET_MAX_FRAME_SIZE") || "1048576") |> String.to_integer(),
+    idle_timeout_ms:
+      (System.get_env("WEBSOCKET_IDLE_TIMEOUT_MS") || "300000") |> String.to_integer()
 
-# WebSocket proxy configuration
-# WEBSOCKET_PROXY_ENABLED: Enable/disable WebSocket proxying. Default: true
-# WEBSOCKET_CHECK_TIMEOUT_MS: Timeout for backend WebSocket check (pre-connection). Default: 5000 (5 sec)
-# WEBSOCKET_CONNECT_TIMEOUT_MS: Timeout for backend WebSocket connection. Default: 5000 (5 sec)
-# WEBSOCKET_MAX_FRAME_SIZE: Maximum WebSocket frame size in bytes. Default: 1048576 (1MB)
-# WEBSOCKET_IDLE_TIMEOUT_MS: Idle timeout before closing connection. Default: 300000 (5 min)
-config :plugboard, :websocket_proxy,
-  enabled: (System.get_env("WEBSOCKET_PROXY_ENABLED") || "true") == "true",
-  check_timeout_ms:
-    (System.get_env("WEBSOCKET_CHECK_TIMEOUT_MS") || "5000") |> String.to_integer(),
-  connect_timeout_ms:
-    (System.get_env("WEBSOCKET_CONNECT_TIMEOUT_MS") || "5000") |> String.to_integer(),
-  max_frame_size:
-    (System.get_env("WEBSOCKET_MAX_FRAME_SIZE") || "1048576") |> String.to_integer(),
-  idle_timeout_ms:
-    (System.get_env("WEBSOCKET_IDLE_TIMEOUT_MS") || "300000") |> String.to_integer()
-
-# Rate Limiting Configuration
-# RATE_LIMIT_AUTH_LIMIT: Max auth requests per window. Default: 5
-# RATE_LIMIT_AUTH_WINDOW_MS: Auth window duration (ms). Default: 60000 (1 min)
-# RATE_LIMIT_API_LIMIT: Max API requests per window. Default: 100
-# RATE_LIMIT_API_WINDOW_MS: API window duration (ms). Default: 60000 (1 min)
-# RATE_LIMIT_PROXY_LIMIT: Max proxy requests per window. Default: 10000
-# RATE_LIMIT_PROXY_WINDOW_MS: Proxy window duration (ms). Default: 60000 (1 min)
-config :plugboard, Plugboard.RateLimiter,
-  auth_limit: (System.get_env("RATE_LIMIT_AUTH_LIMIT") || "5") |> String.to_integer(),
-  auth_window_ms: (System.get_env("RATE_LIMIT_AUTH_WINDOW_MS") || "60000") |> String.to_integer(),
-  api_limit: (System.get_env("RATE_LIMIT_API_LIMIT") || "100") |> String.to_integer(),
-  api_window_ms: (System.get_env("RATE_LIMIT_API_WINDOW_MS") || "60000") |> String.to_integer(),
-  proxy_limit: (System.get_env("RATE_LIMIT_PROXY_LIMIT") || "10000") |> String.to_integer(),
-  proxy_window_ms:
-    (System.get_env("RATE_LIMIT_PROXY_WINDOW_MS") || "60000") |> String.to_integer()
+  # Rate Limiting Configuration
+  # RATE_LIMIT_AUTH_LIMIT: Max auth requests per window. Default: 5
+  # RATE_LIMIT_AUTH_WINDOW_MS: Auth window duration (ms). Default: 60000 (1 min)
+  # RATE_LIMIT_API_LIMIT: Max API requests per window. Default: 100
+  # RATE_LIMIT_API_WINDOW_MS: API window duration (ms). Default: 60000 (1 min)
+  # RATE_LIMIT_PROXY_LIMIT: Max proxy requests per window. Default: 10000
+  # RATE_LIMIT_PROXY_WINDOW_MS: Proxy window duration (ms). Default: 60000 (1 min)
+  config :plugboard, Plugboard.RateLimiter,
+    auth_limit: (System.get_env("RATE_LIMIT_AUTH_LIMIT") || "5") |> String.to_integer(),
+    auth_window_ms:
+      (System.get_env("RATE_LIMIT_AUTH_WINDOW_MS") || "60000") |> String.to_integer(),
+    api_limit: (System.get_env("RATE_LIMIT_API_LIMIT") || "100") |> String.to_integer(),
+    api_window_ms: (System.get_env("RATE_LIMIT_API_WINDOW_MS") || "60000") |> String.to_integer(),
+    proxy_limit: (System.get_env("RATE_LIMIT_PROXY_LIMIT") || "10000") |> String.to_integer(),
+    proxy_window_ms:
+      (System.get_env("RATE_LIMIT_PROXY_WINDOW_MS") || "60000") |> String.to_integer()
+end

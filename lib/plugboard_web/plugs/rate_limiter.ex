@@ -29,7 +29,6 @@ defmodule PlugboardWeb.Plugs.RateLimiter do
   """
 
   import Plug.Conn
-  require Logger
 
   alias Plugboard.RateLimiter
 
@@ -49,8 +48,6 @@ defmodule PlugboardWeb.Plugs.RateLimiter do
         |> put_rate_limit_headers(config.limit, remaining, reset_timestamp)
 
       {:error, :rate_limited, _remaining} ->
-        Logger.warning("Rate limited request: bucket=#{bucket} key=#{key}")
-
         :telemetry.execute(
           [:plugboard, :rate_limiter, :rejected],
           %{count: 1},
