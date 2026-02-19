@@ -32,26 +32,6 @@ defmodule Plugboard.Hooks.Executor do
   # These patterns identify internal/private networks that should not be
   # accessible from external hook requests
   @blocked_hosts ~w(localhost)
-  @blocked_ipv4_patterns [
-    # Loopback
-    ~r/^127\./,
-    # Private Class A
-    ~r/^10\./,
-    # Private Class B
-    ~r/^172\.(1[6-9]|2[0-9]|3[01])\./,
-    # Private Class C
-    ~r/^192\.168\./,
-    # Link-local
-    ~r/^169\.254\./
-  ]
-  @blocked_ipv6_patterns [
-    # Loopback
-    ~r/^::1$/,
-    ~r/^\[::1\]/,
-    # Link-local
-    ~r/^fe80:/i,
-    ~r/^\[fe80:/i
-  ]
   # Cloud metadata endpoints (always blocked, even in test)
   @cloud_metadata_ips ["169.254.169.254", "fd00:ec2::254"]
 
@@ -265,11 +245,39 @@ defmodule Plugboard.Hooks.Executor do
   end
 
   defp blocked_ipv4?(host) do
-    Enum.any?(@blocked_ipv4_patterns, &Regex.match?(&1, host))
+    Enum.any?(blocked_ipv4_patterns(), &Regex.match?(&1, host))
   end
 
   defp blocked_ipv6?(host) do
-    Enum.any?(@blocked_ipv6_patterns, &Regex.match?(&1, host))
+    Enum.any?(blocked_ipv6_patterns(), &Regex.match?(&1, host))
+  end
+
+  # Returns blocked IPv4 patterns at runtime (cannot be module attributes
+  # because compiled regexes contain references that can't be escaped into AST)
+  defp blocked_ipv4_patterns do
+    [
+      # Loopback
+      ~r/^127\./,
+      # Private Class A
+      ~r/^10\./,
+      # Private Class B
+      ~r/^172\.(1[6-9]|2[0-9]|3[01])\./,
+      # Private Class C
+      ~r/^192\.168\./,
+      # Link-local
+      ~r/^169\.254\./
+    ]
+  end
+
+  defp blocked_ipv6_patterns do
+    [
+      # Loopback
+      ~r/^::1$/,
+      ~r/^\[::1\]/,
+      # Link-local
+      ~r/^fe80:/i,
+      ~r/^\[fe80:/i
+    ]
   end
 
   defp handle_hook_response({:ok, status, response_body}, hook, start_time) do
